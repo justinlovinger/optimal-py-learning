@@ -2,6 +2,7 @@ import numpy
 import math
 
 import network
+import mlp
     
 def gaussian(x, variance=1.0):
     return math.exp(-(x**2/variance))
@@ -38,6 +39,27 @@ class GaussianTransfer(network.Layer):
     def update(self, inputs, deltas):
         pass
 
+class GaussianOutput(mlp.Perceptron):
+    required_prev = (GaussianTransfer,)
+
+    def get_deltas(self, errors, outputs):
+        return errors
+
+    def get_errors(self, deltas, outputs):
+        deltas = deltas * outputs
+        errors = numpy.dot(deltas, self._weights.T)
+        if self._bias:
+            return errors[:-1]
+        return errors
+
+    def update(self, inputs, deltas):
+        errors = deltas
+
+        # Inputs are generally contributions
+        # [:,None] quickly transposes an array to a col vector
+        changes = inputs[:,None] * errors
+        self._weights += self.learn_rate*changes
+
 def train_test():
     import time
     #numpy.random.seed(9)
@@ -56,6 +78,7 @@ def train_test():
                 GaussianTransfer(0.5),
                 mlp.Perceptron(2, 1, learn_rate=0.3, momentum_rate=0.0),
                 mlp.SigmoidTransfer(),
+                #GaussianOutput(2, 1),
              ]
     n = network.Network(layers)
 

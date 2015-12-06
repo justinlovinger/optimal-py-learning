@@ -7,19 +7,19 @@ class Layer(Layer):
     requires_prev = (Layer,)
     requires_next = (Layer,)
     
+    def reset(self):
+        raise NotImplementedError()
+
     def activate(self, inputs):
         raise NotImplementedError()
 
     def get_deltas(self, errors, outputs):
         raise NotImplementedError()
 
-    def get_errors(self, deltas):
+    def get_errors(self, deltas, outputs):
         raise NotImplementedError()
 
     def update(self, inputs, deltas):
-        raise NotImplementedError()
-
-    def reset(self):
         raise NotImplementedError()
 
     def get_outputs(self, inputs, outputs):

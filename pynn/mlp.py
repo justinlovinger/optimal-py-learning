@@ -33,7 +33,7 @@ class Perceptron(network.Layer):
         self._momentums = numpy.zeros(self._size)
 
     def reset(self):
-        # Randomize weights, between -0.25 and 0.25
+        # Randomize weights, between -initial_weights_range and initial_weights_range
         random_matrix = numpy.random.random(self._size)
         self._weights = (2*random_matrix-1)*self.initial_weights_range
 
