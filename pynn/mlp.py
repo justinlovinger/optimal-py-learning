@@ -10,106 +10,103 @@ def dsigmoid(y):
     """Derivative of sigmoid above"""
     return 1.0 - y**2
 
-class MLP(network.Network):
-    def __init__(self, shape):
-        super(MLP, self).__init__()
+class SigmoidPerceptron(network.Layer):
+    def __init__(self, inputs, outputs, bias=True, 
+                 learn_rate=0.5, momentum_rate=0.1, initial_weights_range=0.25):
+        super(SigmoidPerceptron, self).__init__()
 
-        self.shape = shape
-        self.layers = []
-        self.weights = []
-        self.momentums = []
+        self.learn_rate = learn_rate
+        self.momentum_rate = momentum_rate
+        self.initial_weights_range = initial_weights_range
 
-        # Input layer (+1 unit for bias)
-        self.layers.append(numpy.ones(self.shape[0]+1))
-        # Hidden layer(s) + output layer
-        for i in range(1, len(self.shape)):
-            self.layers.append(numpy.ones(self.shape[i]))
+        self._bias = bias
+        if self._bias:
+            self._size = (inputs+1, outputs)
+        else:
+            self._size = (inputs, outputs)
 
         # Build weights matrix
-        for i in range(len(self.shape)-1):
-            self.weights.append(numpy.zeros((self.layers[i].size,
-                                             self.layers[i+1].size)))
+        self._weights = numpy.zeros(self._size)
+        self.reset()
 
-        # momentums holds last change in weights
-        self.momentums = [0,]*len(self.weights)
+        # Initial momentum
+        self._momentums = numpy.zeros(self._size)
 
     def reset(self):
         # Randomize weights, between -0.25 and 0.25
-        for i in range(len(self.weights)):
-            random_matrix = numpy.random.random((self.layers[i].size,
-                                              self.layers[i+1].size))
-            self.weights[i] = (2*random_matrix-1)*0.25
+        random_matrix = numpy.random.random(self._size)
+        self._weights = (2*random_matrix-1)*self.initial_weights_range
 
     def activate(self, inputs):
-        """Propagate data from input layer to output layer."""
-        if len(inputs) != self.shape[0]:
+        if self._bias:
+            inputs = numpy.hstack((inputs, [1]))
+
+        if len(inputs) != self._size[0]:
             raise ValueError('wrong number of inputs')
 
-        # Set input layer
-        self.layers[0][0:-1] = inputs
+        return sigmoid(numpy.dot(inputs, self._weights))
 
-        # Activate each layer, with output from last layer
-        for i in range(1, len(self.shape)):
-            self.layers[i] = sigmoid(numpy.dot(self.layers[i-1], self.weights[i-1]))
+    def get_deltas(self, errors, outputs):
+        return errors * dsigmoid(outputs)
 
-        # Return last output as final output
-        return self.layers[-1]
+    def get_errors(self, deltas):
+        errors = numpy.dot(deltas, self._weights.T)
+        if self._bias:
+            return errors[:-1]
+        return errors
 
-    def compute_deltas(self, targets):
-        deltas = []
+    def update(self, inputs, deltas):
+        if self._bias:
+            inputs = numpy.hstack((inputs, [1]))
 
-        # Compute error on output layer
-        error = targets - self.layers[-1]
-        delta = error*dsigmoid(self.layers[-1])
-        deltas.append(delta)
+        # Update, [:,None] quickly transposes an array to a col vector
+        changes = inputs[:,None] * deltas
+        self._weights += self.learn_rate*changes + self.momentum_rate*self._momentums
 
-        # Compute error on hidden layers
-        for i in range(len(self.shape)-2,0,-1):
-            delta = numpy.dot(deltas[0], self.weights[i].T) * dsigmoid(self.layers[i])
-            deltas.insert(0, delta)
+        # Save change as momentum for next backpropogate
+        self._momentums = changes
 
-        return deltas, error
-
-    def backpropagate(self, targets, learn_rate=0.5, momentum=0.1):
-        """Back propagate error related to target."""
-        if len(targets) != self.shape[-1]:
-            raise ValueError('wrong number of target values')
-
-        deltas, error = self.compute_deltas(targets)
-            
-        # Update weights
-        for i in range(len(self.weights)):
-            # Update, [:,None] quickly transposes an array to a col vector
-            change = self.layers[i][:,None] * deltas[i]
-            self.weights[i] += learn_rate*change + momentum*self.momentums[i]
-
-            # Save change ans momentum for next backpropogate
-            self.momentums[i] = change
-
-        # Return error
-        #return (error**2).sum()
-
-    def learn(self, inputs, targets, learn_rate=0.5, momentum=0.1):
-        self.activate(inputs)
-        self.backpropagate(targets, learn_rate, momentum)
-
-if __name__ == '__main__':
-    import time
-    # Teach network XOR function
+def activate_test():
     pat = [
         [[0,0], [0]],
         [[0,1], [1]],
         [[1,0], [1]],
         [[1,1], [0]]
     ]
+    layers = [
+                SigmoidPerceptron(2, 2, True),
+                SigmoidPerceptron(2, 1, False),
+             ]
+    n = network.Network(layers)
+    print n.activate(pat[3][0])
+
+def train_test():
+    import time
+    #numpy.random.seed(0)
+
+    pat = [
+        [[0,0], [0]],
+        [[0,1], [1]],
+        [[1,0], [1]],
+        [[1,1], [0]]
+    ]
+    #for p in pat:
+    #    p[0].append(1)
 
     # Create a network with two input, two hidden, and one output nodes
-    n = MLP((2, 10, 1))
+    layers = [
+                SigmoidPerceptron(2, 2, True),
+                SigmoidPerceptron(2, 1, False, initial_weights_range=2.0),
+             ]
+    n = network.Network(layers)
 
     # Train it with some patterns
     start = time.clock()
     n.logging = False
-    n.train(pat, 1000, 0.0, learn_rate=0.5, momentum=0.1)
+    n.train(pat, 1000, 0.0)
     print time.clock() - start
     # test it
     n.test(pat)
+
+if __name__ == '__main__':
+    train_test()
