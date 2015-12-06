@@ -5,7 +5,8 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>52adcbe9-9e91-4057-a879-5f2c595d29b3</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>pynn.py</StartupFile>
+    <StartupFile>
+    </StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -22,13 +23,18 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="basis.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="mlp.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="network.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="pynn.py" />
+    <Compile Include="som.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

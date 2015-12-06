@@ -57,7 +57,8 @@ class Network(object):
         self.iteration = 0
 
     def activate(self, inputs):
-        self._activations = [numpy.array(inputs)]
+        inputs = numpy.array(inputs)
+        self._activations = [inputs]
 
         for layer in self._layers:
             inputs = layer.activate(inputs)
@@ -83,7 +84,7 @@ class Network(object):
             deltas = layer.get_deltas(errors, layer_outputs)
 
             # Compute errors for next layer deltas
-            errors = layer.get_errors(deltas)
+            errors = layer.get_errors(deltas, layer_outputs)
 
             # Update
             layer.update(layer_inputs, deltas)

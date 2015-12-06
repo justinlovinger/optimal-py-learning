@@ -49,7 +49,7 @@ class LinearPerceptron(network.Layer):
     def get_deltas(self, errors, outputs):
         return errors * outputs
 
-    def get_errors(self, deltas):
+    def get_errors(self, deltas, outputs):
         errors = numpy.dot(deltas, self._weights.T)
         if self._bias:
             return errors[:-1]
@@ -72,6 +72,15 @@ class SigmoidPerceptron(LinearPerceptron):
 
     def get_deltas(self, errors, outputs):
         return super(SigmoidPerceptron, self).get_deltas(errors, dsigmoid(outputs))
+
+class SigmoidTransfer(network.Layer):
+    def activate(self, inputs):
+        return sigmoid(inputs)
+
+    # TODO: need a way to change outputs of previous layer
+
+    def get_deltas(self, errors, outputs):
+        return errors
 
 def activate_test():
     pat = [
