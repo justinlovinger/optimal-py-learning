@@ -10,10 +10,10 @@ def dsigmoid(y):
     """Derivative of sigmoid above"""
     return 1.0 - y**2
 
-class SigmoidPerceptron(network.Layer):
+class LinearPerceptron(network.Layer):
     def __init__(self, inputs, outputs, bias=True, 
                  learn_rate=0.5, momentum_rate=0.1, initial_weights_range=0.25):
-        super(SigmoidPerceptron, self).__init__()
+        super(LinearPerceptron, self).__init__()
 
         self.learn_rate = learn_rate
         self.momentum_rate = momentum_rate
@@ -44,10 +44,10 @@ class SigmoidPerceptron(network.Layer):
         if len(inputs) != self._size[0]:
             raise ValueError('wrong number of inputs')
 
-        return sigmoid(numpy.dot(inputs, self._weights))
+        return numpy.dot(inputs, self._weights)
 
     def get_deltas(self, errors, outputs):
-        return errors * dsigmoid(outputs)
+        return errors * outputs
 
     def get_errors(self, deltas):
         errors = numpy.dot(deltas, self._weights.T)
@@ -65,6 +65,13 @@ class SigmoidPerceptron(network.Layer):
 
         # Save change as momentum for next backpropogate
         self._momentums = changes
+
+class SigmoidPerceptron(LinearPerceptron):
+    def activate(self, inputs):
+        return sigmoid(super(SigmoidPerceptron, self).activate(inputs))
+
+    def get_deltas(self, errors, outputs):
+        return super(SigmoidPerceptron, self).get_deltas(errors, dsigmoid(outputs))
 
 def activate_test():
     pat = [
@@ -90,19 +97,17 @@ def train_test():
         [[1,0], [1]],
         [[1,1], [0]]
     ]
-    #for p in pat:
-    #    p[0].append(1)
 
     # Create a network with two input, two hidden, and one output nodes
     layers = [
                 SigmoidPerceptron(2, 2, True),
-                SigmoidPerceptron(2, 1, False, initial_weights_range=2.0),
+                SigmoidPerceptron(2, 1, False),
              ]
     n = network.Network(layers)
 
     # Train it with some patterns
     start = time.clock()
-    n.logging = False
+    #n.logging = False
     n.train(pat, 1000, 0.0)
     print time.clock() - start
     # test it
