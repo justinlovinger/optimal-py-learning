@@ -10,10 +10,10 @@ def dsigmoid(y):
     """Derivative of sigmoid above"""
     return 1.0 - y**2
 
-class LinearPerceptron(network.Layer):
-    def __init__(self, inputs, outputs, bias=True, 
+class Perceptron(network.Layer):
+    def __init__(self, inputs, outputs, bias=False, 
                  learn_rate=0.5, momentum_rate=0.1, initial_weights_range=0.25):
-        super(LinearPerceptron, self).__init__()
+        super(Perceptron, self).__init__()
 
         self.learn_rate = learn_rate
         self.momentum_rate = momentum_rate
@@ -66,39 +66,50 @@ class LinearPerceptron(network.Layer):
         # Save change as momentum for next backpropogate
         self._momentums = changes
 
-class SigmoidPerceptron(LinearPerceptron):
-    def activate(self, inputs):
-        return sigmoid(super(SigmoidPerceptron, self).activate(inputs))
-
-    def get_deltas(self, errors, outputs):
-        return super(SigmoidPerceptron, self).get_deltas(errors, dsigmoid(outputs))
-
 class SigmoidTransfer(network.Layer):
     def activate(self, inputs):
         return sigmoid(inputs)
 
-    # TODO: need a way to change outputs of previous layer
+    def get_outputs(self, inputs, outputs):
+        return dsigmoid(outputs)
+
+    def reset(self):
+        pass
 
     def get_deltas(self, errors, outputs):
         return errors
 
-def activate_test():
-    pat = [
-        [[0,0], [0]],
-        [[0,1], [1]],
-        [[1,0], [1]],
-        [[1,1], [0]]
-    ]
-    layers = [
-                SigmoidPerceptron(2, 2, True),
-                SigmoidPerceptron(2, 1, False),
-             ]
-    n = network.Network(layers)
-    print n.activate(pat[3][0])
+    def get_errors(self, deltas, outputs):
+        return deltas
+
+    def update(self, inputs, deltas):
+        pass
+
+class ReluTransfer(network.Layer):
+    pass
+
+class LogitTransfer(network.Layer):
+    pass
+
+#def activate_test():
+#    pat = [
+#        [[0,0], [0]],
+#        [[0,1], [1]],
+#        [[1,0], [1]],
+#        [[1,1], [0]]
+#    ]
+#    layers = [
+#                Perceptron(2, 2, True),
+#                SigmoidTransfer(),
+#                Perceptron(2, 1, False),
+#                SigmoidTransfer(),
+#             ]
+#    n = network.Network(layers)
+#    print n.activate(pat[3][0])
 
 def train_test():
     import time
-    #numpy.random.seed(0)
+    numpy.random.seed(0)
 
     pat = [
         [[0,0], [0]],
@@ -109,9 +120,12 @@ def train_test():
 
     # Create a network with two input, two hidden, and one output nodes
     layers = [
-                SigmoidPerceptron(2, 2, True),
-                SigmoidPerceptron(2, 1, False),
+                Perceptron(2, 2, True),
+                SigmoidTransfer(),
+                Perceptron(2, 1, False),
+                SigmoidTransfer(),
              ]
+
     n = network.Network(layers)
 
     # Train it with some patterns

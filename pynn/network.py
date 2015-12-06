@@ -16,6 +16,13 @@ class Layer(object):
     def reset(self):
         raise NotImplementedError()
 
+    def get_outputs(self, inputs, outputs):
+        """Get outputs for previous layer.
+        
+        Transfer functions should override to properly transform their input
+        """
+        return inputs
+
 class GrowingLayer(Layer):
     """Layer that can add new neurons, increasing output size.
     
@@ -68,26 +75,28 @@ class Network(object):
 
         return inputs
 
-    def learn(self, inputs, targets):
-        output = self.activate(inputs)
+    def learn(self, first_inputs, targets):
+        outputs = self.activate(first_inputs)
 
-        errors = targets - output
+        errors = targets - outputs
         output_errors = errors # for returning
 
         for i, layer in enumerate(reversed(self._layers)):
             # Pseudo reverse activations, so they are in the right order for
             # reversed layers list
-            layer_inputs = self._activations[len(self._layers)-i-1]
-            layer_outputs = self._activations[len(self._layers)-i]
+            inputs = self._activations[len(self._layers)-i-1]
 
             # Compute deltas for this layer update
-            deltas = layer.get_deltas(errors, layer_outputs)
+            deltas = layer.get_deltas(errors, outputs)
 
             # Compute errors for next layer deltas
-            errors = layer.get_errors(deltas, layer_outputs)
+            errors = layer.get_errors(deltas, outputs)
 
             # Update
-            layer.update(layer_inputs, deltas)
+            layer.update(inputs, deltas)
+
+            # Outputs for next layer are this layers inputs
+            outputs = layer.get_outputs(inputs, outputs)
 
         return output_errors
 

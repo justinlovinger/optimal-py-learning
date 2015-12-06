@@ -2,9 +2,6 @@ import numpy
 import math
 
 import network
-
-def distance(vec_a, vec_b):
-    return numpy.linalg.norm(numpy.subtract(vec_a, vec_b))
     
 def gaussian(x, variance=1.0):
     return math.exp(-(x**2/variance))
@@ -12,43 +9,38 @@ gaussian_vec = numpy.vectorize(gaussian)
 
 def dgaussian(y, variance):
     return 2*y*gaussian(y, variance) / variance
+dgaussian_vec = numpy.vectorize(dgaussian)
 
 def fast_contribution(diffs, variance):
     return math.exp(-(diffs.dot(diffs)/variance))
 
-class GaussianLayer(network.Layer):
-    """Equivalent to gaussian transfer, then perceptron."""
-    def __init__(self, inputs, outputs, variance=1.0, learn_rate = 0.5):
-        super(GaussianLayer, self).__init__()
-
-        self.learn_rate = 0.5
+class GaussianTransfer(network.Layer):
+    def __init__(self, variance=1.0):
+        super(GaussianTransfer, self).__init__()
 
         self._variance = variance
-        self._weights = numpy.ones((inputs, outputs)) 
-        self._contributions = numpy.ones(inputs)
-
-    def reset(self):
-        self._weights = numpy.ones(self._weights.shape) 
 
     def activate(self, inputs):
-        self._contributions = gaussian_vec(inputs, self._variance)
-        return numpy.dot(self._contributions, self._weights)
+        return gaussian_vec(inputs, self._variance)
+
+    def get_outputs(self, inputs, outputs):
+        return dgaussian_vec(outputs, self._variance)
+
+    def reset(self):
+        pass
 
     def get_deltas(self, errors, outputs):
         return errors
 
     def get_errors(self, deltas, outputs):
-        #errors = numpy.dot(deltas, self._weights.T)
-        return dgaussian(deltas*outputs, self._variance)
+        return deltas
 
     def update(self, inputs, deltas):
-        # Update, [:,None] quickly transposes an array to a col vector
-        changes = self._contributions[:,None] * deltas
-        self._weights += self.learn_rate*changes
+        pass
 
 def train_test():
     import time
-    #numpy.random.seed(0)
+    #numpy.random.seed(9)
     import mlp
 
     pat = [
@@ -60,9 +52,12 @@ def train_test():
 
     # Create a network with two input, two hidden, and one output nodes
     layers = [
-                mlp.SigmoidPerceptron(2, 2),
-                mlp.SigmoidPerceptron(2, 1),
-                GaussianLayer(1, 1),
+                mlp.Perceptron(2, 2, True, learn_rate=0.3, momentum_rate=0.05),
+                mlp.SigmoidTransfer(),
+                mlp.Perceptron(2, 2, learn_rate=0.3, momentum_rate=0.05),
+                mlp.SigmoidTransfer(),
+                GaussianTransfer(),
+                mlp.Perceptron(2, 1, learn_rate=0.3, momentum_rate=0.0),
              ]
     n = network.Network(layers)
 
