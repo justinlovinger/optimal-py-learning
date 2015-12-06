@@ -1,6 +1,12 @@
 import numpy
 
 class Layer(object):
+    pass
+
+class Layer(Layer):
+    requires_prev = (Layer,)
+    requires_next = (Layer,)
+    
     def activate(self, inputs):
         raise NotImplementedError()
 
@@ -23,13 +29,6 @@ class Layer(object):
         """
         return inputs
 
-class GrowingLayer(Layer):
-    """Layer that can add new neurons, increasing output size.
-    
-    Raise growth exception when new neuron is added.
-    """
-    pass
-
 class SupportsGrowingLayer(Layer):
     """Layer that supports new neurons by increasing input size.
     
@@ -37,6 +36,15 @@ class SupportsGrowingLayer(Layer):
     """
     def add_input(self):
         raise NotImplementedError()
+
+class GrowingLayer(Layer):
+    """Layer that can add new neurons, increasing output size.
+    
+    Raise growth exception when new neuron is added.
+    """
+
+    requires_next = (SupportsGrowingLayer,)
+    pass
 
 class Ensemble(Layer):
     def __init__(self, layers):
@@ -47,10 +55,28 @@ class Ensemble(Layer):
 
 class Network(object):
     def __init__(self, layers):
-        # Assert each element of layer is a Layer,
-        # and layers properly line up (inputs -> outputs, Growing -> SupportsGrowing)
-        # Otherwise, raise value error
-        # TODO
+        # Assert each element of layers is a Layer
+        # And that inputs --> outputs line up, TODO
+        for layer in layers:
+            if not isinstance(layer, Layer):
+                raise ValueError("layers argument of Network must contain Layer's."
+                                 " Instead contains {}.".format(type(layer)))
+
+        # Check each lines up with next
+        for i in range(len(layers)-1):
+            if not isinstance(layers[i+1], layers[i].requires_next):
+                raise ValueError("Layer of type {} must be followed by type: {}. " \
+                                 "It is followed by type: " \
+                                 "{}".format(type(layers[i]), layers[i].requires_next, 
+                                             type(layers[i+1])))
+        # Check each lines up with prev
+        for i in range(1, len(layers)):
+            if not isinstance(layers[i-1], layers[i].requires_next):
+                raise ValueError("Layer of type {} must be preceded by type: {}. " \
+                                 "It is preceded by type: " \
+                                 "{}".format(type(layers[i]), layers[i].requires_next, 
+                                             type(layers[i-1])))
+
 
         self._layers = layers
         self._activations = []

@@ -53,11 +53,9 @@ def train_test():
     # Create a network with two input, two hidden, and one output nodes
     layers = [
                 mlp.Perceptron(2, 2, True, learn_rate=0.3, momentum_rate=0.05),
-                mlp.SigmoidTransfer(),
-                mlp.Perceptron(2, 2, learn_rate=0.3, momentum_rate=0.05),
-                mlp.SigmoidTransfer(),
-                GaussianTransfer(),
+                GaussianTransfer(0.5),
                 mlp.Perceptron(2, 1, learn_rate=0.3, momentum_rate=0.0),
+                mlp.SigmoidTransfer(),
              ]
     n = network.Network(layers)
 
