@@ -211,3 +211,36 @@ class Network(object):
                 # Break early to prevent overtraining
                 if error < error_break:
                     return
+
+def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
+    """Create a multi-layer perceptron network."""
+    from pynn import transfer
+    from pynn import transform
+
+    layers = []
+    # Create first layer with bias
+    layers.append(transform.Perceptron(shape[0], shape[1], True, 
+                                       learn_rate, momentum_rate))
+    layers.append(transfer.SigmoidTransfer())
+
+    # Create other layers without bias
+    for i in range(1, len(shape)):
+        layers.append(transform.Perceptron(shape[i], shape[i+1], False, 
+                                           learn_rate, momentum_rate))
+        layers.append(transfer.SigmoidTransfer())
+
+    return Network(layers)
+
+def make_rbf(inputs, neurons, outputs, learn_rate=1.0):
+    """Create a radial-basis function network."""
+    from pynn import transfer
+    from pynn import transform
+    from pynn import som
+
+    layers = [
+              som.SOM(inputs, neurons),
+              transfer.GaussianTransfer(),
+              transform.GaussianOutput(neurons, outputs, learn_rate),
+             ]
+
+    return Network(layers)

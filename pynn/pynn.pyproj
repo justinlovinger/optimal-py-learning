@@ -41,6 +41,9 @@
     <Compile Include="transform.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="validation.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
     </Compile>
