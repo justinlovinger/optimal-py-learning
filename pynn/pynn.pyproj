@@ -29,6 +29,12 @@
     <Compile Include="som.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="testall.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\test_network.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="transfer.py">
       <SubType>Code</SubType>
     </Compile>
@@ -38,6 +44,9 @@
     <Compile Include="__init__.py">
       <SubType>Code</SubType>
     </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="tests\" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>
