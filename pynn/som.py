@@ -1,7 +1,7 @@
 import numpy
 
-import network
-import basis
+from pynn import network
+from pynn import transfer
 
 def distance(vec_a, vec_b):
     diff = numpy.subtract(vec_a, vec_b)
@@ -55,8 +55,8 @@ class SOM(network.Layer):
         for i in range(closest-neighborhood, closest+neighborhood+1):
             if i >= 0 and i < self._size[0]: # if in range
                 neighbor_distance = float(abs(i-closest))
-                move_rate_modifier = basis.gaussian(neighbor_distance, 
-                                                    neighbor_move_rate)
+                move_rate_modifier = transfer.gaussian(neighbor_distance, 
+                                                       neighbor_move_rate)
                 final_rate = move_rate_modifier*move_rate
 
                 self._weights[i] += final_rate*(inputs-self._weights[i])

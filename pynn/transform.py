@@ -1,14 +1,9 @@
+"""Layers that transform the input, such as perceptron."""
+
 import numpy
 
-import network
-
-def sigmoid(x):
-    """Sigmoid like function using tanh"""
-    return numpy.tanh(x)
-
-def dsigmoid(y):
-    """Derivative of sigmoid above"""
-    return 1.0 - y**2
+from pynn import network
+from pynn import transfer
 
 class Perceptron(network.Layer):
     def __init__(self, inputs, outputs, bias=False, 
@@ -66,75 +61,44 @@ class Perceptron(network.Layer):
         # Save change as momentum for next backpropogate
         self._momentums = changes
 
-class SigmoidTransfer(network.Layer):
-    def activate(self, inputs):
-        return sigmoid(inputs)
+def fast_contribution(diffs, variance):
+    return math.exp(-(diffs.dot(diffs)/variance))
 
-    def get_outputs(self, inputs, outputs):
-        return dsigmoid(outputs)
+class GaussianOutput(network.Layer):
+    required_prev = (transfer.GaussianTransfer,)
+
+    def __init__(self, inputs, outputs,  learn_rate=1.0, initial_weights_range=0.25):
+        super(GaussianOutput, self).__init__()
+
+        self.learn_rate = learn_rate
+        self.initial_weights_range = initial_weights_range
+
+        self._size = (inputs, outputs)
+
+        # Build weights matrix
+        self._weights = numpy.zeros(self._size)
+        self.reset()
 
     def reset(self):
-        pass
+        # Randomize weights, between -initial_weights_range and initial_weights_range
+        random_matrix = numpy.random.random(self._size)
+        self._weights = (2*random_matrix-1)*self.initial_weights_range
+
+    def activate(self, inputs):
+        return numpy.dot(inputs, self._weights)
 
     def get_deltas(self, errors, outputs):
         return errors
 
     def get_errors(self, deltas, outputs):
-        return deltas
+        # TODO: test that this is correct
+        deltas = deltas * outputs
+        return numpy.dot(deltas, self._weights.T)
 
     def update(self, inputs, deltas):
-        pass
+        errors = deltas
 
-class ReluTransfer(network.Layer):
-    pass
-
-class LogitTransfer(network.Layer):
-    pass
-
-#def activate_test():
-#    pat = [
-#        [[0,0], [0]],
-#        [[0,1], [1]],
-#        [[1,0], [1]],
-#        [[1,1], [0]]
-#    ]
-#    layers = [
-#                Perceptron(2, 2, True),
-#                SigmoidTransfer(),
-#                Perceptron(2, 1, False),
-#                SigmoidTransfer(),
-#             ]
-#    n = network.Network(layers)
-#    print n.activate(pat[3][0])
-
-def train_test():
-    import time
-    numpy.random.seed(0)
-
-    pat = [
-        [[0,0], [0]],
-        [[0,1], [1]],
-        [[1,0], [1]],
-        [[1,1], [0]]
-    ]
-
-    # Create a network with two input, two hidden, and one output nodes
-    layers = [
-                Perceptron(2, 2, True),
-                SigmoidTransfer(),
-                Perceptron(2, 1, False),
-                SigmoidTransfer(),
-             ]
-
-    n = network.Network(layers)
-
-    # Train it with some patterns
-    start = time.clock()
-    #n.logging = False
-    n.train(pat, 1000, 0.0)
-    print time.clock() - start
-    # test it
-    n.test(pat)
-
-if __name__ == '__main__':
-    train_test()
+        # Inputs are generally contributions
+        # [:,None] quickly transposes an array to a col vector
+        changes = inputs[:,None] * errors
+        self._weights += self.learn_rate*changes
