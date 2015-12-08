@@ -8,7 +8,7 @@ def distance(vec_a, vec_b):
     return diff.dot(diff)
 
 class SOM(network.Layer):
-    required_prev = (None,)
+    requires_prev = (None,)
 
     def __init__(self, inputs, neurons, 
                  move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
@@ -67,40 +67,3 @@ class SOM(network.Layer):
 
     def update(self, inputs, deltas):
         self.move_neurons(inputs)
-
-def train_test():
-    import time
-    #numpy.random.seed(0)
-    import mlp
-
-    pat = [
-        [[-1,-1], [0]],
-        [[-1,1], [1]],
-        [[1,-1], [1]],
-        [[1,1], [0]]
-    ]
-
-    # Create a network with two input, two hidden, and one output nodes
-    layers = [
-                SOM(2, 4),
-                basis.GaussianTransfer(),
-                #mlp.Perceptron(4, 1, True),
-                basis.GaussianOutput(4, 2, learn_rate=1.0),
-                #mlp.Perceptron(4, 2, True),
-                #mlp.SigmoidTransfer(),
-                #mlp.Perceptron(2, 1),
-                #mlp.SigmoidTransfer(),
-             ]
-    n = network.Network(layers)
-    #print n.activate(pat[2][0])
-    # Train it with some patterns
-    start = time.clock()
-    #n.logging = False
-    n.train(pat, 1000, 0.02)
-    print time.clock() - start
-    # test it
-    n.test(pat)
-    print n._layers[0]._weights
-
-if __name__ == '__main__':
-    train_test()

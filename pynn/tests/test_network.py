@@ -14,7 +14,7 @@ def test_network_validation_layers():
 
     n = network.Network([network.Layer()])
 
-def test_network_validation_required_next():
+def test_network_validation_required_next_prev():
     with pytest.raises(ValueError):
         n = network.Network([network.GrowingLayer(), network.Layer()])
 

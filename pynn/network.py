@@ -1,11 +1,10 @@
 import numpy
 
 class Layer(object):
-    pass
+    attributes = tuple([])
 
-class Layer(Layer):
-    requires_prev = (Layer,)
-    requires_next = (Layer,)
+    requires_prev = tuple([])
+    requires_next = tuple([])
     
     def reset(self):
         raise NotImplementedError()
@@ -34,6 +33,8 @@ class SupportsGrowingLayer(Layer):
     
     Adds neurons when GrowingLayer before it raises growth exception.
     """
+    attributes = ('supportsGrowing',)
+
     def add_input(self):
         raise NotImplementedError()
 
@@ -42,8 +43,7 @@ class GrowingLayer(Layer):
     
     Raise growth exception when new neuron is added.
     """
-
-    requires_next = (SupportsGrowingLayer,)
+    requires_next = ('supportsGrowing',)
     pass
 
 class Ensemble(Layer):
@@ -64,18 +64,20 @@ class Network(object):
 
         # Check each lines up with next
         for i in range(len(layers)-1):
-            if not isinstance(layers[i+1], layers[i].requires_next):
-                raise ValueError("Layer of type {} must be followed by type: {}. " \
-                                 "It is followed by type: " \
-                                 "{}".format(type(layers[i]), layers[i].requires_next, 
-                                             type(layers[i+1])))
+            for attribute in layers[i].requires_next:
+                if not attribute in layers[i+1].attributes:
+                    raise ValueError("Layer of type {} must be followed by attributes: {}. " \
+                                     "It is followed by attributes: " \
+                                     "{}".format(type(layers[i]), layers[i].requires_next, 
+                                                 layers[i+1].attributes))
         # Check each lines up with prev
         for i in range(1, len(layers)):
-            if not isinstance(layers[i-1], layers[i].requires_next):
-                raise ValueError("Layer of type {} must be preceded by type: {}. " \
-                                 "It is preceded by type: " \
-                                 "{}".format(type(layers[i]), layers[i].requires_next, 
-                                             type(layers[i-1])))
+            for attribute in layers[i].requires_prev:
+                if not attribute in layers[i-1].attributes:
+                    raise ValueError("Layer of type {} must be preceded by attributes: {}. " \
+                                     "It is preceded by attributes: " \
+                                     "{}".format(type(layers[i]), layers[i].requires_prev, 
+                                                 layers[i-1].attributes))
 
 
         self._layers = layers
