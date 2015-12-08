@@ -224,21 +224,22 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
     layers.append(transfer.SigmoidTransfer())
 
     # Create other layers without bias
-    for i in range(1, len(shape)):
+    for i in range(1, len(shape)-1):
         layers.append(transform.Perceptron(shape[i], shape[i+1], False, 
                                            learn_rate, momentum_rate))
         layers.append(transfer.SigmoidTransfer())
 
     return Network(layers)
 
-def make_rbf(inputs, neurons, outputs, learn_rate=1.0):
+def make_rbf(inputs, neurons, outputs, learn_rate=1.0,
+             move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
     """Create a radial-basis function network."""
     from pynn import transfer
     from pynn import transform
     from pynn import som
 
     layers = [
-              som.SOM(inputs, neurons),
+              som.SOM(inputs, neurons, move_rate, neighborhood, neighbor_move_rate),
               transfer.GaussianTransfer(),
               transform.GaussianOutput(neurons, outputs, learn_rate),
              ]

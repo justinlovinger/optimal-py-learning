@@ -23,6 +23,15 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="data\datasets.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="data\process.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="data\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="network.py">
       <SubType>Code</SubType>
     </Compile>
@@ -32,7 +41,13 @@
     <Compile Include="testall.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="tests\test_datasets.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="tests\test_network.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\test_validation.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="transfer.py">
@@ -49,7 +64,19 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="data\" />
+    <Folder Include="data\datasets\" />
     <Folder Include="tests\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="data\datasets\breast-cancer-wisconsin.data" />
+    <Content Include="data\datasets\cal_housing.data" />
+    <Content Include="data\datasets\cal_housing_full.data" />
+    <Content Include="data\datasets\haberman.data" />
+    <Content Include="data\datasets\iris.data" />
+    <Content Include="data\datasets\lenses.data" />
+    <Content Include="data\datasets\wdbc.data" />
+    <Content Include="data\datasets\yeast.data" />
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

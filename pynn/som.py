@@ -10,8 +10,13 @@ def distance(vec_a, vec_b):
 class SOM(network.Layer):
     required_prev = (None,)
 
-    def __init__(self, inputs, neurons):
+    def __init__(self, inputs, neurons, 
+                 move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
         super(SOM, self).__init__()
+
+        self.move_rate = move_rate
+        self.neighborhood = neighborhood
+        self.neighbor_move_rate = neighbor_move_rate
 
         self._size = (neurons, inputs)
         self._weights = numpy.zeros(self._size)
@@ -45,19 +50,18 @@ class SOM(network.Layer):
 
         return closest
 
-    def move_neurons(self, inputs, move_rate=0.1, 
-                     neighborhood=2, neighbor_move_rate=1.0):
+    def move_neurons(self, inputs):
         # Perform a competition, and move the winner closer to the input
         closest = self.get_closest()
 
         # Move the winner and neighbors closer
         # The further the neighbor, the less it should move
-        for i in range(closest-neighborhood, closest+neighborhood+1):
+        for i in range(closest-self.neighborhood, closest+self.neighborhood+1):
             if i >= 0 and i < self._size[0]: # if in range
                 neighbor_distance = float(abs(i-closest))
                 move_rate_modifier = transfer.gaussian(neighbor_distance, 
-                                                       neighbor_move_rate)
-                final_rate = move_rate_modifier*move_rate
+                                                       self.neighbor_move_rate)
+                final_rate = move_rate_modifier*self.move_rate
 
                 self._weights[i] += final_rate*(inputs-self._weights[i])
 
