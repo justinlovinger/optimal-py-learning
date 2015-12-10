@@ -1,4 +1,4 @@
-import numpy
+﻿import numpy
 
 class Layer(object):
     attributes = tuple([])
@@ -221,7 +221,8 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
 
     layers = []
     # Create first layer with bias
-    layers.append(transform.Perceptron(shape[0], shape[1], True, 
+    layers.append(transform.AddBias())
+    layers.append(transform.Perceptron(shape[0]+1, shape[1], False, 
                                        learn_rate, momentum_rate))
     layers.append(transfer.SigmoidTransfer())
 
