@@ -13,14 +13,11 @@ class AddBias(network.Layer):
         # Add an extra input, always set to 1
         return numpy.hstack((inputs, [1]))
 
-    def get_deltas(self, errors, outputs):
-        return errors
-
-    def get_errors(self, deltas, outputs):
+    def get_prev_errors(self, errors, outputs):
         # Clip the last delta, which was for input
-        return deltas[:-1]
+        return errors[:-1]
 
-    def update(self, inputs, deltas):
+    def update(self, inputs, outputs, deltas):
         pass
 
 class Perceptron(network.Layer):
@@ -52,13 +49,12 @@ class Perceptron(network.Layer):
 
         return numpy.dot(inputs, self._weights)
 
-    def get_deltas(self, errors, outputs):
-        return errors * outputs
+    def get_prev_errors(self, errors, outputs):
+        return numpy.dot(errors, self._weights.T)
 
-    def get_errors(self, deltas, outputs):
-        return numpy.dot(deltas, self._weights.T)
+    def update(self, inputs, outputs, errors):
+        deltas = errors * outputs
 
-    def update(self, inputs, deltas):
         # Update, [:,None] quickly transposes an array to a col vector
         changes = inputs[:,None] * deltas
         self._weights += self.learn_rate*changes + self.momentum_rate*self._momentums
@@ -92,17 +88,12 @@ class GaussianOutput(network.Layer):
     def activate(self, inputs):
         return numpy.dot(inputs, self._weights)
 
-    def get_deltas(self, errors, outputs):
-        return errors
-
-    def get_errors(self, deltas, outputs):
+    def get_prev_errors(self, errors, outputs):
         # TODO: test that this is correct
-        deltas = deltas * outputs
+        deltas = errors * outputs
         return numpy.dot(deltas, self._weights.T)
 
-    def update(self, inputs, deltas):
-        errors = deltas
-
+    def update(self, inputs, outputs, errors):
         # Inputs are generally contributions
         # [:,None] quickly transposes an array to a col vector
         changes = inputs[:,None] * errors

@@ -1,4 +1,4 @@
-import numpy
+﻿import numpy
 
 from pynn import network
 from pynn import transfer
@@ -33,10 +33,7 @@ class SOM(network.Layer):
         self._distances = [d.dot(d) for d in diffs]
         return numpy.array(self._distances)
 
-    def get_deltas(self, errors, outputs):
-        return
-
-    def get_errors(self, deltas, outputs):
+    def get_prev_errors(self, errors, outputs):
         return
 
     def get_closest(self):
@@ -65,5 +62,5 @@ class SOM(network.Layer):
 
                 self._weights[i] += final_rate*(inputs-self._weights[i])
 
-    def update(self, inputs, deltas):
+    def update(self, inputs, outputs, deltas):
         self.move_neurons(inputs)

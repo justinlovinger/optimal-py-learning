@@ -1,4 +1,4 @@
-"""Transfer function layers."""
+﻿"""Transfer function layers."""
 
 import numpy
 import math
@@ -25,13 +25,10 @@ class Transfer(network.Layer):
     def reset(self):
         pass
 
-    def get_deltas(self, errors, outputs):
+    def get_prev_errors(self, errors, outputs):
         return errors
 
-    def get_errors(self, deltas, outputs):
-        return deltas
-
-    def update(self, inputs, deltas):
+    def update(self, inputs, outputs, errors):
         pass
 
 class SigmoidTransfer(Transfer):

@@ -12,13 +12,10 @@ class Layer(object):
     def activate(self, inputs):
         raise NotImplementedError()
 
-    def get_deltas(self, errors, outputs):
+    def get_prev_errors(self, errors, outputs):
         raise NotImplementedError()
 
-    def get_errors(self, deltas, outputs):
-        raise NotImplementedError()
-
-    def update(self, inputs, deltas):
+    def update(self, inputs, outputs, errors):
         raise NotImplementedError()
 
     def get_outputs(self, inputs, outputs):
@@ -114,16 +111,15 @@ class Network(object):
             # reversed layers list
             inputs = self._activations[len(self._layers)-i-1]
 
-            # Compute deltas for this layer update
-            deltas = layer.get_deltas(errors, outputs)
-
-            # Compute errors for next layer deltas
-            errors = layer.get_errors(deltas, outputs)
+            # Compute errors for preceding layer before this layers changes
+            prev_errors = layer.get_prev_errors(errors, outputs)
 
             # Update
-            layer.update(inputs, deltas)
+            layer.update(inputs, outputs, errors)
 
-            # Outputs for next layer are this layers inputs
+            # Setup for preceding layer
+            errors = prev_errors
+            # Outputs for preceding layer are this layers inputs
             outputs = layer.get_outputs(inputs, outputs)
 
         return output_errors
