@@ -1,6 +1,7 @@
 ﻿import numpy
 
 class Layer(object):
+    """A layer of computation for a supervised learning network."""
     attributes = tuple([])
 
     requires_prev = tuple([])
@@ -47,63 +48,91 @@ class GrowingLayer(Layer):
     pass
 
 class Ensemble(Layer):
+    """A composite of layers connected in parallel."""
     def __init__(self, layers):
         super(Ensemble, self).__init__()
 
         self._layers = layers
         self.reset()
 
-class Network(object):
-    def __init__(self, layers):
-        # Assert each element of layers is a Layer
-        for layer in layers:
-            if not isinstance(layer, Layer):
-                raise ValueError("layers argument of Network must contain Layer's."
-                                 " Instead contains {}.".format(type(layer)))
+def _validate_layers(layers):
+    """Validate that each layer matches the next layer."""
+    # Assert each element of layers is a Layer
+    for layer in layers:
+        if not isinstance(layer, Layer):
+            raise ValueError("layers argument of Network must contain Layer's." \
+                             " Instead contains {}.".format(type(layer)))
 
-        # And that inputs --> outputs line up
-        last_num = 'any'
-        for i in range(len(layers)-1):
-            layer = layers[i]
-            next_layer = layers[i+1]
+    # And that inputs --> outputs line up
+    last_num = 'any'
+    for i in range(len(layers)-1):
+        layer = layers[i]
+        next_layer = layers[i+1]
 
-            # Track how many inputs are required for next layer
-            if layer.num_outputs == '+1': # Such as bias
-                if last_num == 'any':
-                    continue
-                else:
-                    last_num = last_num + 1
-            elif layer.num_outputs != 'any': # When any, last_num doesn't change
-                last_num = layer.num_outputs
-
-            if next_layer.num_inputs == 'any':
+        # Track how many inputs are required for next layer
+        if layer.num_outputs == '+1': # Such as bias
+            if last_num == 'any':
                 continue
+            else:
+                last_num = last_num + 1
+        elif layer.num_outputs != 'any': # When any, last_num doesn't change
+            last_num = layer.num_outputs
 
-            # Validate
-            if last_num != 'any' and next_layer.num_inputs != last_num:
-                raise ValueError('num_inputs for layer {} does not match' \
-                                 ' preceeding layers'.format(i+2)) # Starts at 1
+        if next_layer.num_inputs == 'any':
+            continue
 
-        # Check that feature requirements line up
-        # Check each lines up with next
-        for i in range(len(layers)-1):
-            for attribute in layers[i].requires_next:
-                if not attribute in layers[i+1].attributes:
-                    raise ValueError("Layer of type {} must be followed by attributes: {}. " \
-                                     "It is followed by attributes: " \
-                                     "{}".format(type(layers[i]), layers[i].requires_next, 
-                                                 layers[i+1].attributes))
-        # Check each lines up with prev
-        for i in range(1, len(layers)):
-            for attribute in layers[i].requires_prev:
-                if not attribute in layers[i-1].attributes:
-                    raise ValueError("Layer of type {} must be preceded by attributes: {}. " \
-                                     "It is preceded by attributes: " \
-                                     "{}".format(type(layers[i]), layers[i].requires_prev, 
-                                                 layers[i-1].attributes))
+        # Validate
+        if last_num != 'any' and next_layer.num_inputs != last_num:
+            raise ValueError('num_inputs for layer {} does not match' \
+                             ' preceding layers'.format(i+2)) # Starts at 1
 
+    # Check that feature requirements line up
+    # Check each lines up with next
+    for i in range(len(layers)-1):
+        for attribute in layers[i].requires_next:
+            if not attribute in layers[i+1].attributes:
+                raise TypeError("Layer of type {} must be followed by attributes: {}. " \
+                                "It is followed by attributes: " \
+                                "{}".format(type(layers[i]), layers[i].requires_next, 
+                                            layers[i+1].attributes))
+    # Check each lines up with prev
+    for i in range(1, len(layers)):
+        for attribute in layers[i].requires_prev:
+            if not attribute in layers[i-1].attributes:
+                raise TypeError("Layer of type {} must be preceded by attributes: {}. " \
+                                "It is preceded by attributes: " \
+                                "{}".format(type(layers[i]), layers[i].requires_prev, 
+                                            layers[i-1].attributes))
+
+def _find_num_inputs(layers):
+    """Determine number of initial inputs for a series of layers."""
+    offset = 0
+
+    for layer in layers:
+        if layer.num_inputs != 'any':
+            return layer.num_inputs - offset
+
+        if layer.num_outputs == '+1':
+            offset += 1
+
+    return 'any'
+
+def _find_num_outputs(layers):
+    """Determine final number of outputs for a series of layers."""
+    for layer in reversed(layers):
+        if layer.num_outputs != 'any':
+            return layer.num_outputs
+
+    return 'any'
+
+class Network(object):
+    """A composite of layers connected in series."""
+    def __init__(self, layers):
+        _validate_layers(layers)
 
         self._layers = layers
+        self._num_inputs = _find_num_inputs(layers)
+        self._num_outputs = _find_num_outputs(layers)
         self._activations = []
 
         self.logging = True
@@ -115,6 +144,10 @@ class Network(object):
         self.iteration = 0
 
     def activate(self, inputs):
+        if self._num_inputs != 'any' and len(inputs) != self._num_inputs:
+            raise ValueError('Wrong number of inputs. Expected {}, got {}' \
+                             ''.format(self._num_inputs, len(inputs)))
+
         inputs = numpy.array(inputs)
         self._activations = [inputs]
 
@@ -127,6 +160,10 @@ class Network(object):
         return inputs
 
     def learn(self, first_inputs, targets):
+        if self._num_outputs != 'any' and len(targets) != self._num_outputs:
+            raise ValueError('Wrong number of targets. Expected {}, got {}' \
+                             ''.format(self._num_outputs, len(targets)))
+
         outputs = self.activate(first_inputs)
 
         errors = targets - outputs
