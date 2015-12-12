@@ -6,6 +6,9 @@ class Layer(object):
     requires_prev = tuple([])
     requires_next = tuple([])
     
+    num_inputs = None
+    num_outputs = None
+
     def reset(self):
         raise NotImplementedError()
 
@@ -53,12 +56,35 @@ class Ensemble(Layer):
 class Network(object):
     def __init__(self, layers):
         # Assert each element of layers is a Layer
-        # And that inputs --> outputs line up, TODO
         for layer in layers:
             if not isinstance(layer, Layer):
                 raise ValueError("layers argument of Network must contain Layer's."
                                  " Instead contains {}.".format(type(layer)))
 
+        # And that inputs --> outputs line up
+        last_num = 'any'
+        for i in range(len(layers)-1):
+            layer = layers[i]
+            next_layer = layers[i+1]
+
+            # Track how many inputs are required for next layer
+            if layer.num_outputs == '+1': # Such as bias
+                if last_num == 'any':
+                    continue
+                else:
+                    last_num = last_num + 1
+            elif layer.num_outputs != 'any': # When any, last_num doesn't change
+                last_num = layer.num_outputs
+
+            if next_layer.num_inputs == 'any':
+                continue
+
+            # Validate
+            if last_num != 'any' and next_layer.num_inputs != last_num:
+                raise ValueError('num_inputs for layer {} does not match' \
+                                 ' preceeding layers'.format(i+2)) # Starts at 1
+
+        # Check that feature requirements line up
         # Check each lines up with next
         for i in range(len(layers)-1):
             for attribute in layers[i].requires_next:

@@ -6,6 +6,9 @@ from pynn import network
 from pynn import transfer
 
 class AddBias(network.Layer):
+    num_inputs = 'any'
+    num_outputs = '+1'
+
     def reset(self):
         pass
 
@@ -24,6 +27,8 @@ class Perceptron(network.Layer):
     def __init__(self, inputs, outputs, 
                  learn_rate=0.5, momentum_rate=0.1, initial_weights_range=0.25):
         super(Perceptron, self).__init__()
+        self.num_inputs = inputs
+        self.num_outputs = outputs
 
         self.learn_rate = learn_rate
         self.momentum_rate = momentum_rate
@@ -70,6 +75,8 @@ class GaussianOutput(network.Layer):
 
     def __init__(self, inputs, outputs,  learn_rate=1.0, initial_weights_range=0.25):
         super(GaussianOutput, self).__init__()
+        self.num_inputs = inputs
+        self.num_outputs = outputs
 
         self.learn_rate = learn_rate
         self.initial_weights_range = initial_weights_range

@@ -13,6 +13,8 @@ class SOM(network.Layer):
     def __init__(self, inputs, neurons, 
                  move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
         super(SOM, self).__init__()
+        self.num_inputs = inputs
+        self.num_outputs = neurons
 
         self.move_rate = move_rate
         self.neighborhood = neighborhood
