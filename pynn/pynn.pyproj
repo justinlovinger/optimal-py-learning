@@ -32,6 +32,9 @@
     <Compile Include="data\__init__.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ensemble.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="network.py">
       <SubType>Code</SubType>
     </Compile>

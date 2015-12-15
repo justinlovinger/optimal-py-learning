@@ -49,13 +49,18 @@ class GrowingLayer(Layer):
 
 class Ensemble(Layer):
     """A composite of layers connected in parallel."""
-    def __init__(self, layers):
+    def __init__(self, networks):
         super(Ensemble, self).__init__()
 
-        self._layers = layers
+        self.num_inputs = networks[0].num_inputs
+        self.num_outputs = networks[0].num_outputs
+
+        # TODO: validate that all networks have the same num inputs and outputs
+
+        self._networks = networks
         self.reset()
 
-def _validate_layers(layers):
+def _validate_layers(layers, num_inputs='any'):
     """Validate that each layer matches the next layer."""
     # Assert each element of layers is a Layer
     for layer in layers:
@@ -64,7 +69,7 @@ def _validate_layers(layers):
                              " Instead contains {}.".format(type(layer)))
 
     # And that inputs --> outputs line up
-    last_num = 'any'
+    last_num = num_inputs
     for i in range(len(layers)-1):
         layer = layers[i]
         next_layer = layers[i+1]
@@ -140,6 +145,14 @@ class Network(object):
         # Bookkeeping
         self.iteration = 0
 
+    @property
+    def num_inputs(self):
+        return self._num_inputs
+
+    @property
+    def num_outputs(self):
+        return self._num_outputs
+
     def _reset_bookkeeping(self):
         self.iteration = 0
 
@@ -159,7 +172,7 @@ class Network(object):
 
         return inputs
 
-    def learn(self, first_inputs, targets):
+    def update(self, first_inputs, targets):
         if self._num_outputs != 'any' and len(targets) != self._num_outputs:
             raise ValueError('Wrong number of targets. Expected {}, got {}' \
                              ''.format(self._num_outputs, len(targets)))
@@ -258,7 +271,7 @@ class Network(object):
             error = 0.0       
             for pattern in patterns:
                 # Learn
-                errors = self.learn(pattern[0], pattern[1], *args, **kwargs)
+                errors = self.update(pattern[0], pattern[1], *args, **kwargs)
 
                 # Sum errors
                 if track_error:
