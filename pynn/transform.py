@@ -89,8 +89,9 @@ class GaussianOutput(network.Layer):
 
     def reset(self):
         # Randomize weights, between -initial_weights_range and initial_weights_range
-        random_matrix = numpy.random.random(self._size)
-        self._weights = (2*random_matrix-1)*self.initial_weights_range
+        #random_matrix = numpy.random.random(self._size)
+        #self._weights = (2*random_matrix-1)*self.initial_weights_range
+        self._weights = numpy.zeros(self._size)
 
     def activate(self, inputs):
         return numpy.dot(inputs, self._weights)

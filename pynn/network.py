@@ -313,9 +313,11 @@ def make_rbf(inputs, neurons, outputs, learn_rate=1.0,
     from pynn import transform
     from pynn import som
 
+    variance = 4.0/neurons
+
     layers = [
               som.SOM(inputs, neurons, move_rate, neighborhood, neighbor_move_rate),
-              transfer.GaussianTransfer(),
+              transfer.GaussianTransfer(variance),
               transform.GaussianOutput(neurons, outputs, learn_rate),
              ]
 

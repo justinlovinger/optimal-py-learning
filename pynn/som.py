@@ -1,11 +1,16 @@
-﻿import numpy
+﻿import operator
+
+import numpy
 
 from pynn import network
 from pynn import transfer
 
 def distance(vec_a, vec_b):
     diff = numpy.subtract(vec_a, vec_b)
-    return diff.dot(diff)
+    return numpy.sqrt(diff.dot(diff))
+
+def min_index(values):
+    return min(enumerate(values), key=operator.itemgetter(1))[0]
 
 class SOM(network.Layer):
     requires_prev = (None,)
@@ -32,22 +37,14 @@ class SOM(network.Layer):
 
     def activate(self, inputs):
         diffs = inputs - self._weights
-        self._distances = [d.dot(d) for d in diffs]
+        self._distances = [numpy.sqrt(d.dot(d)) for d in diffs]
         return numpy.array(self._distances)
 
     def get_prev_errors(self, errors, outputs):
         return
 
     def get_closest(self):
-        closest = 0
-        closest_d = self._distances[0]
-        for i in range(1, len(self._distances)):
-            d = self._distances[i]
-            if d < closest_d:
-                closest = i
-                closest_d = d
-
-        return closest
+        return min_index(self._distances)
 
     def move_neurons(self, inputs):
         # Perform a competition, and move the winner closer to the input

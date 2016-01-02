@@ -1,16 +1,16 @@
 import math
 import time
 
-def validate_set(network, training_set, testing_set):
+def validate_set(network, training_set, testing_set, **kwargs):
     stats = {}
 
     # Train network on training set
     start = time.clock()
-    network.train(training_set)
+    network.train(training_set, **kwargs)
     elapsed = time.clock() - start
 
     stats['time'] = elapsed
-    stats['epochs'] = network.iterations
+    stats['epochs'] = network.iteration
 
     # Get error for training and testing set
     stats['training_error'] = network.get_error(training_set)
@@ -81,7 +81,8 @@ def add_mean_std_to_stats(stats):
     stats['Mean'] = mean
     stats['STD'] = std
 
-def cross_validate(network, patterns, num_folds=3):
+def cross_validate(network, patterns, num_folds=3,
+                   iterations=1000, error_break=0.02):
     """Split the patterns, then train and test network on each fold."""
 
     # Get our sets, for use in cross validation
@@ -93,7 +94,8 @@ def cross_validate(network, patterns, num_folds=3):
 
     for i, (train_set, test_set) in enumerate(train_test_sets):
         network.reset()
-        stats['Fold {}'.format(i)] = validate_set(network, train_set, test_set)
+        stats['Fold {}'.format(i)] = validate_set(network, train_set, test_set,
+                                                  iterations=iterations, error_break=error_break)
 
     # Get average and std
     add_mean_std_to_stats(stats)
