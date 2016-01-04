@@ -55,7 +55,6 @@ class GaussianTransfer(Transfer):
 
     def activate(self, inputs):
         return gaussian_vec(inputs, self._variance)
-        #return numpy.array([gaussian(i, self._variance) for i in inputs])
 
     def get_outputs(self, inputs, outputs):
         return dgaussian_vec(outputs, self._variance)

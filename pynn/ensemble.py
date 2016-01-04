@@ -1,6 +1,8 @@
 from pynn import network
 
-class Bagger(network.Ensemble):
+class Bagger(network.ParallelLayer):
+    requires_prev = (None,)
+
     def reset(self):
         for network in self._networks:
             network.reset()

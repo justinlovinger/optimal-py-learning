@@ -5,23 +5,25 @@ import numpy
 from pynn import network
 from pynn import transfer
 
-class AddBias(network.Layer):
-    num_inputs = 'any'
-    num_outputs = '+1'
+class AddBias(network.ParallelLayer):
+    def __init__(self, layer):
+        self.layer = layer
+        self.num_inputs = self.layer.num_inputs - 1
+        self.num_outputs = self.layer.num_outputs
 
     def reset(self):
-        pass
+        self.layer.reset()
 
     def activate(self, inputs):
         # Add an extra input, always set to 1
-        return numpy.hstack((inputs, [1]))
+        return self.layer.activate(numpy.hstack((inputs, [1])))
 
     def get_prev_errors(self, errors, outputs):
-        # Clip the last delta, which was for input
-        return errors[:-1]
+        # Clip the last delta, which was for bias input
+        return self.layer.get_prev_errors(errors, outputs)[:-1]
 
     def update(self, inputs, outputs, deltas):
-        pass
+        self.layer.update(numpy.hstack((inputs, [1])), outputs, deltas)
 
 class Perceptron(network.Layer):
     def __init__(self, inputs, outputs, 
@@ -79,7 +81,6 @@ class GaussianOutput(network.Layer):
         self.num_outputs = outputs
 
         self.learn_rate = learn_rate
-        self.initial_weights_range = initial_weights_range
         self.normalize = normalize
 
         self._size = (inputs, outputs)

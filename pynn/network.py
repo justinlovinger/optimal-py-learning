@@ -47,10 +47,10 @@ class GrowingLayer(Layer):
     requires_next = ('supportsGrowing',)
     pass
 
-class Ensemble(Layer):
+class ParallelLayer(Layer):
     """A composite of layers connected in parallel."""
     def __init__(self, networks):
-        super(Ensemble, self).__init__()
+        super(ParallelLayer, self).__init__()
 
         self.num_inputs = networks[0].num_inputs
         self.num_outputs = networks[0].num_outputs
@@ -60,7 +60,7 @@ class Ensemble(Layer):
         self._networks = networks
         self.reset()
 
-def _validate_layers(layers, num_inputs='any'):
+def _validate_layers_sequence(layers, num_inputs='any'):
     """Validate that each layer matches the next layer."""
     # Assert each element of layers is a Layer
     for layer in layers:
@@ -75,16 +75,11 @@ def _validate_layers(layers, num_inputs='any'):
         next_layer = layers[i+1]
 
         # Track how many inputs are required for next layer
-        if layer.num_outputs == '+1': # Such as bias
-            if last_num == 'any':
-                continue
-            else:
-                last_num = last_num + 1
-        elif layer.num_outputs != 'any': # When any, last_num doesn't change
-            last_num = layer.num_outputs
-
         if next_layer.num_inputs == 'any':
+            # When any, last_num doesn't change, and no validation required
             continue
+
+        last_num = layer.num_outputs
 
         # Validate
         if last_num != 'any' and next_layer.num_inputs != last_num:
@@ -111,14 +106,9 @@ def _validate_layers(layers, num_inputs='any'):
 
 def _find_num_inputs(layers):
     """Determine number of initial inputs for a series of layers."""
-    offset = 0
-
     for layer in layers:
         if layer.num_inputs != 'any':
-            return layer.num_inputs - offset
-
-        if layer.num_outputs == '+1':
-            offset += 1
+            return layer.num_inputs
 
     return 'any'
 
@@ -133,7 +123,7 @@ def _find_num_outputs(layers):
 class Network(object):
     """A composite of layers connected in series."""
     def __init__(self, layers):
-        _validate_layers(layers)
+        _validate_layers_sequence(layers)
 
         self._layers = layers
         self._num_inputs = _find_num_inputs(layers)
@@ -293,9 +283,8 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
 
     layers = []
     # Create first layer with bias
-    layers.append(transform.AddBias())
-    layers.append(transform.Perceptron(shape[0]+1, shape[1], False, 
-                                       learn_rate, momentum_rate))
+    layers.append(transform.AddBias(transform.Perceptron(shape[0]+1, shape[1], False, 
+                                                         learn_rate, momentum_rate)))
     layers.append(transfer.SigmoidTransfer())
 
     # Create other layers without bias
