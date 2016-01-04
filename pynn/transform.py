@@ -73,13 +73,14 @@ def fast_contribution(diffs, variance):
 class GaussianOutput(network.Layer):
     required_prev = (transfer.GaussianTransfer,)
 
-    def __init__(self, inputs, outputs,  learn_rate=1.0, initial_weights_range=0.25):
+    def __init__(self, inputs, outputs,  learn_rate=1.0, normalize=False):
         super(GaussianOutput, self).__init__()
         self.num_inputs = inputs
         self.num_outputs = outputs
 
         self.learn_rate = learn_rate
         self.initial_weights_range = initial_weights_range
+        self.normalize = normalize
 
         self._size = (inputs, outputs)
 
@@ -88,13 +89,14 @@ class GaussianOutput(network.Layer):
         self.reset()
 
     def reset(self):
-        # Randomize weights, between -initial_weights_range and initial_weights_range
-        #random_matrix = numpy.random.random(self._size)
-        #self._weights = (2*random_matrix-1)*self.initial_weights_range
         self._weights = numpy.zeros(self._size)
 
     def activate(self, inputs):
-        return numpy.dot(inputs, self._weights)
+        output = numpy.dot(inputs, self._weights)
+        if self.normalize:
+            return output / numpy.sum(inputs)
+        else:
+            return output
 
     def get_prev_errors(self, errors, outputs):
         # TODO: test that this is correct
@@ -103,6 +105,9 @@ class GaussianOutput(network.Layer):
 
     def update(self, inputs, outputs, errors):
         # Inputs are generally contributions
+        if self.normalize:
+            inputs = inputs / numpy.sum(inputs)
+
         # [:,None] quickly transposes an array to a col vector
         changes = inputs[:,None] * errors
         self._weights += self.learn_rate*changes

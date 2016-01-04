@@ -306,19 +306,20 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
 
     return Network(layers)
 
-def make_rbf(inputs, neurons, outputs, learn_rate=1.0,
-             move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
+def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=False,
+             move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0,):
     """Create a radial-basis function network."""
     from pynn import transfer
     from pynn import transform
     from pynn import som
 
-    variance = 4.0/neurons
+    if variance == None:
+        variance = 4.0/neurons
 
     layers = [
               som.SOM(inputs, neurons, move_rate, neighborhood, neighbor_move_rate),
               transfer.GaussianTransfer(variance),
-              transform.GaussianOutput(neurons, outputs, learn_rate),
+              transform.GaussianOutput(neurons, outputs, learn_rate, normalize=True),
              ]
 
     return Network(layers)
