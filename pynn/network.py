@@ -45,30 +45,66 @@ class GrowingLayer(Layer):
     Raise growth exception when new neuron is added.
     """
     requires_next = ('supportsGrowing',)
-    pass
 
 class ParallelLayer(Layer):
     """A composite of layers connected in parallel."""
-    def __init__(self, networks):
-        super(ParallelLayer, self).__init__()
 
-        self.num_inputs = networks[0].num_inputs
-        self.num_outputs = networks[0].num_outputs
-
-        # TODO: validate that all networks have the same num inputs and outputs
-
-        self._networks = networks
-        self.reset()
-
-def _validate_layers_sequence(layers, num_inputs='any'):
-    """Validate that each layer matches the next layer."""
-    # Assert each element of layers is a Layer
+def _validate_layers_layers(layers):
+    """Assert each element of layers is a Layer."""
     for layer in layers:
         if not isinstance(layer, Layer):
-            raise ValueError("layers argument of Network must contain Layer's." \
+            raise TypeError("layers argument of Network must contain Layer's." \
                              " Instead contains {}.".format(type(layer)))
 
-    # And that inputs --> outputs line up
+def _all_in(all_required, values):
+    for required in all_required:
+        if not required in values:
+            return False
+    return True
+
+def _validate_requires_next(prev_layer, layer):
+    if not _all_in(prev_layer.requires_next, layer.attributes):
+        raise TypeError("Layer of type {} must be followed by attributes: {}. " \
+                        "It is followed by attributes: " \
+                        "{}".format(type(prev_layer), prev_layer.requires_next, 
+                                    layer.attributes))
+
+def _validate_requires_prev(next_layer, layer):
+    if not _all_in(next_layer.requires_prev, layer.attributes):
+        raise TypeError("Layer of type {} must be preceded by attributes: {}. " \
+                        "It is preceded by attributes: " \
+                        "{}".format(type(next_layer), next_layer.requires_prev, 
+                                    layer.attributes))
+
+def _validate_layers_parallel(layers, prev_layer, next_layer):
+    """Validate that all layers have the same required features."""
+    _validate_layers_layers(layers)
+
+    # Same inputs and outputs
+    num_inputs = layers[0].num_inputs
+    num_outputs = layers[0].num_outputs
+    for i, layer in enumerate(layers[1:]):
+        if layer.num_inputs != num_inputs:
+            raise ValueError('num_inputs for layer {} does not match other' \
+                             ' layers in parallel. Should have {}'.format(i+1, num_inputs))
+
+        if layer.num_outputs != num_outputs:
+            raise ValueError('num_outputs for layer {} does not match other' \
+                             ' layers in parallel. Should have {}'.format(i+1, num_outputs))
+
+    # Supports prev and next layer
+    for i, layer in enumerate(layers):
+        if prev_layer:
+            _validate_requires_next(prev_layer, layer)
+
+        if next_layer:
+            _validate_requires_prev(next_layer, layer)
+
+def _validate_layers_sequence(layers, num_inputs='any'):
+    """Validate that layers are valid and each layer matches the next layer."""
+    _validate_layers_layers(layers)
+
+    # inputs --> outputs line up
     last_num = num_inputs
     for i in range(len(layers)-1):
         layer = layers[i]
@@ -89,20 +125,11 @@ def _validate_layers_sequence(layers, num_inputs='any'):
     # Check that feature requirements line up
     # Check each lines up with next
     for i in range(len(layers)-1):
-        for attribute in layers[i].requires_next:
-            if not attribute in layers[i+1].attributes:
-                raise TypeError("Layer of type {} must be followed by attributes: {}. " \
-                                "It is followed by attributes: " \
-                                "{}".format(type(layers[i]), layers[i].requires_next, 
-                                            layers[i+1].attributes))
+        _validate_requires_next(layers[i], layers[i+1])
+
     # Check each lines up with prev
     for i in range(1, len(layers)):
-        for attribute in layers[i].requires_prev:
-            if not attribute in layers[i-1].attributes:
-                raise TypeError("Layer of type {} must be preceded by attributes: {}. " \
-                                "It is preceded by attributes: " \
-                                "{}".format(type(layers[i]), layers[i].requires_prev, 
-                                            layers[i-1].attributes))
+        _validate_requires_prev(layers[i], layers[i-1])
 
 def _find_num_inputs(layers):
     """Determine number of initial inputs for a series of layers."""

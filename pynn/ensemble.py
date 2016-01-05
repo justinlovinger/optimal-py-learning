@@ -1,6 +1,18 @@
 from pynn import network
 
-class Bagger(network.ParallelLayer):
+class Ensemble(network.ParallelLayer):
+    def __init__(self, networks):
+        super(Ensemble, self).__init__()
+
+        self.num_inputs = networks[0].num_inputs
+        self.num_outputs = networks[0].num_outputs
+
+        # TODO: validate that all networks have the same num inputs and outputs
+
+        self._networks = networks
+        self.reset()
+
+class Bagger(Ensemble):
     requires_prev = (None,)
 
     def reset(self):
