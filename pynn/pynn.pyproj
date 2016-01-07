@@ -23,6 +23,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="conftest.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="data\datasets.py">
       <SubType>Code</SubType>
     </Compile>
@@ -48,6 +51,12 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tests\test_network.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\test_transfer.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="tests\test_transform.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="tests\test_validation.py">

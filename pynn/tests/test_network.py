@@ -2,6 +2,7 @@ import pytest
 import copy
 
 from pynn import network
+from pynn.data import datasets
 
 def test_network_validation_layers():
     with pytest.raises(TypeError):
@@ -22,15 +23,15 @@ def test_network_validation_requires_next_prev():
     n = network.Network([network.GrowingLayer(), network.SupportsGrowingLayer()])
 
 def test_network_validation_sequence_num_inputs_outputs():
-    layer = network.Layer
+    layer = network.Layer()
     layer.num_inputs = 3
     layer.num_outputs = 2
 
-    layer2 = network.Layer
+    layer2 = network.Layer()
     layer2.num_inputs = 2
     layer2.num_outputs = 1
     
-    layer3 = network.Layer
+    layer3 = network.Layer()
     layer3.num_inputs = 1
     layer3.num_outputs = 1
 
@@ -83,15 +84,43 @@ def test_network_validation_parallel_requires_prev_next():
         network._validate_layers_parallel(layers, prev_layer, next_layer)
 
 def test_mlp():
-    assert 0
+    # Run for a couple of iterations
+    # assert that new error is less than original
+    nn = network.make_mlp((2, 2, 1))
+    pat = datasets.get_xor()
+
+    error = nn.get_error(pat)
+    nn.train(pat, 10)
+    assert nn.get_error(pat) < error
 
 pytest.mark.slowtest()
 def test_mlp_convergence():
-    assert 0
+    # Run until convergence
+    # assert that network can converge
+    nn = network.make_mlp((2, 2, 1))
+    pat = datasets.get_xor()
+
+    cutoff = 0.02
+    nn.train(pat, error_break=0.02)
+    assert nn.get_error(pat) <= cutoff
 
 def test_rbf():
-    assert 0
+    # Run for a couple of iterations
+    # assert that new error is less than original
+    nn = network.make_rbf(2, 4, 1, normalize=True)
+    pat = datasets.get_xor()
+
+    error = nn.get_error(pat)
+    nn.train(pat, 10)
+    assert nn.get_error(pat) < error
 
 pytest.mark.slowtest()
 def test_rbf_convergence():
-    assert 0
+    # Run until convergence
+    # assert that network can converge
+    nn = network.make_rbf(2, 4, 1, normalize=True)
+    pat = datasets.get_xor()
+
+    cutoff = 0.02
+    nn.train(pat, error_break=0.02)
+    assert nn.get_error(pat) <= cutoff

@@ -51,9 +51,6 @@ class Perceptron(network.Layer):
         self._weights = (2*random_matrix-1)*self.initial_weights_range
 
     def activate(self, inputs):
-        if len(inputs) != self._size[0]:
-            raise ValueError('wrong number of inputs')
-
         return numpy.dot(inputs, self._weights)
 
     def get_prev_errors(self, errors, outputs):

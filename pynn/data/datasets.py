@@ -29,3 +29,11 @@ def get_lenses():
 
 def get_yeast():
     return process.get_data(filename_relative('datasets/yeast.data'), 1)
+
+def get_xor():
+    return [
+            [[-1,-1], [0]],
+            [[-1,1], [1]],
+            [[1,-1], [1]],
+            [[1,1], [0]]
+           ]
