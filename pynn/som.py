@@ -16,7 +16,8 @@ class SOM(network.Layer):
     requires_prev = (None,)
 
     def __init__(self, inputs, neurons, 
-                 move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
+                 move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0,
+                 initial_weights_range=1.0):
         super(SOM, self).__init__()
         self.num_inputs = inputs
         self.num_outputs = neurons
@@ -24,6 +25,7 @@ class SOM(network.Layer):
         self.move_rate = move_rate
         self.neighborhood = neighborhood
         self.neighbor_move_rate = neighbor_move_rate
+        self.initial_weights_range = initial_weights_range
 
         self._size = (neurons, inputs)
         self._weights = numpy.zeros(self._size)
@@ -33,7 +35,7 @@ class SOM(network.Layer):
     def reset(self):
         # Randomize weights, between -1 and 1
         random_matrix = numpy.random.random(self._size)
-        self._weights = (2*random_matrix-1)*1.0
+        self._weights = (2*random_matrix-1)*self.initial_weights_range
 
     def activate(self, inputs):
         diffs = inputs - self._weights

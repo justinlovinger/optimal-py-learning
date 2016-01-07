@@ -53,6 +53,9 @@
     <Compile Include="tests\test_network.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="tests\test_som.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="tests\test_transfer.py">
       <SubType>Code</SubType>
     </Compile>
