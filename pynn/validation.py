@@ -13,8 +13,8 @@ def validate_set(network, training_set, testing_set, **kwargs):
     stats['epochs'] = network.iteration
 
     # Get error for training and testing set
-    stats['training_error'] = network.get_error(training_set)
-    stats['testing_error'] = network.get_error(testing_set)
+    stats['training_error'] = network.get_avg_error(training_set)
+    stats['testing_error'] = network.get_avg_error(testing_set)
 
     return stats
 

@@ -1,8 +1,10 @@
 import pytest
 import copy
+import random
 
 from pynn import network
 from pynn.data import datasets
+from pynn import transform
 
 def test_network_validation_layers():
     with pytest.raises(TypeError):
@@ -83,15 +85,24 @@ def test_network_validation_parallel_requires_prev_next():
     with pytest.raises(TypeError):
         network._validate_layers_parallel(layers, prev_layer, next_layer)
 
+def test_get_error():
+    # This network will always output 0 for input 0
+    nn = network.Network([transform.Perceptron(1, 1)])
+    assert nn.get_error([[0], [1]]) == 1.0
+    assert nn.get_error([[0], [0.5]]) == 0.25
+
+    nn = network.Network([transform.Perceptron(1, 2)])
+    assert nn.get_error([[0], [1, 1]]) == 1.0
+
 def test_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
     nn = network.make_mlp((2, 2, 1))
     pat = datasets.get_xor()
 
-    error = nn.get_error(pat)
+    error = nn.get_avg_error(pat)
     nn.train(pat, 10)
-    assert nn.get_error(pat) < error
+    assert nn.get_avg_error(pat) < error
 
 pytest.mark.slowtest()
 def test_mlp_convergence():
@@ -102,7 +113,7 @@ def test_mlp_convergence():
 
     cutoff = 0.02
     nn.train(pat, error_break=0.02)
-    assert nn.get_error(pat) <= cutoff
+    assert nn.get_avg_error(pat) <= cutoff
 
 def test_rbf():
     # Run for a couple of iterations
@@ -110,9 +121,9 @@ def test_rbf():
     nn = network.make_rbf(2, 4, 1, normalize=True)
     pat = datasets.get_xor()
 
-    error = nn.get_error(pat)
+    error = nn.get_avg_error(pat)
     nn.train(pat, 10)
-    assert nn.get_error(pat) < error
+    assert nn.get_avg_error(pat) < error
 
 pytest.mark.slowtest()
 def test_rbf_convergence():
@@ -123,4 +134,45 @@ def test_rbf_convergence():
 
     cutoff = 0.02
     nn.train(pat, error_break=0.02)
-    assert nn.get_error(pat) <= cutoff
+    assert nn.get_avg_error(pat) <= cutoff
+
+@pytest.fixture()
+def seed_random(request):
+    random.seed(0)
+
+    def fin():
+        import time
+        random.seed(time.time())
+    request.addfinalizer(fin)
+
+def test_select_sample(seed_random):
+    pat = datasets.get_xor()
+    new_pat = network.select_sample(pat)
+    assert len(new_pat) == len(pat)
+    for p in pat: # all in
+        assert p in new_pat
+    assert new_pat != pat # order different
+
+    new_pat = network.select_random(pat, size=2)
+    assert len(new_pat) == 2
+    # No duplicates
+    count = 0
+    for p in pat:
+        if p in new_pat:
+            count += 1
+    assert count == 2
+
+def test_select_random(monkeypatch):
+    # Monkeypatch so we know that random returns
+    monkeypatch.setattr(random, 'randint', lambda x, y : 0) # randint always returns 0
+
+    pat = datasets.get_xor()
+    new_pat = network.select_random(pat)
+    assert len(new_pat) == len(pat)
+    for p in new_pat:
+        assert p == pat[0] # due to monkeypatch
+
+    new_pat = network.select_random(pat, size=2)
+    assert len(new_pat) == 2
+    for p in new_pat:
+        assert p == pat[0]
