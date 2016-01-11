@@ -266,7 +266,7 @@ class Network(object):
         return error/len(patterns)
 
     def train(self, patterns, iterations=1000, error_break=0.02,
-              pattern_select_func=select_iterative):
+              pattern_select_func=select_iterative, each_pattern_callback=None):
         """Train network to converge on set of patterns.
         
         Args:
@@ -288,6 +288,11 @@ class Network(object):
             for pattern in pattern_select_func(patterns):
                 # Learn
                 errors = self.update(pattern[0], pattern[1])
+
+                # Optional callback for user extension,
+                # such as a visualization or history tracking
+                if each_pattern_callback:
+                    each_pattern_callback(self, pattern)
 
                 # Sum errors
                 if track_error:

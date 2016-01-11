@@ -94,6 +94,17 @@ def test_get_error():
     nn = network.Network([transform.Perceptron(1, 2)])
     assert nn.get_error([[0], [1, 1]]) == 1.0
 
+def test_each_pattern_callback():
+    pat = datasets.get_xor()
+    nn = network.Network([])
+
+    history = []
+    def callback(nn, pattern):
+        history.append(pattern)
+
+    nn.train(pat, iterations=1, each_pattern_callback=callback)
+    assert pat == history
+
 def test_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
