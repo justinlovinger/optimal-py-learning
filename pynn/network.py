@@ -30,6 +30,30 @@ class Layer(object):
         """
         return inputs
 
+    def pre_training(self, patterns):
+        """Called before each training run.
+        
+        Optional.
+        """
+
+    def post_training(self, patterns):
+        """Called after each training run.
+        
+        Optional.
+        """
+
+    def pre_iteration(self, patterns):
+        """Called before each training iteration.
+
+        Optional.
+        """
+
+    def post_iteration(self, patterns):
+        """Called after each training iteration.
+
+        Optional.
+        """
+
 class SupportsGrowingLayer(Layer):
     """Layer that supports new neurons by increasing input size.
     
@@ -282,8 +306,18 @@ class Network(object):
         # For optimization
         track_error = error_break != 0.0 or self.logging
 
+        # Pre-training for each layer
+        for layer in self._layers:
+            layer.pre_training(patterns)
+
         # Learn on each pattern for each iteration
         for self.iteration in range(iterations):
+
+            # Pre-iteration for each layer
+            for layer in self._layers:
+                layer.pre_iteration(patterns)
+
+            # Learn each selected pattern
             error = 0.0
             for pattern in pattern_select_func(patterns):
                 # Learn
@@ -297,7 +331,12 @@ class Network(object):
                 # Sum errors
                 if track_error:
                     error += numpy.mean(errors**2)
+
+            # Post-iteration for each layer
+            for layer in self._layers:
+                layer.post_iteration(patterns)
                 
+            # Logging and breaking
             if track_error:
                 error = error / len(patterns)
                 if self.logging:
@@ -305,7 +344,11 @@ class Network(object):
 
                 # Break early to prevent overtraining
                 if error < error_break:
-                    return
+                    break
+
+        # Post-training for each layer
+        for layer in self._layers:
+            layer.post_training(patterns)
 
 ##########################
 # Quick network functions

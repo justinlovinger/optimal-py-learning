@@ -187,3 +187,60 @@ def test_select_random(monkeypatch):
     assert len(new_pat) == 2
     for p in new_pat:
         assert p == pat[0]
+
+class CountPerceptron(transform.Perceptron):
+    def __init__(self, *args, **kwargs):
+        super(CountPerceptron, self).__init__(*args, **kwargs)
+        self.count = 0
+
+def test_pre_training():
+    # Setup pre_training function
+    class TestPerceptron(CountPerceptron):
+        def pre_training(self, patterns):
+            self.count += 1
+
+    # Train for a few iterations
+    nn = network.Network([TestPerceptron(1, 1)])
+    nn.train([[[1], [1]]], iterations=10)
+
+    # Count incremented only once
+    assert nn._layers[0].count == 1
+
+def test_post_training():
+    # Setup post_training function
+    class TestPerceptron(CountPerceptron):
+        def post_training(self, patterns):
+            self.count += 1
+
+    # Train for a few iterations
+    nn = network.Network([TestPerceptron(1, 1)])
+    nn.train([[[1], [1]]], iterations=10)
+
+    # Count incremented only once
+    assert nn._layers[0].count == 1
+
+def test_pre_iteration():
+    # Setup pre_iteration function
+    class TestPerceptron(CountPerceptron):
+        def pre_iteration(self, patterns):
+            self.count += 1
+
+    # Train for a few iterations
+    nn = network.Network([TestPerceptron(1, 1)])
+    nn.train([[[1], [1]]], iterations=10)
+
+    # Count incremented for each iteration
+    assert nn._layers[0].count == 10
+
+def test_post_iteration():
+    # Setup post_iteration function
+    class TestPerceptron(CountPerceptron):
+        def post_iteration(self, patterns):
+            self.count += 1
+
+    # Train for a few iterations
+    nn = network.Network([TestPerceptron(1, 1)])
+    nn.train([[[1], [1]]], iterations=10)
+
+    # Count incremented for each iteration
+    assert nn._layers[0].count == 10
