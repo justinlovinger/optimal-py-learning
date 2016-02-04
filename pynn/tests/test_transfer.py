@@ -21,3 +21,9 @@ def test_gaussian_transfer():
     output = layer.activate(numpy.array([-1.0, 0.0, 0.5, 1.0]))
     output = [round(v, 6) for v in output]
     assert output == expected
+
+def test_softmax_exp_transfer():
+    assert 0
+
+def test_softmax_linear_transfer():
+    assert 0
