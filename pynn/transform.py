@@ -47,6 +47,7 @@ class Perceptron(network.Layer):
 
     def reset(self):
         # Randomize weights, between -initial_weights_range and initial_weights_range
+        # TODO: randomize with Gaussian distribution instead of uniform. Mean = 0, small variance.
         random_matrix = numpy.random.random(self._size)
         self._weights = (2*random_matrix-1)*self.initial_weights_range
 
