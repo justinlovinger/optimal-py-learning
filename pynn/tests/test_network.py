@@ -201,7 +201,7 @@ def test_pre_training():
 
     # Train for a few iterations
     nn = network.Network([TestPerceptron(1, 1)])
-    nn.train([[[1], [1]]], iterations=10)
+    nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented only once
     assert nn._layers[0].count == 1
@@ -214,7 +214,7 @@ def test_post_training():
 
     # Train for a few iterations
     nn = network.Network([TestPerceptron(1, 1)])
-    nn.train([[[1], [1]]], iterations=10)
+    nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented only once
     assert nn._layers[0].count == 1
@@ -227,7 +227,7 @@ def test_pre_iteration():
 
     # Train for a few iterations
     nn = network.Network([TestPerceptron(1, 1)])
-    nn.train([[[1], [1]]], iterations=10)
+    nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented for each iteration
     assert nn._layers[0].count == 10
@@ -240,7 +240,7 @@ def test_post_iteration():
 
     # Train for a few iterations
     nn = network.Network([TestPerceptron(1, 1)])
-    nn.train([[[1], [1]]], iterations=10)
+    nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented for each iteration
     assert nn._layers[0].count == 10

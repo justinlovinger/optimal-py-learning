@@ -23,7 +23,29 @@ def test_gaussian_transfer():
     assert output == expected
 
 def test_softmax_exp_transfer():
-    assert 0
+    layer = transfer.SoftmaxExpTransfer()
+    expected = [0.5, 0.5]
+    output = list(layer.activate(numpy.array([1.0, 1.0])))
+    assert output == expected
+
+    expected = [1.0, 0.0]
+    output = list(layer.activate(numpy.array([1.0, 0.0])))
+    assert output == expected
+
+    input = [0.75, 0.25]
+    output = list(layer.activate(numpy.array(input)))
+    assert output[0] > input[0] and output[1] < input[1]
 
 def test_softmax_linear_transfer():
-    assert 0
+    layer = transfer.SoftmaxLinearTransfer()
+    expected = [0.5, 0.5]
+    output = list(layer.activate(numpy.array([1.0, 1.0])))
+    assert output == expected
+
+    expected = [1.0, 0.0]
+    output = list(layer.activate(numpy.array([1.0, 0.0])))
+    assert output == expected
+
+    expected = [0.8, 0.2]
+    output = list(layer.activate(numpy.array([1.0, 0.25])))
+    assert output == expected
