@@ -350,6 +350,23 @@ class Network(object):
         for layer in self._layers:
             layer.post_training(patterns)
 
+    def serialize(self):
+        """Convert network into string.
+        
+        Returns:
+            string; A string representing this network.
+        """
+        raise NotImplementedError()
+
+    @classmethod
+    def unserialize(cls, serialized_network):
+        """Convert serialized network into network.
+
+        Returns:
+            Network; A Network object.
+        """
+        raise NotImplementedError()
+
 ##########################
 # Quick network functions
 ##########################
