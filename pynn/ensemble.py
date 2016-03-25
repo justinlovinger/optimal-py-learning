@@ -1,3 +1,5 @@
+import numpy
+
 from pynn import network
 
 class Ensemble(network.ParallelLayer):
@@ -21,10 +23,11 @@ class Bagger(Ensemble):
 
     def activate(self, inputs):
         # Unweighted average of layer outputs
-        outputs = []
+        output = numpy.zeros(self.num_outputs)
         for network in self._networks:
-            outputs.append(network.activate(inputs))
-        return sum(outputs) / len(outputs)
+            output += network.activate(inputs)
+
+        return output / len(self._networks)
 
     def get_prev_errors(self, errors, outputs):
         return None #TODO

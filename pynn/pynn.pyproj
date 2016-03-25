@@ -47,25 +47,34 @@
     <Compile Include="som.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="testall.py">
+    <Compile Include="testing\helpers.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="tests\test_datasets.py">
+    <Compile Include="testing\testall.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="tests\test_network.py">
+    <Compile Include="testing\tests\test_datasets.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="tests\test_som.py">
+    <Compile Include="testing\tests\test_ensemble.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="tests\test_transfer.py">
+    <Compile Include="testing\tests\test_network.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="tests\test_transform.py">
+    <Compile Include="testing\tests\test_som.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="tests\test_validation.py">
+    <Compile Include="testing\tests\test_transfer.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="testing\tests\test_transform.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="testing\tests\test_validation.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="testing\__init__.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="transfer.py">
@@ -84,7 +93,8 @@
   <ItemGroup>
     <Folder Include="data\" />
     <Folder Include="data\datasets\" />
-    <Folder Include="tests\" />
+    <Folder Include="testing\" />
+    <Folder Include="testing\tests\" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="data\datasets\breast-cancer-wisconsin.data" />
