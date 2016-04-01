@@ -10,7 +10,7 @@ def normalize(input_vectors):
     """
     raise NotImplementedError()
 
-def clean_dataset_depuration(dataset, k, k_prime):
+def clean_dataset_depuration(dataset, k=3, k_prime=2):
     """Clean a dataset with the Depuration procedure.
 
     See section 3.1 of "Analysis of new techniques to obtain quality training sets".
