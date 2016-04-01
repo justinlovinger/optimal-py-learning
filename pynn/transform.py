@@ -110,3 +110,10 @@ class GaussianOutput(network.Layer):
         # [:,None] quickly transposes an array to a col vector
         changes = inputs[:,None] * errors
         self._weights += self.learn_rate*changes
+
+
+def select_k_nearest_neighbors(dataset, center, k):
+    """Return the k points in dataset nearest center."""
+    assert k <= len(dataset)
+
+    raise NotImplementedError()
