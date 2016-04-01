@@ -13,9 +13,11 @@ def normalize(input_vectors):
     raise NotImplementedError()
 
 def _list_minus_i(list_, i):
+    """Return list without item i."""
     return list_[:i] + list_[i+1:]
 
 def _count_classes(points):
+    """Count how many times each class appears in a set of points."""
     class_counts = {}
     for point in points:
         try:
@@ -55,3 +57,6 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
                 # discard point (do not add to cleaned_dataset)
 
     return cleaned_dataset
+
+# Set default clean dataset function
+clean_dataset = clean_dataset_depuration
