@@ -44,6 +44,9 @@
     <Compile Include="network.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="preprocess.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="som.py">
       <SubType>Code</SubType>
     </Compile>
@@ -60,6 +63,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="testing\tests\test_network.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="testing\tests\test_preprocess.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="testing\tests\test_som.py">
