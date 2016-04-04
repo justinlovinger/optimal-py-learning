@@ -4,10 +4,7 @@ import numpy
 
 from pynn import network
 from pynn import transfer
-
-def distance(vec_a, vec_b):
-    diff = numpy.subtract(vec_a, vec_b)
-    return numpy.sqrt(diff.dot(diff))
+from pynn import calculate
 
 def min_index(values):
     return min(enumerate(values), key=operator.itemgetter(1))[0]

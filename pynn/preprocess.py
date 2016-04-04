@@ -32,7 +32,8 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
 
     See section 3.1 of "Analysis of new techniques to obtain quality training sets".
     """
-    assert (k + 1) / 2 <= k_prime and k_prime <= k
+    if not ((k + 1) / 2 <= k_prime and k_prime <= k):
+        raise ValueError('k_prime must be between (k + 1) / 2 and k')
 
     cleaned_dataset = []
     for i, point in enumerate(dataset):
@@ -53,8 +54,9 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
                 new_point = (point[0], class_)
 
                 cleaned_dataset.append(new_point)
-            # else
-                # discard point (do not add to cleaned_dataset)
+                break
+        # else
+            # discard point (do not add to cleaned_dataset)
 
     return cleaned_dataset
 

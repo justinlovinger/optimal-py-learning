@@ -4,6 +4,7 @@ import numpy
 
 from pynn import network
 from pynn import transfer
+from pynn import calculate
 
 class AddBias(network.ParallelLayer):
     def __init__(self, layer):
@@ -112,8 +113,17 @@ class GaussianOutput(network.Layer):
         self._weights += self.learn_rate*changes
 
 
-def select_k_nearest_neighbors(dataset, center, k):
+def select_k_nearest_neighbors(inputs, center, k):
     """Return the k points in dataset nearest center."""
-    assert k <= len(dataset)
+    if k > len(inputs):
+        raise ValueError('k must be less than the size of the dataset')
 
-    raise NotImplementedError()
+    # TODO: more efficient implementation, without sorting
+    # Sort each point by distance to center
+    distances = [calculate.distance(input, center) for input in inputs]
+    input_distances = zip(inputs, distances)
+    sort(input_distances, key=lambda x: x[1])
+    sorted_points, _ = zip(*input_distances)
+
+    # Select the k closest, using our sorted list
+    return sorted_points[:k]

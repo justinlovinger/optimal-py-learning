@@ -32,3 +32,16 @@ def test_gaussian_output():
     layer._weights[0][0] = 1.0
     layer._weights[1][0] = 2.0
     assert layer.activate(numpy.array([1, 1])) == 3.0
+
+def test_select_k_nearest_neighbors():
+    inputs = [(0,), (1,), (2,)]
+    center = [0]
+
+    assert set(transform.select_k_nearest_neighbors(inputs, center, 2)) == set([(0,), (1,)])
+    assert set(transform.select_k_nearest_neighbors(inputs, center, 1)) == set([(0,)])
+
+    inputs = [(0, 0), (1, 1), (2, 2)]
+    center = [0, 0]
+
+    assert set(transform.select_k_nearest_neighbors(inputs, center, 2)) == set([(0, 0), (1, 1)])
+    assert set(transform.select_k_nearest_neighbors(inputs, center, 3)) == set([(0, 0), (1, 1), (2, 2)])

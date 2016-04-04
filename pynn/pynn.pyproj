@@ -23,6 +23,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="calculate.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="conftest.py">
       <SubType>Code</SubType>
     </Compile>
