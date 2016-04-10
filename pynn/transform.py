@@ -113,17 +113,17 @@ class GaussianOutput(network.Layer):
         self._weights += self.learn_rate*changes
 
 
-def select_k_nearest_neighbors(inputs, center, k):
+def select_k_nearest_neighbors(points, center, k):
     """Return the k points in dataset nearest center."""
-    if k > len(inputs):
+    if k > len(points):
         raise ValueError('k must be less than the size of the dataset')
 
     # TODO: more efficient implementation, without sorting
     # Sort each point by distance to center
-    distances = [calculate.distance(input, center) for input in inputs]
-    input_distances = zip(inputs, distances)
-    sort(input_distances, key=lambda x: x[1])
-    sorted_points, _ = zip(*input_distances)
+    distances = [calculate.distance(point[0], center) for point in points]
+    point_distances = zip(points, distances)
+    point_distances.sort(key=lambda x: x[1])
+    sorted_points, _ = zip(*point_distances)
 
     # Select the k closest, using our sorted list
     return sorted_points[:k]

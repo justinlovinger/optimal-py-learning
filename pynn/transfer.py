@@ -47,15 +47,10 @@ class ReluTransfer(Transfer):
 class LogitTransfer(Transfer):
     pass
 
-class SoftmaxExpTransfer(Transfer):
+class SoftmaxTransfer(Transfer):
     def activate(self, inputs):
         exp_ = numpy.exp(inputs)
         return exp_ / numpy.sum(exp_)
-
-
-class SoftmaxLinearTransfer(Transfer):
-    def activate(self, inputs):
-        return inputs / numpy.sum(inputs)
 
 class GaussianTransfer(Transfer):
     def __init__(self, variance=1.0):
