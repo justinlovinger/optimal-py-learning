@@ -3,10 +3,10 @@ import random
 
 class Layer(object):
     """A layer of computation for a supervised learning network."""
-    attributes = tuple([])
+    attributes = tuple([]) # Attributes for this layer
 
-    requires_prev = tuple([])
-    requires_next = tuple([])
+    requires_prev = tuple([]) # Attributes that are required in the previous layer
+    requires_next = tuple([]) # Attributes that are required in the next layer
     
     num_inputs = None
     num_outputs = None
@@ -406,3 +406,11 @@ def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=
              ]
 
     return Network(layers)
+
+def make_pbnn():
+    # Layer that adds all data points before training
+    # Layer that calculates distances to stored points
+    # Gaussian transfer
+    # Weighted summation (weighted by output of guassian transfer), sums targets
+    # Normalize output
+    assert 0

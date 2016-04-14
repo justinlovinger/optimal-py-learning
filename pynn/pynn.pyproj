@@ -23,6 +23,19 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="architecture\ensemble.py" />
+    <Compile Include="architecture\knn.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="architecture\mlp.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="architecture\rbf.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="architecture\som.py" />
+    <Compile Include="architecture\transfer.py" />
+    <Compile Include="architecture\__init__.py" />
     <Compile Include="calculate.py">
       <SubType>Code</SubType>
     </Compile>
@@ -38,9 +51,6 @@
     <Compile Include="data\__init__.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="ensemble.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="helpers.py">
       <SubType>Code</SubType>
     </Compile>
@@ -48,9 +58,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="preprocess.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="som.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="testing\helpers.py">
@@ -65,10 +72,19 @@
     <Compile Include="testing\tests\test_ensemble.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="testing\tests\test_knn.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="testing\tests\test_mlp.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="testing\tests\test_network.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="testing\tests\test_preprocess.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="testing\tests\test_rbf.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="testing\tests\test_som.py">
@@ -77,19 +93,10 @@
     <Compile Include="testing\tests\test_transfer.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="testing\tests\test_transform.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="testing\tests\test_validation.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="testing\__init__.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="transfer.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="transform.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="validation.py">
@@ -100,6 +107,7 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Folder Include="architecture\" />
     <Folder Include="data\" />
     <Folder Include="data\datasets\" />
     <Folder Include="testing\" />
