@@ -1,10 +1,10 @@
 import numpy
 
-from pynn import transfer
+from pynn.architecture import transfer
 from pynn.testing import helpers
 
-def test_sigmoid_transfer():
-    layer = transfer.SigmoidTransfer()
+def test_tanh_transfer():
+    layer = transfer.TanhTransfer()
     expected = [-0.761594, 0.0, 0.462117, 0.761594]
     output = layer.activate(numpy.array([-1.0, 0.0, 0.5, 1.0]))
     output = [round(v, 6) for v in output]

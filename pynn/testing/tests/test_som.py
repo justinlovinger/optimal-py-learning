@@ -1,7 +1,7 @@
 import numpy
 
 from pynn import network
-from pynn import som
+from pynn.architecture import som
 from pynn.data import datasets
 
 def test_som_reduces_distances():

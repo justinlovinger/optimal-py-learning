@@ -3,12 +3,13 @@
 import numpy
 
 from pynn import network
-from pynn import transfer
+from pynn.architecture import transfer
 
 def fast_contribution(diffs, variance):
     return math.exp(-(diffs.dot(diffs)/variance))
 
 class GaussianOutput(network.Layer):
+    # TODO: rename this class
     required_prev = (transfer.GaussianTransfer,)
 
     def __init__(self, inputs, outputs,  learn_rate=1.0, normalize=False):

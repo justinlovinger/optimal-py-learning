@@ -5,11 +5,11 @@ import math
 
 from pynn import network
 
-def sigmoid(x):
+def tanh(x):
     """Sigmoid like function using tanh"""
     return numpy.tanh(x)
 
-def dsigmoid(y):
+def dtanh(y):
     """Derivative of sigmoid above"""
     return 1.0 - y**2
 
@@ -34,12 +34,12 @@ class Transfer(network.Layer):
     def update(self, inputs, outputs, errors):
         pass
 
-class SigmoidTransfer(Transfer):
+class TanhTransfer(Transfer):
     def activate(self, inputs):
-        return sigmoid(inputs)
+        return tanh(inputs)
 
     def get_outputs(self, inputs, outputs):
-        return dsigmoid(outputs)
+        return dtanh(outputs)
 
 class ReluTransfer(Transfer):
     pass

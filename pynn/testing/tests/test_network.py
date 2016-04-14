@@ -4,7 +4,7 @@ import random
 
 from pynn import network
 from pynn.data import datasets
-from pynn import transform
+from pynn.architecture import mlp
 
 def test_network_validation_layers():
     with pytest.raises(TypeError):
@@ -87,11 +87,11 @@ def test_network_validation_parallel_requires_prev_next():
 
 def test_get_error():
     # This network will always output 0 for input 0
-    nn = network.Network([transform.Perceptron(1, 1)])
+    nn = network.Network([mlp.Perceptron(1, 1)])
     assert nn.get_error([[0], [1]]) == 1.0
     assert nn.get_error([[0], [0.5]]) == 0.25
 
-    nn = network.Network([transform.Perceptron(1, 2)])
+    nn = network.Network([mlp.Perceptron(1, 2)])
     assert nn.get_error([[0], [1, 1]]) == 1.0
 
 def test_each_pattern_callback():
@@ -188,7 +188,7 @@ def test_select_random(monkeypatch):
     for p in new_pat:
         assert p == pat[0]
 
-class CountPerceptron(transform.Perceptron):
+class CountPerceptron(mlp.Perceptron):
     def __init__(self, *args, **kwargs):
         super(CountPerceptron, self).__init__(*args, **kwargs)
         self.count = 0

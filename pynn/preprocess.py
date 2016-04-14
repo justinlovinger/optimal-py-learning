@@ -1,6 +1,6 @@
 import copy
 
-from pynn import transform
+from pynn.architecture import knn
 
 def normalize(input_vectors):
     """Normalize all inputs to a mean of 0 and equal variance, for each dimension.
@@ -49,7 +49,7 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
     cleaned_dataset = []
     for i, point in enumerate(dataset):
         # Find k-NN of point in dataset - {point}
-        k_nearest = transform.select_k_nearest_neighbors(_list_minus_i(dataset, i),
+        k_nearest = knn.select_k_nearest_neighbors(_list_minus_i(dataset, i),
                                                          point[0], k)
         
         # if a class has at least k_prime representatives

@@ -372,29 +372,29 @@ class Network(object):
 ##########################
 def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
     """Create a multi-layer perceptron network."""
-    from pynn import transfer
-    from pynn import transform
+    from pynn.architecture import transfer
+    from pynn.architecture import mlp
 
     layers = []
     # Create first layer with bias
-    layers.append(transform.AddBias(transform.Perceptron(shape[0]+1, shape[1], False, 
+    layers.append(mlp.AddBias(mlp.Perceptron(shape[0]+1, shape[1], False, 
                                                          learn_rate, momentum_rate)))
-    layers.append(transfer.SigmoidTransfer())
+    layers.append(transfer.TanhTransfer())
 
     # Create other layers without bias
     for i in range(1, len(shape)-1):
-        layers.append(transform.Perceptron(shape[i], shape[i+1], False, 
+        layers.append(mlp.Perceptron(shape[i], shape[i+1], False, 
                                            learn_rate, momentum_rate))
-        layers.append(transfer.SigmoidTransfer())
+        layers.append(transfer.TanhTransfer())
 
     return Network(layers)
 
 def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=False,
              move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0,):
     """Create a radial-basis function network."""
-    from pynn import transfer
-    from pynn import transform
-    from pynn import som
+    from pynn.architecture import transfer
+    from pynn.architecture import rbf
+    from pynn.architecture import som
 
     if variance == None:
         variance = 4.0/neurons
@@ -402,7 +402,7 @@ def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=
     layers = [
               som.SOM(inputs, neurons, move_rate, neighborhood, neighbor_move_rate),
               transfer.GaussianTransfer(variance),
-              transform.GaussianOutput(neurons, outputs, learn_rate, normalize=True),
+              rbf.GaussianOutput(neurons, outputs, learn_rate, normalize=True),
              ]
 
     return Network(layers)

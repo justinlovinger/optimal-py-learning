@@ -8,7 +8,7 @@ from pynn.architecture import transfer
 
 def test_guassian_output_requires_guassian_transfer():
     with pytest.raises(TypeError):
-        n = network.Network([transfer.SigmoidTransfer(), rbf.GaussianOutput(1, 1)])
+        n = network.Network([transfer.TanhTransfer(), rbf.GaussianOutput(1, 1)])
 
     n = network.Network([transfer.GaussianTransfer(), rbf.GaussianOutput(0, 0)])
 

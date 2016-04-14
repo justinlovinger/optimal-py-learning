@@ -1,4 +1,4 @@
-from pynn import ensemble
+from pynn.architecture import ensemble
 from pynn import network
 from pynn.testing import helpers
 

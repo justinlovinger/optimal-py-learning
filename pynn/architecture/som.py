@@ -3,7 +3,7 @@
 import numpy
 
 from pynn import network
-from pynn import transfer
+from pynn.architecture import transfer
 from pynn import calculate
 
 def min_index(values):
