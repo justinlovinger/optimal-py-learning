@@ -2,6 +2,8 @@
 import random
 import uuid
 
+from pynn import graph
+
 class Layer(object):
     """A layer of computation for a supervised learning network."""
     attributes = tuple([]) # Attributes for this layer
@@ -127,6 +129,18 @@ def _validate_layers_sequence(layers):
     for i in range(1, len(layers)):
         _validate_requires_prev(layers[i], layers[i-1])
 
+def _validate_graph(graph):
+    # Graph should have 'I' key
+
+    # Graph should have exactly one 'O' value
+    
+    # All nodes should be able to flow to output
+    #for node in graph:
+        # find path from node to 'O'
+
+    assert 0
+
+
 ##############################
 # Pattern selection functions
 ##############################
@@ -146,13 +160,21 @@ def select_random(patterns, size=None):
     max_index = len(patterns)-1
     return [patterns[random.randint(0, max_index)] for i in range(size)]
 
+
+def _reverse_graph(graph):
+    assert 0
+
 class Network(object):
     """A composite of layers connected in sequence."""
-    def __init__(self, layers):
-        _validate_layers_sequence(layers)
+    def __init__(self, graph_):
+        #_validate_layers_sequence(layers)
 
-        self._layers = layers
-        self._activations = []
+        _validate_graph(graph_)
+
+        self._graph = graph.Graph(graph_)
+        self._activations = {}
+        for layer in self._graph.nodes:
+            self._activations[layer] = None
 
         self.logging = True
 
@@ -162,20 +184,34 @@ class Network(object):
     def _reset_bookkeeping(self):
         self.iteration = 0
 
+    def _incoming_activations(self, layer):
+        return [self._activations[incoming] for incoming in 
+                self._graph.backwards_adjacency[layer]]
+
     def activate(self, inputs):
         """Return the network outputs for given inputs."""
         inputs = numpy.array(inputs)
-        self._activations = [inputs]
+        self._activations = {'I': inputs}
+        
+        open_list = ['I']
+        activated = set()
+        while len(open_list) > 0:
+            key = open_list.pop(0)
+            for layer in self._graph.adjacency[key]:
+                if layer not in activated:
+                    ouputs = layer.activate(self._incoming_activations(layer))
+                    activated.add(layer)
 
-        for layer in self._layers:
-            inputs = layer.activate(inputs)
+                    # Track all activations for learning
+                    self._activations[layer] = ouputs
 
-            # Track all activations for learning
-            self._activations.append(inputs)
+                    # Queue for activation
+                    open_list.append(layer)
 
-        return inputs
+        return self._activations['O']
 
     def update(self, inputs, targets):
+        # TODO: update to graph system
         """Adjust the network towards the targets for given inputs."""
         outputs = self.activate(inputs)
 

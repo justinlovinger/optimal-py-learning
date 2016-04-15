@@ -54,6 +54,9 @@
     <Compile Include="data\__init__.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="graph.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="helpers.py">
       <SubType>Code</SubType>
     </Compile>
@@ -73,6 +76,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="testing\tests\test_ensemble.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="testing\tests\test_graph.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="testing\tests\test_knn.py">
