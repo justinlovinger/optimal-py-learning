@@ -6,11 +6,6 @@ class Ensemble(network.ParallelLayer):
     def __init__(self, networks):
         super(Ensemble, self).__init__()
 
-        self.num_inputs = networks[0].num_inputs
-        self.num_outputs = networks[0].num_outputs
-
-        # TODO: validate that all networks have the same num inputs and outputs
-
         self._networks = networks
         self.reset()
 
@@ -23,8 +18,8 @@ class Bagger(Ensemble):
 
     def activate(self, inputs):
         # Unweighted average of layer outputs
-        output = numpy.zeros(self.num_outputs)
-        for network in self._networks:
+        output = numpy.array(self._networks[0].activate(inputs), dtype='d')
+        for network in self._networks[1:]:
             output += network.activate(inputs)
 
         return output / len(self._networks)

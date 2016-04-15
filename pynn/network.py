@@ -7,9 +7,6 @@ class Layer(object):
 
     requires_prev = tuple([]) # Attributes that are required in the previous layer
     requires_next = tuple([]) # Attributes that are required in the next layer
-    
-    num_inputs = None
-    num_outputs = None
 
     def reset(self):
         raise NotImplementedError()
@@ -108,18 +105,6 @@ def _validate_layers_parallel(layers, prev_layer, next_layer):
     """Validate that all layers have the same required features."""
     _validate_layers_layers(layers)
 
-    # Same inputs and outputs
-    num_inputs = layers[0].num_inputs
-    num_outputs = layers[0].num_outputs
-    for i, layer in enumerate(layers[1:]):
-        if layer.num_inputs != num_inputs:
-            raise ValueError('num_inputs for layer {} does not match other' \
-                             ' layers in parallel. Should have {}'.format(i+1, num_inputs))
-
-        if layer.num_outputs != num_outputs:
-            raise ValueError('num_outputs for layer {} does not match other' \
-                             ' layers in parallel. Should have {}'.format(i+1, num_outputs))
-
     # Supports prev and next layer
     for i, layer in enumerate(layers):
         if prev_layer:
@@ -128,27 +113,9 @@ def _validate_layers_parallel(layers, prev_layer, next_layer):
         if next_layer:
             _validate_requires_prev(next_layer, layer)
 
-def _validate_layers_sequence(layers, num_inputs='any'):
+def _validate_layers_sequence(layers):
     """Validate that layers are valid and each layer matches the next layer."""
     _validate_layers_layers(layers)
-
-    # inputs --> outputs line up
-    last_num = num_inputs
-    for i in range(len(layers)-1):
-        layer = layers[i]
-        next_layer = layers[i+1]
-
-        # Track how many inputs are required for next layer
-        if next_layer.num_inputs == 'any':
-            # When any, last_num doesn't change, and no validation required
-            continue
-
-        last_num = layer.num_outputs
-
-        # Validate
-        if last_num != 'any' and next_layer.num_inputs != last_num:
-            raise ValueError('num_inputs for layer {} does not match' \
-                             ' preceding layers'.format(i+2)) # Starts at 1
 
     # Check that feature requirements line up
     # Check each lines up with next
@@ -158,22 +125,6 @@ def _validate_layers_sequence(layers, num_inputs='any'):
     # Check each lines up with prev
     for i in range(1, len(layers)):
         _validate_requires_prev(layers[i], layers[i-1])
-
-def _find_num_inputs(layers):
-    """Determine number of initial inputs for a series of layers."""
-    for layer in layers:
-        if layer.num_inputs != 'any':
-            return layer.num_inputs
-
-    return 'any'
-
-def _find_num_outputs(layers):
-    """Determine final number of outputs for a series of layers."""
-    for layer in reversed(layers):
-        if layer.num_outputs != 'any':
-            return layer.num_outputs
-
-    return 'any'
 
 ##############################
 # Pattern selection functions
@@ -197,12 +148,9 @@ def select_random(patterns, size=None):
 class Network(object):
     """A composite of layers connected in sequence."""
     def __init__(self, layers):
-        # TODO: validation should be real time, not cached
-        # (or more intelligently cached)
-        #_validate_layers_sequence(layers)
+        _validate_layers_sequence(layers)
 
         self._layers = layers
-        self._set_num_inputs_outputs()
         self._activations = []
 
         self.logging = True
@@ -210,29 +158,11 @@ class Network(object):
         # Bookkeeping
         self.iteration = 0
 
-    @property
-    def num_inputs(self):
-        return self._num_inputs
-
-    @property
-    def num_outputs(self):
-        return self._num_outputs
-
-    def _set_num_inputs_outputs(self):
-        self._num_inputs = _find_num_inputs(self._layers)
-        self._num_outputs = _find_num_outputs(self._layers)
-
     def _reset_bookkeeping(self):
         self.iteration = 0
 
     def activate(self, inputs):
         """Return the network outputs for given inputs."""
-        # TODO: validation should be real time, not cached
-        # (or more intelligently cached)
-        #if self._num_inputs != 'any' and len(inputs) != self._num_inputs:
-        #    raise ValueError('Wrong number of inputs. Expected {}, got {}' \
-        #                     ''.format(self._num_inputs, len(inputs)))
-
         inputs = numpy.array(inputs)
         self._activations = [inputs]
 
@@ -246,12 +176,6 @@ class Network(object):
 
     def update(self, inputs, targets):
         """Adjust the network towards the targets for given inputs."""
-        # TODO: validation should be real time, not cached
-        # (or more intelligently cached)
-        #if self._num_outputs != 'any' and len(targets) != self._num_outputs:
-        #    raise ValueError('Wrong number of targets. Expected {}, got {}' \
-        #                     ''.format(self._num_outputs, len(targets)))
-
         outputs = self.activate(inputs)
 
         errors = targets - outputs

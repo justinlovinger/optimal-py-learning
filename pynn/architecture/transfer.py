@@ -22,9 +22,6 @@ def dgaussian(y, variance):
 dgaussian_vec = numpy.vectorize(dgaussian)
 
 class Transfer(network.Layer):
-    num_inputs = 'any'
-    num_outputs = 'any'
-
     def reset(self):
         pass
 

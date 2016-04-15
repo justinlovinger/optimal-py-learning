@@ -5,8 +5,6 @@ from pynn import network
 class AddBias(network.ParallelLayer):
     def __init__(self, layer):
         self.layer = layer
-        self.num_inputs = self.layer.num_inputs - 1
-        self.num_outputs = self.layer.num_outputs
 
     def reset(self):
         self.layer.reset()
@@ -26,8 +24,6 @@ class Perceptron(network.Layer):
     def __init__(self, inputs, outputs, 
                  learn_rate=0.5, momentum_rate=0.1, initial_weights_range=0.25):
         super(Perceptron, self).__init__()
-        self.num_inputs = inputs
-        self.num_outputs = outputs
 
         self.learn_rate = learn_rate
         self.momentum_rate = momentum_rate

@@ -14,8 +14,6 @@ class GaussianOutput(network.Layer):
 
     def __init__(self, inputs, outputs,  learn_rate=1.0, normalize=False):
         super(GaussianOutput, self).__init__()
-        self.num_inputs = inputs
-        self.num_outputs = outputs
 
         self.learn_rate = learn_rate
         self.normalize = normalize
