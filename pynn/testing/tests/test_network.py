@@ -6,6 +6,17 @@ from pynn import network
 from pynn.data import datasets
 from pynn.architecture import mlp
 
+
+def test_layer_as_key():
+    layer = network.Layer()
+    layer2 = network.Layer()
+    dict_ = {layer: layer2,
+             layer2: layer}
+
+    assert dict_[layer] == layer2
+    assert dict_[layer2] == layer
+
+
 def test_network_validation_layers():
     with pytest.raises(TypeError):
         n = network.Network([None])
@@ -17,6 +28,7 @@ def test_network_validation_layers():
         n = network.Network(['q'])
 
     n = network.Network([network.Layer()])
+
 
 def test_network_validation_requires_next_prev():
     with pytest.raises(TypeError):
@@ -46,6 +58,7 @@ def test_network_validation_parallel_requires_prev_next():
     with pytest.raises(TypeError):
         network._validate_layers_parallel(layers, prev_layer, next_layer)
 
+
 def test_get_error():
     # This network will always output 0 for input 0
     nn = network.Network([mlp.Perceptron(1, 1)])
@@ -55,7 +68,8 @@ def test_get_error():
     nn = network.Network([mlp.Perceptron(1, 2)])
     assert nn.get_error([[0], [1, 1]]) == 1.0
 
-def test_each_pattern_callback():
+
+def test_post_pattern_callback():
     pat = datasets.get_xor()
     nn = network.Network([])
 
@@ -63,9 +77,12 @@ def test_each_pattern_callback():
     def callback(nn, pattern):
         history.append(pattern)
 
-    nn.train(pat, iterations=1, each_pattern_callback=callback)
+    nn.train(pat, iterations=1, post_pattern_callback=callback)
     assert pat == history
 
+##########################
+# Full architecture tests
+##########################
 def test_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
@@ -75,6 +92,7 @@ def test_mlp():
     error = nn.get_avg_error(pat)
     nn.train(pat, 10)
     assert nn.get_avg_error(pat) < error
+
 
 pytest.mark.slowtest()
 def test_mlp_convergence():
@@ -87,6 +105,7 @@ def test_mlp_convergence():
     nn.train(pat, error_break=0.02)
     assert nn.get_avg_error(pat) <= cutoff
 
+
 def test_rbf():
     # Run for a couple of iterations
     # assert that new error is less than original
@@ -96,6 +115,7 @@ def test_rbf():
     error = nn.get_avg_error(pat)
     nn.train(pat, 10)
     assert nn.get_avg_error(pat) < error
+
 
 pytest.mark.slowtest()
 def test_rbf_convergence():
@@ -108,6 +128,10 @@ def test_rbf_convergence():
     nn.train(pat, error_break=0.02)
     assert nn.get_avg_error(pat) <= cutoff
 
+
+################################
+# Datapoint selection functions
+################################
 @pytest.fixture()
 def seed_random(request):
     random.seed(0)
@@ -116,6 +140,7 @@ def seed_random(request):
         import time
         random.seed(time.time())
     request.addfinalizer(fin)
+
 
 def test_select_sample(seed_random):
     pat = datasets.get_xor()
@@ -134,6 +159,7 @@ def test_select_sample(seed_random):
             count += 1
     assert count == 2
 
+
 def test_select_random(monkeypatch):
     # Monkeypatch so we know that random returns
     monkeypatch.setattr(random, 'randint', lambda x, y : 0) # randint always returns 0
@@ -149,10 +175,14 @@ def test_select_random(monkeypatch):
     for p in new_pat:
         assert p == pat[0]
 
+#########################
+# Pre and post hooks
+#########################
 class CountPerceptron(mlp.Perceptron):
     def __init__(self, *args, **kwargs):
         super(CountPerceptron, self).__init__(*args, **kwargs)
         self.count = 0
+
 
 def test_pre_training():
     # Setup pre_training function
@@ -167,6 +197,7 @@ def test_pre_training():
     # Count incremented only once
     assert nn._layers[0].count == 1
 
+
 def test_post_training():
     # Setup post_training function
     class TestPerceptron(CountPerceptron):
@@ -180,6 +211,7 @@ def test_post_training():
     # Count incremented only once
     assert nn._layers[0].count == 1
 
+
 def test_pre_iteration():
     # Setup pre_iteration function
     class TestPerceptron(CountPerceptron):
@@ -192,6 +224,7 @@ def test_pre_iteration():
 
     # Count incremented for each iteration
     assert nn._layers[0].count == 10
+
 
 def test_post_iteration():
     # Setup post_iteration function

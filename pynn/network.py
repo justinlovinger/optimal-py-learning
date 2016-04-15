@@ -1,5 +1,6 @@
 ﻿import numpy
 import random
+import uuid
 
 class Layer(object):
     """A layer of computation for a supervised learning network."""
@@ -223,7 +224,7 @@ class Network(object):
         return error/len(patterns)
 
     def train(self, patterns, iterations=1000, error_break=0.02,
-              pattern_select_func=select_iterative, each_pattern_callback=None):
+              pattern_select_func=select_iterative, post_pattern_callback=None):
         """Train network to converge on set of patterns.
         
         Args:
@@ -258,8 +259,8 @@ class Network(object):
 
                 # Optional callback for user extension,
                 # such as a visualization or history tracking
-                if each_pattern_callback:
-                    each_pattern_callback(self, pattern)
+                if post_pattern_callback:
+                    post_pattern_callback(self, pattern)
 
                 # Sum errors
                 if track_error:
