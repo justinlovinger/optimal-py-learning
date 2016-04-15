@@ -197,11 +197,12 @@ def select_random(patterns, size=None):
 class Network(object):
     """A composite of layers connected in sequence."""
     def __init__(self, layers):
-        _validate_layers_sequence(layers)
+        # TODO: validation should be real time, not cached
+        # (or more intelligently cached)
+        #_validate_layers_sequence(layers)
 
         self._layers = layers
-        self._num_inputs = _find_num_inputs(layers)
-        self._num_outputs = _find_num_outputs(layers)
+        self._set_num_inputs_outputs()
         self._activations = []
 
         self.logging = True
@@ -217,14 +218,20 @@ class Network(object):
     def num_outputs(self):
         return self._num_outputs
 
+    def _set_num_inputs_outputs(self):
+        self._num_inputs = _find_num_inputs(self._layers)
+        self._num_outputs = _find_num_outputs(self._layers)
+
     def _reset_bookkeeping(self):
         self.iteration = 0
 
     def activate(self, inputs):
         """Return the network outputs for given inputs."""
-        if self._num_inputs != 'any' and len(inputs) != self._num_inputs:
-            raise ValueError('Wrong number of inputs. Expected {}, got {}' \
-                             ''.format(self._num_inputs, len(inputs)))
+        # TODO: validation should be real time, not cached
+        # (or more intelligently cached)
+        #if self._num_inputs != 'any' and len(inputs) != self._num_inputs:
+        #    raise ValueError('Wrong number of inputs. Expected {}, got {}' \
+        #                     ''.format(self._num_inputs, len(inputs)))
 
         inputs = numpy.array(inputs)
         self._activations = [inputs]
@@ -239,9 +246,11 @@ class Network(object):
 
     def update(self, inputs, targets):
         """Adjust the network towards the targets for given inputs."""
-        if self._num_outputs != 'any' and len(targets) != self._num_outputs:
-            raise ValueError('Wrong number of targets. Expected {}, got {}' \
-                             ''.format(self._num_outputs, len(targets)))
+        # TODO: validation should be real time, not cached
+        # (or more intelligently cached)
+        #if self._num_outputs != 'any' and len(targets) != self._num_outputs:
+        #    raise ValueError('Wrong number of targets. Expected {}, got {}' \
+        #                     ''.format(self._num_outputs, len(targets)))
 
         outputs = self.activate(inputs)
 
@@ -408,9 +417,18 @@ def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=
     return Network(layers)
 
 def make_pbnn():
+    from pynn.architecture import pbnn
+    from pynn.architecture import transfer
+
     # Layer that adds all data points before training
+    store_inputs = pbnn.StoreInputsLayer()
+
     # Layer that calculates distances to stored points
+    distances = pbnn.DistancesLayer(store_inputs)
+
     # Gaussian transfer
     # Weighted summation (weighted by output of guassian transfer), sums targets
     # Normalize output
-    assert 0
+    layers = [distances, transfer.GaussianTransfer(),
+              pbnn.WeightedSummationLayer()]
+    return Network(layers)

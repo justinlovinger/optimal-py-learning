@@ -30,6 +30,9 @@
     <Compile Include="architecture\mlp.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="architecture\pbnn.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="architecture\rbf.py">
       <SubType>Code</SubType>
     </Compile>

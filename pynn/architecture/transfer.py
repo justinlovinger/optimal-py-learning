@@ -63,3 +63,9 @@ class GaussianTransfer(Transfer):
 
     def get_outputs(self, inputs, outputs):
         return dgaussian_vec(outputs, self._variance)
+
+class NormalizeTransfer(Transfer):
+    def activate(self, inputs, scaling_inputs):
+        return inputs / numpy.sum(scaling_inputs)
+
+    # TODO: what to do with get outputs?
