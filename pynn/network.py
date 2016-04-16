@@ -28,7 +28,7 @@ class Layer(object):
         
         Transfer functions should override to properly transform their input
         """
-        return inputs
+        return None
 
     def pre_training(self, patterns):
         """Called before each training run.
@@ -200,6 +200,10 @@ class Network(object):
         return [self._activations[incoming] for incoming in 
                 self._graph.backwards_adjacency[layer]]
 
+    def _outgoing_errors(self, layer, errors_dict):
+        return [errors_dict[outgoing] for outgoing in
+                self._graph.adjacency[layer]]
+
     def activate(self, inputs):
         """Return the network outputs for given inputs."""
         inputs = numpy.array(inputs)
@@ -208,6 +212,9 @@ class Network(object):
         open_list = ['I']
         activated = set(['O']) # So we don't try to activate the output
         while len(open_list) > 0:
+            # TODO: need to adjust order of activation, so each layers
+            # prerequisites are activated before that layer
+            # (look into methods of traversing graphs)
             key = open_list.pop(0)
             for layer in self._graph.adjacency[key]:
                 if layer not in activated:
@@ -227,25 +234,42 @@ class Network(object):
         # TODO: update to graph system
         """Adjust the network towards the targets for given inputs."""
         outputs = self.activate(inputs)
+        outputs_dict = {'O': outputs}
 
         errors = targets - outputs
-        output_errors = errors # for returning
+        output_errors = errors # For returning
+        errors_dict = {'O': errors}
 
-        for i, layer in enumerate(reversed(self._layers)):
-            # Pseudo reverse activations, so they are in the right order for
-            # reversed layers list
-            inputs_ = self._activations[len(self._layers)-i-1]
+        open_list = ['O']
+        updated = set(['I']) # So we don't try to activate the input
+        while len(open_list) > 0:
+            key = open_list.pop(0)
+            for layer in self._graph.backwards_adjacency[key]:
+                if layer not in updated:
+                    # Pseudo reverse activations, so they are in the right order for
+                    # reversed layers list
+                    all_inputs = self._incoming_activations(layer)
+                    all_errors = self._outgoing_errors(layer, errors_dict)
 
-            # Compute errors for preceding layer before this layers changes
-            prev_errors = layer.get_prev_errors(errors, outputs)
+                    # TODO: adjust so we don't have to change outputs
+                    # Then we can uncomment the following line
+                    #outputs = self._activations[layer]
+                    outputs = outputs_dict[self._graph.adjacency[layer][0]]
+                    if outputs is None:
+                        outputs = self._activations[layer]
 
-            # Update
-            layer.update(inputs_, outputs, errors)
+                    # Compute errors for preceding layer before this layers changes
+                    errors_dict[layer] = layer.get_prev_errors(all_errors, outputs)
+                
+                    # Update
+                    layer.update(all_inputs, outputs, all_errors)
 
-            # Setup for preceding layer
-            errors = prev_errors
-            # Outputs for preceding layer are this layers inputs
-            outputs = layer.get_outputs(inputs_, outputs)
+                    # Transform output for previous layer
+                    # TODO: remove this, find another way
+                    outputs_dict[layer] = layer.get_outputs(all_inputs, outputs)
+
+                    # Queue this layers connections next
+                    open_list.append(layer)
 
         return output_errors
 
@@ -358,17 +382,23 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
     from pynn.architecture import transfer
     from pynn.architecture import mlp
 
-    layers = []
     # Create first layer with bias
-    layers.append(mlp.AddBias(mlp.Perceptron(shape[0]+1, shape[1], False, 
-                                                         learn_rate, momentum_rate)))
-    layers.append(transfer.TanhTransfer())
+    add_bias = mlp.AddBias(mlp.Perceptron(shape[0]+1, shape[1], False, 
+                                          learn_rate, momentum_rate))
+    tanh_transfer = transfer.TanhTransfer()
+    layers = {'I': [add_bias],
+              add_bias: [tanh_transfer]}
 
     # Create other layers without bias
     for i in range(1, len(shape)-1):
-        layers.append(mlp.Perceptron(shape[i], shape[i+1], False, 
-                                           learn_rate, momentum_rate))
-        layers.append(transfer.TanhTransfer())
+        perceptron = mlp.Perceptron(shape[i], shape[i+1], False, 
+                                           learn_rate, momentum_rate)
+        layers[tanh_transfer] = [perceptron]
+
+        tanh_transfer = transfer.TanhTransfer()
+        layers[perceptron] = [tanh_transfer]
+
+    layers[tanh_transfer] = ['O']
 
     return Network(layers)
 
