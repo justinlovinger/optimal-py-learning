@@ -42,7 +42,8 @@ class GaussianOutput(network.Layer):
     def update(self, all_inputs, outputs, all_errors):
         assert len(all_inputs) == 1
         inputs = all_inputs[0]
-        errors = numpy.average(all_errors)
+        # TODO: errors = numpy.average(all_errors)
+        errors = all_errors[0]
 
         # Inputs are generally contributions
         if self.normalize:

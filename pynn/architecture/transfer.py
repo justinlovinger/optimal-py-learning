@@ -25,9 +25,6 @@ class Transfer(network.Layer):
     def reset(self):
         pass
 
-    def get_prev_errors(self, errors, outputs):
-        return errors
-
     def update(self, inputs, outputs, errors):
         pass
 
@@ -35,8 +32,9 @@ class TanhTransfer(Transfer):
     def activate(self, inputs):
         return tanh(inputs)
 
-    def get_outputs(self, inputs, outputs):
-        return dtanh(outputs)
+    def get_prev_errors(self, all_errors, outputs):
+        # TODO: numpy.average(all_errors)
+        return all_errors[0] * dtanh(outputs)
 
 class ReluTransfer(Transfer):
     pass
@@ -58,11 +56,12 @@ class GaussianTransfer(Transfer):
     def activate(self, inputs):
         return gaussian_vec(inputs, self._variance)
 
-    def get_outputs(self, inputs, outputs):
-        return dgaussian_vec(outputs, self._variance)
+    def get_prev_errors(self, all_errors, outputs):
+        # TODO: numpy.average(all_errors)
+        return all_errors[0] * dgaussian_vec(outputs, self._variance)
 
 class NormalizeTransfer(Transfer):
     def activate(self, inputs, scaling_inputs):
         return inputs / numpy.sum(scaling_inputs)
 
-    # TODO: what to do with get outputs?
+    # TODO: what to do with get_prev_errors?

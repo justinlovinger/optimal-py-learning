@@ -23,13 +23,6 @@ class Layer(object):
     def update(self, inputs, outputs, errors):
         raise NotImplementedError()
 
-    def get_outputs(self, inputs, outputs):
-        """Get outputs for previous layer.
-        
-        Transfer functions should override to properly transform their input
-        """
-        return None
-
     def pre_training(self, patterns):
         """Called before each training run.
         
@@ -255,7 +248,6 @@ class Network(object):
         return self._activations[self._graph.backwards_adjacency['O'][0]]
 
     def update(self, inputs, targets):
-        # TODO: update to graph system
         """Adjust the network towards the targets for given inputs."""
         outputs = self.activate(inputs)
         outputs_dict = {'O': outputs}
@@ -274,23 +266,13 @@ class Network(object):
                     # reversed layers list
                     all_inputs = self._incoming_activations(layer)
                     all_errors = self._outgoing_errors(layer, errors_dict)
-
-                    # TODO: adjust so we don't have to change outputs
-                    # Then we can uncomment the following line
-                    #outputs = self._activations[layer]
-                    outputs = outputs_dict[self._graph.adjacency[layer][0]]
-                    if outputs is None:
-                        outputs = self._activations[layer]
+                    outputs = self._activations[layer]
 
                     # Compute errors for preceding layer before this layers changes
                     errors_dict[layer] = layer.get_prev_errors(all_errors, outputs)
                 
                     # Update
                     layer.update(all_inputs, outputs, all_errors)
-
-                    # Transform output for previous layer
-                    # TODO: remove this, find another way
-                    outputs_dict[layer] = layer.get_outputs(all_inputs, outputs)
 
                     # Queue this layers connections next
                     open_list.append(layer)

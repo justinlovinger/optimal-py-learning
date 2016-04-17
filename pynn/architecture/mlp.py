@@ -55,8 +55,8 @@ class Perceptron(network.Layer):
     def update(self, all_inputs, outputs, all_errors):
         assert len(all_inputs) == 1
         inputs = all_inputs[0]
-        errors = numpy.average(all_errors)
-        deltas = errors * outputs
+        # TODO: errors = numpy.average(all_errors)
+        deltas = all_errors[0]
 
         # Update, [:,None] quickly transposes an array to a col vector
         changes = inputs[:,None] * deltas
