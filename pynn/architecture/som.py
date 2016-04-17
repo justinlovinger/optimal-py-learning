@@ -58,5 +58,7 @@ class SOM(network.Layer):
 
                 self._weights[i] += final_rate*(inputs-self._weights[i])
 
-    def update(self, inputs, outputs, deltas):
+    def update(self, all_inputs, outputs, all_errors):
+        assert len(all_inputs) == 1
+        inputs = all_inputs[0]
         self.move_neurons(inputs)

@@ -154,17 +154,40 @@ def _validate_graph(graph_):
         assert graph.find_path(graph_.adjacency, node, 'O') is not None
 
 
+def _layers_to_adjacency_dict(layers):
+    """Convert sequence of layers to graph of layers."""
+    # First to input
+    try:
+        layers_dict = {'I': [layers[0]]}
+    except IndexError:
+        # No layers
+        return {'I': ['O']}
+
+    # Each layer to the next
+    prev_layer = layers[0]
+    for layer in layers[1:]:
+        layers_dict[prev_layer] = [layer]
+        prev_layer = layer
+
+    # Last to output
+    layers_dict[layers[-1]] = ['O']
+
+    return layers_dict
+
+
 ##############################
 # Pattern selection functions
 ##############################
 def select_iterative(patterns):
     return patterns
 
+
 def select_sample(patterns, size=None):
     if size == None:
         size = len(patterns)
 
     return random.sample(patterns, size)
+
 
 def select_random(patterns, size=None):
     if size == None:
@@ -174,13 +197,14 @@ def select_random(patterns, size=None):
     return [patterns[random.randint(0, max_index)] for i in range(size)]
 
 
-def _reverse_graph(graph):
-    assert 0
-
 class Network(object):
     """A composite of layers connected in sequence."""
-    def __init__(self, layers_adjacency_dict):
-        self._graph = graph.Graph(layers_adjacency_dict)
+    def __init__(self, layers):
+        # Allow user to pass a list of layeres connected in sequence
+        if isinstance(layers, list):
+            layers = _layers_to_adjacency_dict(layers)
+
+        self._graph = graph.Graph(layers)
         _validate_graph(self._graph)
         self._layers = self._graph.nodes - set(['I', 'O'])
 
@@ -412,11 +436,13 @@ def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=
     if variance == None:
         variance = 4.0/neurons
 
-    layers = [
-              som.SOM(inputs, neurons, move_rate, neighborhood, neighbor_move_rate),
-              transfer.GaussianTransfer(variance),
-              rbf.GaussianOutput(neurons, outputs, learn_rate, normalize=True),
-             ]
+    som_ = som.SOM(inputs, neurons, move_rate, neighborhood, neighbor_move_rate)
+    gaussian_transfer = transfer.GaussianTransfer(variance)
+    gaussian_output = rbf.GaussianOutput(neurons, outputs, learn_rate, normalize=True)
+    layers = {'I': [som_],
+              som_: [gaussian_transfer],
+              gaussian_transfer: [gaussian_output],
+              gaussian_output: ['O']}
 
     return Network(layers)
 

@@ -195,7 +195,7 @@ def test_pre_training():
     nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented only once
-    assert nn._layers[0].count == 1
+    assert list(nn._layers)[0].count == 1
 
 
 def test_post_training():
@@ -209,7 +209,7 @@ def test_post_training():
     nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented only once
-    assert nn._layers[0].count == 1
+    assert list(nn._layers)[0].count == 1
 
 
 def test_pre_iteration():
@@ -223,7 +223,7 @@ def test_pre_iteration():
     nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented for each iteration
-    assert nn._layers[0].count == 10
+    assert list(nn._layers)[0].count == 10
 
 
 def test_post_iteration():
@@ -237,4 +237,4 @@ def test_post_iteration():
     nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented for each iteration
-    assert nn._layers[0].count == 10
+    assert list(nn._layers)[0].count == 10

@@ -7,7 +7,7 @@ def test_reverse_edge():
     
 def test_remove_edge():
     adjacency_dict = {'1': ['2', '3']}
-    graph_ = graph_.Graph(adjacency_dict)
+    graph_ = graph.Graph(adjacency_dict)
     
     graph_.remove_edge(('1', '2'))
     assert graph_.adjacency == {'1': ['3']}
@@ -16,7 +16,7 @@ def test_remove_edge():
     
 def test_add_edge_from_node_in_graph():
     adjacency_dict = {'1': ['2']}
-    graph_ = graph_.Graph(adjacency_dict)
+    graph_ = graph.Graph(adjacency_dict)
     
     graph_.add_edge(('1', '3'))
     assert graph_.adjacency == {'1': ['2', '3']}
@@ -26,7 +26,7 @@ def test_add_edge_from_node_in_graph():
     
 def test_add_edge_from_node_not_in_graph():
     adjacency_dict = {'1': ['2']}
-    graph_ = graph_.Graph(adjacency_dict)
+    graph_ = graph.Graph(adjacency_dict)
     
     graph_.add_edge(('2', '3'))
     assert graph_.adjacency == {'1': ['2'], '2': ['3']}

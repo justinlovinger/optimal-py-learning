@@ -39,7 +39,11 @@ class GaussianOutput(network.Layer):
         deltas = errors * outputs
         return numpy.dot(deltas, self._weights.T)
 
-    def update(self, inputs, outputs, errors):
+    def update(self, all_inputs, outputs, all_errors):
+        assert len(all_inputs) == 1
+        inputs = all_inputs[0]
+        errors = numpy.average(all_errors)
+
         # Inputs are generally contributions
         if self.normalize:
             inputs = inputs / numpy.sum(inputs)
