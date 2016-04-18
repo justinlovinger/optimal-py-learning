@@ -327,28 +327,19 @@ class Network(object):
         output_errors = errors # For returning
         errors_dict = {'O': errors}
 
-        open_list = ['O']
-        updated = set(['I']) # So we don't try to activate the input
-        while len(open_list) > 0:
-            key = open_list.pop(0)
-            for layer in self._graph.backwards_adjacency[key]:
-                if layer not in updated:
-                    # Pseudo reverse activations, so they are in the right order for
-                    # reversed layers list
-                    all_inputs = self._incoming_activations(layer)
-                    all_errors = self._outgoing_errors(layer, errors_dict)
-                    outputs = self._activations[layer]
+        for layer in reversed(self._activation_order):
+            # Grab all the variables we need from storage dicts
+            all_inputs = self._incoming_activations(layer)
+            all_errors = self._outgoing_errors(layer, errors_dict)
+            outputs = self._activations[layer]
 
-                    # Compute errors for preceding layer before this layers changes
-                    errors_dict[layer] = layer.get_prev_errors(all_inputs,
-                                                               all_errors, 
-                                                               outputs)
+            # Compute errors for preceding layer before this layers changes
+            errors_dict[layer] = layer.get_prev_errors(all_inputs,
+                                                       all_errors, 
+                                                       outputs)
                 
-                    # Update
-                    layer.update(all_inputs, outputs, all_errors)
-
-                    # Queue this layers connections next
-                    open_list.append(layer)
+            # Update
+            layer.update(all_inputs, outputs, all_errors)
 
         return output_errors
 
