@@ -32,36 +32,21 @@ class StoreInputsLayer(network.Layer):
 
 
 class DistancesLayer(network.Layer):
-    def __init__(self, centers_layer):
-        self.centers_layer = centers_layer
-
-    def activate(self, inputs):
-        centers = self.centers_layer.activate(inputs)
-
+    def activate(self, inputs, centers):
         diffs = inputs - centers
         distances = [numpy.sqrt(d.dot(d)) for d in diffs]
         return numpy.array(distances)
 
     def reset(self):
-        self.centers_layer.reset()
+        pass
 
     def update(self, *args, **kwargs):
-        self.centers_layer.update(*args, **kwargs)
+        pass
 
     def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return self._avg_all_errors(all_errors, outputs.shape)
+        # TODO
+        return None
 
-    def pre_iteration(self, *args, **kwargs):
-        self.centers_layer.pre_iteration(*args, **kwargs)
-
-    def post_iteration(self, *args, **kwargs):
-        self.centers_layer.post_iteration(*args, **kwargs)
-
-    def pre_training(self, *args, **kwargs):
-        self.centers_layer.pre_training(*args, **kwargs)
-
-    def post_training(self, *args, **kwargs):
-        self.centers_layer.post_training(*args, **kwargs)
 
 class WeightedSummationLayer(network.Layer):
     def __init__(self):

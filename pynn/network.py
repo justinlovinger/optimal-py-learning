@@ -1,6 +1,5 @@
 ﻿import numpy
 import random
-import uuid
 
 from pynn import graph
 
@@ -165,7 +164,9 @@ def _validate_graph(graph_):
         # find path from node to 'O'
         assert graph.find_path(graph_.adjacency, node, 'O') is not None
 
-
+###################
+# Network functions
+###################
 def _layers_to_adjacency_dict(layers):
     """Convert sequence of layers to graph of layers."""
     # First to input
@@ -185,6 +186,53 @@ def _layers_to_adjacency_dict(layers):
     layers_dict[layers[-1]] = ['O']
 
     return layers_dict
+
+def _reachable_nodes_list(adjacency_dict, start):
+    # Append each node to list
+    expanded_nodes = []
+    def node_callback(node):
+        expanded_nodes.append(node)
+    
+    graph.traverse_bredth_first(adjacency_dict, start, node_callback)
+    return expanded_nodes
+
+def _get_all_prerequisites(graph_, node, prerequisite_node):
+    # Search for a path from prerequisite node to current node in backwards_adjacency
+    if graph.find_path(graph_.backwards_adjacency, node, prerequisite_node is not None): 
+        # If it exists, this is a cycle, and the prerequisite should not be added
+        return []
+    else:
+        # Otherwise, add the node, and all of it's prerequesites (recursively)
+        # before the current node.
+        # TODO: fix this, since reachable nodes returns a set
+        # we want a list of visited nodes, in the order visited
+        reachable_nodes = _reachable_nodes_list(graph_.backwards_adjacency,
+                                                prerequisite_node)
+        return reversed(reachable_nodes)
+
+def _make_activation_order(graph_):
+    """Determine the order of activation for a graph of layers."""
+    activation_order = []
+
+    # For each node visited:
+    def node_callback(node):
+        # Check for prerequisites that need to activate first
+        for prerequisite_node in graph_.backwards_adjacency[node]:
+            # If a node is reached with incoming nodes not already in activation_order
+            if prerequisite_node not in activation_order:
+                activation_order.extend(_get_all_prerequisites(graph_,
+                                                               node,
+                                                               prerequisite_node))
+
+        # Append each visited node to activation_order
+        activation_order.append(node)
+
+    # Traverse graph from 'I' to 'O' (breath first? Doesn't really matter)
+    graph.traverse_bredth_first(graph_.adjacency, 'I', node_callback)
+
+    activation_order.remove('I') # Not a layer
+    activation_order.remove('O') # Not a layer
+    return activation_order
 
 
 ##############################
@@ -258,7 +306,7 @@ class Network(object):
     def activate(self, inputs):
         """Return the network outputs for given inputs."""
         inputs = numpy.array(inputs)
-        self._activations = {'I': inputs}
+        self._activations['I'] = inputs
         
         open_list = ['I']
         activated = set(['O']) # So we don't try to activate the output
@@ -483,16 +531,23 @@ def make_pbnn():
     store_inputs = pbnn.StoreInputsLayer()
 
     # Layer that calculates distances to stored points
-    distances = pbnn.DistancesLayer(store_inputs)
+    distances = pbnn.DistancesLayer()
 
     # Gaussian transfer
     # Weighted summation (weighted by output of guassian transfer), sums targets
-    # TODO: Normalize output
+    # Normalize by class counts
+    # Normalize output to sum 1
     gaussian_transfer = transfer.GaussianTransfer()
     weighted_summation = pbnn.WeightedSummationLayer()
+    normalize_transfer = transfer.NormalizeTransfer()
     layers = {'I': [distances],
+              store_inputs: [distances],
               distances: [gaussian_transfer],
-              gaussian_transfer: [weighted_summation],
-              weighted_summation: ['O']}
+              gaussian_transfer: [weighted_summation, normalize_transfer],
+              weighted_summation: [normalize_transfer],
+              normalize_transfer: ['O']}
+    
+    incoming_order_dict = {normalize_transfer:[weighted_summation, gaussian_transfer],
+                           distances: ['I', store_inputs]}
 
-    return Network(layers)
+    return Network(layers, incoming_order_dict)

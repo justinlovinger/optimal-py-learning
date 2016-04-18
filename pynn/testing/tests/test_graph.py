@@ -9,6 +9,26 @@ def test_shallow_copy():
     assert 0
 
 
+def test_traverse_bredth_first_visit_each_node_once():
+    adjacency_dict = {'1': ['2', '3', '4'],
+                      '2': ['4'],
+                      '3': ['4'],
+                      '4': ['1']}
+
+    visited = set()
+    def node_callback(node):
+        assert node not in visited
+        visited.add(node)
+    graph.traverse_bredth_first(adjacency_dict, '1', node_callback)
+
+def test_find_reachable_nodes():
+    adjacency_dict = {'1': ['2', '3'],
+                      '2': ['4'],
+                      '4': ['1'],
+                      'a': ['1'],
+                      'b': ['c']}
+    assert graph.find_reachable_nodes(adjacency_dict, '1') == set(['1', '2', '3', '4'])
+
 def test_remove_edge():
     adjacency_dict = {'1': ['2', '3']}
     graph_ = graph.Graph(adjacency_dict)

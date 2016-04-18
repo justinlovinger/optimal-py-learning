@@ -2,6 +2,7 @@ import pytest
 import copy
 import random
 
+from pynn import graph
 from pynn import network
 from pynn.data import datasets
 from pynn.architecture import mlp
@@ -19,6 +20,25 @@ def test_layer_as_key():
 
 def test_incoming_order_dict():
     assert 0
+
+def test_activation_order():
+    adjacency_dict = {'I': ['a'],
+                      '1': ['a'],
+                      'a': ['b', 'c'],
+                      'b': ['c'],
+                      'c': ['O']}
+    activation_order = network._make_activation_order(graph.Graph(adjacency_dict))
+    assert activation_order == ['1', 'a', 'b', 'c']
+
+
+def test_activation_order_cycle():
+    adjacency_dict = {'I': ['a'],
+                      'a': ['b'],
+                      'b': ['1', 'O'],
+                      '1': ['a']}
+    activation_order = network._make_activation_order(graph.Graph(adjacency_dict))
+    assert activation_order == ['a', 'b', '1']
+
 
 
 def test_network_validation_layers():

@@ -116,7 +116,7 @@ class Graph(object):
         # Nodes remain in set of nodes, even if they have no edges left
         self.edges.remove(edge)
 
-def find_path(graph, start, end, path=[]):
+def find_path(adjacency_dict, start, end, path=[]):
     """Search for a path from start to end.
     
     From: https://www.python.org/doc/essays/graphs/
@@ -127,10 +127,52 @@ def find_path(graph, start, end, path=[]):
     path = path + [start]
     if start == end:
         return path
-    if not graph.has_key(start):
+    if not adjacency_dict.has_key(start):
         return None
-    for node in graph[start]:
+    for node in adjacency_dict[start]:
         if node not in path:
-            newpath = find_path(graph, node, end, path)
+            newpath = find_path(adjacency_dict, node, end, path)
             if newpath: return newpath
     return None
+
+
+def traverse_bredth_first(adjacency_dict, start, node_callback):
+    """Perform a breath first search to all reachable nodes, calling callback on each.
+    
+    Each node is visited only once.
+    """
+    open_list = [start]
+    expanded_nodes = set()
+    
+    # Expand nodes that haven't been expanded, until we run out
+    while len(open_list) > 0:
+        # Expand the next node
+        next_node = open_list.pop(0)
+        expanded_nodes.add(next_node)
+
+        # Perform callback on newly expanded node
+        node_callback(next_node)
+        
+        # Expand the open list
+        try:
+            connected_nodes = adjacency_dict[next_node]
+        except:
+            connected_nodes = []
+        for node in connected_nodes:
+            # Don't add duplicates
+            if node not in expanded_nodes and node not in open_list:
+                open_list.append(node)
+
+def find_reachable_nodes(adjacency_dict, start):
+    """Perform a breath first search to discover all reachable nodes.
+
+    Returns:
+        set; The set of reachable nodes, including start.
+    """
+    # Add each discovered node to set
+    expanded_nodes = set()
+    def node_callback(node):
+        expanded_nodes.add(node)
+
+    traverse_bredth_first(adjacency_dict, start, node_callback)
+    return expanded_nodes
