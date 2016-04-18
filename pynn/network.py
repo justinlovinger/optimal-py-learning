@@ -198,7 +198,7 @@ def _reachable_nodes_list(adjacency_dict, start):
 
 def _get_all_prerequisites(graph_, node, prerequisite_node):
     # Search for a path from prerequisite node to current node in backwards_adjacency
-    if graph.find_path(graph_.backwards_adjacency, node, prerequisite_node is not None): 
+    if graph.find_path(graph_.backwards_adjacency, prerequisite_node, node) is not None: 
         # If it exists, this is a cycle, and the prerequisite should not be added
         return []
     else:
@@ -208,6 +208,7 @@ def _get_all_prerequisites(graph_, node, prerequisite_node):
         # we want a list of visited nodes, in the order visited
         reachable_nodes = _reachable_nodes_list(graph_.backwards_adjacency,
                                                 prerequisite_node)
+
         return reversed(reachable_nodes)
 
 def _make_activation_order(graph_):
@@ -281,7 +282,7 @@ class Network(object):
                 self._graph.backwards_adjacency[layer] = new_order
 
         _validate_graph(self._graph)
-        self._layers = self._graph.nodes - set(['I', 'O'])
+        self._activation_order = _make_activation_order(self._graph)
 
         self._activations = {}
         for layer in self._graph.nodes:
@@ -308,23 +309,11 @@ class Network(object):
         inputs = numpy.array(inputs)
         self._activations['I'] = inputs
         
-        open_list = ['I']
-        activated = set(['O']) # So we don't try to activate the output
-        while len(open_list) > 0:
-            # TODO: need to adjust order of activation, so each layers
-            # prerequisites are activated before that layer
-            # (look into methods of traversing graphs)
-            key = open_list.pop(0)
-            for layer in self._graph.adjacency[key]:
-                if layer not in activated:
-                    ouputs = layer.activate(*self._incoming_activations(layer))
-                    activated.add(layer)
+        for layer in self._activation_order:
+            ouputs = layer.activate(*self._incoming_activations(layer))
 
-                    # Track all activations for learning
-                    self._activations[layer] = ouputs
-
-                    # Queue for activation
-                    open_list.append(layer)
+            # Track all activations for learning, and layer inputs
+            self._activations[layer] = ouputs
 
         # Return activation of the only layer that feeds into output
         return self._activations[self._graph.backwards_adjacency['O'][0]]
@@ -365,7 +354,7 @@ class Network(object):
 
     def reset(self):
         """Reset every layer in the network."""
-        for layer in self._layers:
+        for layer in self._activation_order:
             layer.reset()
 
     def test(self, patterns):
@@ -404,14 +393,14 @@ class Network(object):
         track_error = error_break != 0.0 or self.logging
 
         # Pre-training for each layer
-        for layer in self._layers:
+        for layer in self._activation_order:
             layer.pre_training(patterns)
 
         # Learn on each pattern for each iteration
         for self.iteration in range(iterations):
 
             # Pre-iteration for each layer
-            for layer in self._layers:
+            for layer in self._activation_order:
                 layer.pre_iteration(patterns)
 
             # Learn each selected pattern
@@ -430,7 +419,7 @@ class Network(object):
                     error += numpy.mean(errors**2)
 
             # Post-iteration for each layer
-            for layer in self._layers:
+            for layer in self._activation_order:
                 layer.post_iteration(patterns)
                 
             # Logging and breaking
@@ -444,7 +433,7 @@ class Network(object):
                     break
 
         # Post-training for each layer
-        for layer in self._layers:
+        for layer in self._activation_order:
             layer.post_training(patterns)
 
     def serialize(self):

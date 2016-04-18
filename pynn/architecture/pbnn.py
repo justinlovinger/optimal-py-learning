@@ -18,7 +18,7 @@ class StoreInputsLayer(network.Layer):
         # And store them to recall later
         self.stored_inputs = numpy.array(inputs)
 
-    def activate(self, inputs):
+    def activate(self):
         # NOTE: should this copy the inputs before returning?
         # it would be less efficient, but less prone to error
         # Ideally, the recieving layer will make a copy if necessary
