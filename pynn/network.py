@@ -507,27 +507,31 @@ def make_pbnn():
     from pynn.architecture import pbnn
     from pynn.architecture import transfer
 
-    # Layer that adds all data points before training
+    # Calculate distances to stored points
     store_inputs = pbnn.StoreInputsLayer()
-
-    # Layer that calculates distances to stored points
     distances = pbnn.DistancesLayer()
 
     # Gaussian transfer
-    # Weighted summation (weighted by output of guassian transfer), sums targets
-    # Normalize by class counts
-    # Normalize output to sum 1
     gaussian_transfer = transfer.GaussianTransfer()
+
+    # Weighted summation (weighted by output of guassian transfer), sums targets
+    store_targets = pbnn.StoreTargetsLayer()
     weighted_summation = pbnn.WeightedSummationLayer()
+    
+    # TODO: Normalize by class counts
+    # Normalize output to sum 1
     normalize_transfer = transfer.NormalizeTransfer()
+
     layers = {'I': [distances],
               store_inputs: [distances],
               distances: [gaussian_transfer],
               gaussian_transfer: [weighted_summation, normalize_transfer],
+              store_targets: [weighted_summation],
               weighted_summation: [normalize_transfer],
               normalize_transfer: ['O']}
     
     incoming_order_dict = {normalize_transfer:[weighted_summation, gaussian_transfer],
-                           distances: ['I', store_inputs]}
+                           distances: ['I', store_inputs],
+                           weighted_summation: [gaussian_transfer, store_targets]}
 
     return Network(layers, incoming_order_dict)

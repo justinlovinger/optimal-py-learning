@@ -48,7 +48,9 @@ class DistancesLayer(network.Layer):
         return None
 
 
-class WeightedSummationLayer(network.Layer):
+class StoreTargetsLayer(network.Layer):
+    requires_prev = (None,)
+
     def __init__(self):
         self.stored_targets = None
 
@@ -56,18 +58,35 @@ class WeightedSummationLayer(network.Layer):
         self.stored_targets = None
 
     def pre_training(self, patterns):
-        # Extract targets from patterns
+        # Extract inputs from patterns
         targets = [p[1] for p in patterns]
 
         # And store them to recall later
         self.stored_targets = numpy.array(targets)
 
-    def activate(self, inputs):
+    def activate(self):
+        # NOTE: should this copy before returning?
+        # it would be less efficient, but less prone to error
+        # Ideally, the recieving layer will make a copy if necessary
+        return self.stored_targets
+
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return None
+
+    def update(self, inputs, outputs, errors):
+        pass
+
+class WeightedSummationLayer(network.Layer):
+    def reset(self):
+        pass
+
+    def activate(self, inputs, targets):
         # Multiply each target (row of stored targets) by corresponding input element
-        return numpy.sum(self.stored_targets * inputs[:, numpy.newaxis], axis=0)
+        return numpy.sum(targets * inputs[:, numpy.newaxis], axis=0)
 
     def update(self, inputs, outputs, errors):
         pass
 
     def get_prev_errors(self, all_inputs, all_errors, outputs):
+        # TODO
         return None
