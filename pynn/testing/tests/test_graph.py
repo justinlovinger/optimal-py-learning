@@ -5,6 +5,10 @@ def test_reverse_edge():
     assert graph._reverse_edge(edge) == ('2', '1')
 
     
+def test_shallow_copy():
+    assert 0
+
+
 def test_remove_edge():
     adjacency_dict = {'1': ['2', '3']}
     graph_ = graph.Graph(adjacency_dict)

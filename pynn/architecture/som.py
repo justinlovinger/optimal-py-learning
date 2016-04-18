@@ -37,8 +37,8 @@ class SOM(network.Layer):
         self._distances = [numpy.sqrt(d.dot(d)) for d in diffs]
         return numpy.array(self._distances)
 
-    def get_prev_errors(self, errors, outputs):
-        return
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return None
 
     def get_closest(self):
         return min_index(self._distances)

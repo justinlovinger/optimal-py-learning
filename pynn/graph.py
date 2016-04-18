@@ -41,6 +41,13 @@ def _make_adjacency_dict(nodes, edges):
 
     return adjacency_dict
 
+def _shallow_copy(adjacency_dict):
+    """Create a copy of every list object, while maintaining items in lists."""
+    new_dict = {}
+    for key, list_of_values in adjacency_dict.iteritems():
+        # Create a copy of the list itself
+        new_dict[key] = list_of_values[:]
+    return new_dict
 
 class Graph(object):
     def __init__(self, adjacency_dict):
@@ -50,7 +57,14 @@ class Graph(object):
         for value in adjacency_dict.itervalues():
             if not (isinstance(value, list) or isinstance(value, tuple)):
                 raise TypeError('adjacency_dict must be a dict mapping node -> list of connected nodes')
-        self.adjacency = copy.deepcopy(adjacency_dict)
+        
+        # Origionally, we deep copied the adjacency dict, to avoid side effects
+        # However, when passing an adjacency dict of objects,
+        # it is often desirable for the object ids in the graph to match
+        # the corresponding objects outside the graph.
+        # Performing a copy of the list object, with the same elements,
+        # is a compromise
+        self.adjacency = _shallow_copy(adjacency_dict)
         
         self.nodes = _extract_nodes(self.adjacency)
         self.edges = _extract_edges(self.adjacency)

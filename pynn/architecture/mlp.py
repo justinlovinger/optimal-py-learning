@@ -1,6 +1,7 @@
 import numpy
 
 from pynn import network
+from pynn.architecture import transfer
 
 class AddBias(network.ParallelLayer):
     def __init__(self, layer):
@@ -13,9 +14,9 @@ class AddBias(network.ParallelLayer):
         # Add an extra input, always set to 1
         return self.layer.activate(numpy.hstack((inputs, [1])))
 
-    def get_prev_errors(self, errors, outputs):
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
         # Clip the last delta, which was for bias input
-        return self.layer.get_prev_errors(errors, outputs)[:-1]
+        return self.layer.get_prev_errors(all_inputs, all_errors, outputs)[:-1]
 
     def update(self, all_inputs, outputs, all_errors):
         assert len(all_inputs) == 1
@@ -49,14 +50,14 @@ class Perceptron(network.Layer):
     def activate(self, inputs):
         return numpy.dot(inputs, self._weights)
 
-    def get_prev_errors(self, errors, outputs):
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        errors = self._avg_all_errors(all_errors, outputs.shape)
         return numpy.dot(errors, self._weights.T)
 
     def update(self, all_inputs, outputs, all_errors):
         assert len(all_inputs) == 1
         inputs = all_inputs[0]
-        # TODO: errors = numpy.average(all_errors)
-        deltas = all_errors[0]
+        deltas = self._avg_all_errors(all_errors, outputs.shape)
 
         # Update, [:,None] quickly transposes an array to a col vector
         changes = inputs[:,None] * deltas
@@ -64,3 +65,29 @@ class Perceptron(network.Layer):
 
         # Save change as momentum for next backpropogate
         self._momentums = changes
+
+
+################################################
+# Transfer functions with perceptron error rule
+################################################
+# The perceptron learning rule states that its errors
+# are multiplied by the derivative of the transfers output.
+# The output learning for an rbf, by contrast, does not.
+class TanhTransferPerceptron(transfer.TanhTransfer):
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return super(TanhTransferPerceptron, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dtanh(outputs)
+
+
+class ReluTransferPerceptron(transfer.ReluTransfer):
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return super(ReluTransferPerceptron, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.drelu(outputs)
+
+
+class LogitTransfer(transfer.LogitTransfer):
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return super(LogitTransfer, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dlogit(outputs)
+
+
+class GaussianTransfer(transfer.GaussianTransfer):
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return super(GaussianTransfer, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dgaussian_vec(outputs)

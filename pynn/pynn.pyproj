@@ -33,9 +33,6 @@
     <Compile Include="architecture\pbnn.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="architecture\rbf.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="architecture\som.py" />
     <Compile Include="architecture\transfer.py" />
     <Compile Include="architecture\__init__.py" />

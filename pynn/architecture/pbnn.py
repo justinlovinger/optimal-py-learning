@@ -24,7 +24,7 @@ class StoreInputsLayer(network.Layer):
         # Ideally, the recieving layer will make a copy if necessary
         return self.stored_inputs
 
-    def get_prev_errors(self, errors, outputs):
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
         return None
 
     def update(self, inputs, outputs, errors):
@@ -48,8 +48,8 @@ class DistancesLayer(network.Layer):
     def update(self, *args, **kwargs):
         self.centers_layer.update(*args, **kwargs)
 
-    def get_prev_errors(self, errors, outputs):
-        return errors
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return self._avg_all_errors(all_errors, outputs.shape)
 
     def pre_iteration(self, *args, **kwargs):
         self.centers_layer.pre_iteration(*args, **kwargs)
@@ -84,5 +84,5 @@ class WeightedSummationLayer(network.Layer):
     def update(self, inputs, outputs, errors):
         pass
 
-    def get_prev_errors(self, errors, outputs):
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
         return None

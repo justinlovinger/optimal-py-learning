@@ -17,10 +17,29 @@ class Layer(object):
     def activate(self, inputs):
         raise NotImplementedError()
 
-    def get_prev_errors(self, errors, outputs):
+    def _avg_all_errors(self, all_errors, expected_shape):
+        # For efficiency, and because it is a common case
+        if len(all_errors) == 1:
+            return all_errors[0]
+
+        # Avg all non None errors
+        sum = numpy.zeros_like(all_errors[0])
+        num_averaged = 0
+        for errors in all_errors:
+            if errors is not None and errors.shape == expected_shape:
+                sum += errors
+                num_averaged += 1
+
+        if num_averaged == 0:
+            # No errors in lsit
+            return None
+        else:
+            return sum / num_averaged
+
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
         raise NotImplementedError()
 
-    def update(self, inputs, outputs, errors):
+    def update(self, all_inputs, outputs, all_errors):
         raise NotImplementedError()
 
     def pre_training(self, patterns):
@@ -192,12 +211,27 @@ def select_random(patterns, size=None):
 
 class Network(object):
     """A composite of layers connected in sequence."""
-    def __init__(self, layers):
+    def __init__(self, layers, incoming_order_dict=None):
         # Allow user to pass a list of layeres connected in sequence
         if isinstance(layers, list):
             layers = _layers_to_adjacency_dict(layers)
 
         self._graph = graph.Graph(layers)
+        if incoming_order_dict is not None:
+            # Ensure backwards adjacency has the right order
+            for layer, desired_order in incoming_order_dict.iteritems():
+                current_order = self._graph.backwards_adjacency[layer]
+                assert _all_in(desired_order, current_order)
+
+                # Begin with the specified order
+                new_order = desired_order[:]
+                # Then add all remaining layers at the end
+                for incoming_layer in current_order:
+                    if incoming_layer not in new_order:
+                        new_order.append(incoming_layer)
+
+                self._graph.backwards_adjacency[layer] = new_order
+
         _validate_graph(self._graph)
         self._layers = self._graph.nodes - set(['I', 'O'])
 
@@ -269,7 +303,9 @@ class Network(object):
                     outputs = self._activations[layer]
 
                     # Compute errors for preceding layer before this layers changes
-                    errors_dict[layer] = layer.get_prev_errors(all_errors, outputs)
+                    errors_dict[layer] = layer.get_prev_errors(all_inputs,
+                                                               all_errors, 
+                                                               outputs)
                 
                     # Update
                     layer.update(all_inputs, outputs, all_errors)
@@ -391,7 +427,7 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
     # Create first layer with bias
     add_bias = mlp.AddBias(mlp.Perceptron(shape[0]+1, shape[1], False, 
                                           learn_rate, momentum_rate))
-    tanh_transfer = transfer.TanhTransfer()
+    tanh_transfer = mlp.TanhTransferPerceptron()
     layers = {'I': [add_bias],
               add_bias: [tanh_transfer]}
 
@@ -401,18 +437,18 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
                                            learn_rate, momentum_rate)
         layers[tanh_transfer] = [perceptron]
 
-        tanh_transfer = transfer.TanhTransfer()
+        tanh_transfer = mlp.TanhTransferPerceptron()
         layers[perceptron] = [tanh_transfer]
 
     layers[tanh_transfer] = ['O']
 
     return Network(layers)
 
-def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=False,
+def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=True,
              move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0,):
     """Create a radial-basis function network."""
     from pynn.architecture import transfer
-    from pynn.architecture import rbf
+    from pynn.architecture import mlp
     from pynn.architecture import som
 
     if variance == None:
@@ -420,13 +456,24 @@ def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=
 
     som_ = som.SOM(inputs, neurons, move_rate, neighborhood, neighbor_move_rate)
     gaussian_transfer = transfer.GaussianTransfer(variance)
-    gaussian_output = rbf.GaussianOutput(neurons, outputs, learn_rate, normalize=True)
+    perceptron = mlp.Perceptron(neurons, outputs, learn_rate, momentum_rate=0.0)
+    
     layers = {'I': [som_],
               som_: [gaussian_transfer],
-              gaussian_transfer: [gaussian_output],
-              gaussian_output: ['O']}
+              gaussian_transfer: [perceptron]}
 
-    return Network(layers)
+    if normalize:
+        normalize_layer = transfer.NormalizeTransfer()
+        layers[perceptron] = [normalize_layer]
+        layers[gaussian_transfer].append(normalize_layer)
+        layers[normalize_layer] = ['O']
+
+        incoming_order_dict = {normalize_layer: [perceptron, gaussian_transfer]}
+    else:
+        layers[perceptron] = ['O']
+        incoming_order_dict = None
+
+    return Network(layers, incoming_order_dict)
 
 def make_pbnn():
     from pynn.architecture import pbnn

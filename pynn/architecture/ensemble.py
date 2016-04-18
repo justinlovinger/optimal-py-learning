@@ -24,7 +24,7 @@ class Bagger(Ensemble):
 
         return output / len(self._networks)
 
-    def get_prev_errors(self, errors, outputs):
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
         return None #TODO
 
     def update(self, inputs, outputs, errors):

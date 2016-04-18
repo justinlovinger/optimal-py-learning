@@ -17,6 +17,10 @@ def test_layer_as_key():
     assert dict_[layer2] == layer
 
 
+def test_incoming_order_dict():
+    assert 0
+
+
 def test_network_validation_layers():
     with pytest.raises(TypeError):
         n = network.Network([None])
