@@ -101,19 +101,19 @@ def _all_in(all_required, values):
             return False
     return True
 
-def _validate_requires_next(prev_layer, layer):
-    if not _all_in(prev_layer.requires_next, layer.attributes):
+def _validate_requires_next(layer, next_layer):
+    if not _all_in(layer.requires_next, next_layer.attributes):
         raise TypeError("Layer of type {} must be followed by attributes: {}. " \
                         "It is followed by attributes: " \
-                        "{}".format(type(prev_layer), prev_layer.requires_next, 
-                                    layer.attributes))
+                        "{}".format(type(layer), layer.requires_next, 
+                                    next_layer.attributes))
 
-def _validate_requires_prev(next_layer, layer):
-    if not _all_in(next_layer.requires_prev, layer.attributes):
+def _validate_requires_prev(layer, prev_layer):
+    if not _all_in(layer.requires_prev, prev_layer.attributes):
         raise TypeError("Layer of type {} must be preceded by attributes: {}. " \
                         "It is preceded by attributes: " \
-                        "{}".format(type(next_layer), next_layer.requires_prev, 
-                                    layer.attributes))
+                        "{}".format(type(layer), layer.requires_prev, 
+                                    prev_layer.attributes))
 
 def _validate_layers_parallel(layers, prev_layer, next_layer):
     """Validate that all layers have the same required features."""
@@ -141,6 +141,7 @@ def _validate_layers_sequence(layers):
         _validate_requires_prev(layers[i], layers[i-1])
 
 def _validate_graph(graph_):
+    """Validate a graph of network layers."""
     # Graph should have 'I' key
     assert 'I' in graph_.nodes
 
@@ -163,6 +164,23 @@ def _validate_graph(graph_):
     for node in graph_.nodes:
         # find path from node to 'O'
         assert graph.find_path(graph_.adjacency, node, 'O') is not None
+
+    # Graph should be made of layers (excluding 'I' and 'O')
+    _validate_layers_layers(graph_.nodes - set(['I', 'O']))
+
+    # Validate requires next and requires prev
+    for layer in graph_.nodes - set(['I', 'O']):
+        # Validate requires prev
+        incoming_layers = graph_.backwards_adjacency[layer]
+        for incoming_layer in incoming_layers:
+            if incoming_layer is not 'I':
+                _validate_requires_prev(layer, incoming_layer)
+
+        # Validate requires next
+        outgoing_layers = graph_.adjacency[layer]
+        for outgoing_layer in outgoing_layers:
+            if outgoing_layer is not 'O':
+                _validate_requires_next(layer, outgoing_layer)
 
 ###################
 # Network functions
@@ -288,8 +306,6 @@ class Network(object):
 
         # Initialize activations
         self._activation_order = _make_activation_order(self._graph)
-        _validate_layers_layers(self._activation_order)
-
         self._activations = {}
         for layer in self._graph.nodes:
             self._activations[layer] = None
