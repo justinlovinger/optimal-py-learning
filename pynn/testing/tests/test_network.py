@@ -19,7 +19,22 @@ def test_layer_as_key():
 
 
 def test_incoming_order_dict():
-    assert 0
+    incoming_layers = []
+    for i in range(20):
+        incoming_layers.append(network.Layer())
+
+    # Construct network with many layers going into one
+    last_layer = network.Layer()
+    layers = {'I': incoming_layers,
+              last_layer: ['O']}
+    for layer in incoming_layers:
+        layers[layer] = [last_layer]
+
+    incoming_order = {last_layer: incoming_layers} # Same order as we constructed
+    nn = network.Network(layers, incoming_order_dict=incoming_order)
+
+    assert nn._graph.backwards_adjacency[last_layer] == incoming_layers
+
 
 def test_activation_order():
     adjacency_dict = {'I': ['a'],

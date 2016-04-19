@@ -10,6 +10,7 @@ def test_tanh_transfer():
     output = [round(v, 6) for v in output]
     assert output == expected
 
+
 def test_gaussian_transfer():
     layer = transfer.GaussianTransfer()
     expected = [0.367879, 1.0, 0.778801, 0.367879]
@@ -22,6 +23,7 @@ def test_gaussian_transfer():
     output = layer.activate(numpy.array([-1.0, 0.0, 0.5, 1.0]))
     output = [round(v, 6) for v in output]
     assert output == expected
+
 
 def test_softmax_transfer():
     layer = transfer.SoftmaxTransfer()
@@ -36,3 +38,11 @@ def test_softmax_transfer():
     output_ = list(layer.activate(numpy.array([1.0, -1.0])))
     assert output_[0] > 0.5 and output_[1] < 0.5
     assert sum(output_) == 1.0
+
+
+def test_normalize_transfer():
+    layer = transfer.NormalizeTransfer()
+
+    assert list(layer.activate(numpy.array([1.0, 1.0]))) == [0.5, 0.5]
+    assert list(layer.activate(numpy.array([1.0, 0.0]))) == [1.0, 0.0]
+    assert list(layer.activate(numpy.array([1.0, 0.25]))) == [0.8, 0.2]

@@ -261,11 +261,16 @@ def select_random(patterns, size=None):
 class Network(object):
     """A composite of layers connected in sequence."""
     def __init__(self, layers, incoming_order_dict=None):
-        # Allow user to pass a list of layeres connected in sequence
+        # Allow user to pass a list of layers connected in sequence
         if isinstance(layers, list):
             layers = _layers_to_adjacency_dict(layers)
 
         self._graph = graph.Graph(layers)
+        _validate_graph(self._graph)
+        
+
+        # User can specify an order for incoming layers.
+        # This is important for some layers that have multiple inputs.
         if incoming_order_dict is not None:
             # Ensure backwards adjacency has the right order
             for layer, desired_order in incoming_order_dict.iteritems():
@@ -281,16 +286,16 @@ class Network(object):
 
                 self._graph.backwards_adjacency[layer] = new_order
 
-        _validate_graph(self._graph)
+        # Initialize activations
         self._activation_order = _make_activation_order(self._graph)
+        _validate_layers_layers(self._activation_order)
 
         self._activations = {}
         for layer in self._graph.nodes:
             self._activations[layer] = None
 
-        self.logging = True
-
         # Bookkeeping
+        self.logging = True
         self.iteration = 0
 
     def _reset_bookkeeping(self):
@@ -468,6 +473,7 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
         tanh_transfer = mlp.TanhTransferPerceptron()
         layers[perceptron] = [tanh_transfer]
 
+    # Last transfer connects to output
     layers[tanh_transfer] = ['O']
 
     return Network(layers)
