@@ -1,6 +1,9 @@
+import pytest
+
 from pynn import preprocess
 from pynn.data import datasets
 
+@pytest.mark.skip(reason="function isn't implemented, and doesn't need to be implemented yet.")
 def test_normalize():
     inputs = [[0.75, 0.25], [0.5, 0.5], [0.25, 0.75]]
     assert 0

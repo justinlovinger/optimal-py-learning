@@ -10,7 +10,7 @@ def normalize(input_vectors):
     Args:
         input_vectors: list of input vectors.
     """
-    raise NotImplementedError()
+    assert 0
 
 def softmax_normalize(input_vectors):
     """Normalize inputs, while reducing the influence of outliers.

@@ -43,6 +43,16 @@ def test_softmax_transfer():
 def test_normalize_transfer():
     layer = transfer.NormalizeTransfer()
 
-    assert list(layer.activate(numpy.array([1.0, 1.0]))) == [0.5, 0.5]
-    assert list(layer.activate(numpy.array([1.0, 0.0]))) == [1.0, 0.0]
-    assert list(layer.activate(numpy.array([1.0, 0.25]))) == [0.8, 0.2]
+    # Passing inputs as scaling inputs allows normalization to 1.0
+    inputs = numpy.array([1.0, 1.0])
+    assert list(layer.activate(inputs, inputs)) == [0.5, 0.5]
+
+    inputs = numpy.array([1.0, 0.0])
+    assert list(layer.activate(inputs, inputs)) == [1.0, 0.0]
+
+    inputs = numpy.array([1.0, 0.25])
+    assert list(layer.activate(inputs, inputs)) == [0.8, 0.2]
+
+    # Non same scaling inputs
+    assert list(layer.activate(numpy.array([1.0, 0.5]), numpy.array([0.75, 0.25]))) == [1.0, 0.5]
+    assert list(layer.activate(numpy.array([1.0, 0.5]), numpy.array([1.75, 0.25]))) == [0.5, 0.25]
