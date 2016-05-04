@@ -4,6 +4,7 @@ import time
 from pynn import validation
 from pynn import network
 from pynn.testing import helpers
+from pynn.architecture import pbnn
 
 def random_dataset():
     dataset = []
@@ -53,20 +54,37 @@ def test_sd_of_dicts():
     assert validation._sd_of_dicts(folds, means) == {'test': 0.5,
                                                      'test2': 0.5}
 
-def test_validate_network():
-    pass
+def test_validate_network(monkeypatch):
+    # Patch time.clock so time attribute is deterministic
+    monkeypatch.setattr(time, 'clock', lambda : 0.0)
+
+    # Make network that returns set output for a given input
+    patterns = [
+                ([1], [0]),
+                ([1], [1]),
+                ([1], [2])
+               ]
+    store_targets = pbnn.StoreTargetsLayer()
+    summation = pbnn.WeightedSummationLayer()
+    nn = network.Network({'I': [summation],
+                          store_targets: [summation],
+                          summation: ['O']},
+                         incoming_order_dict = {summation: ['I', store_targets]})
+
+    assert validation._validate_network(nn, [([1], [0]), ([1], [1])],
+                                        [([1], [2])],
+                                        iterations=0) == {'time': 0.0, 'epochs': 0,
+                                                          'training_error': 0.5,
+                                                          'testing_error': 1.0}
 
 def test_cross_validate(monkeypatch):
-    # Make network that returns set output for a given input
+    # Make network that returns set output for
     patterns = [
                 ([0], [1]),
                 ([1], [1]),
                 ([2], [1])
                ]
-    inputs_output_dict = {(0,): [1],
-                          (1,): [1],
-                          (2,): [1]}
-    nn = network.Network([helpers.SetOutputPerInputsLayer(inputs_output_dict)])
+    nn = network.Network([helpers.SetOutputLayer([1])])
 
     # Cross validate with deterministic network, and check output
     
