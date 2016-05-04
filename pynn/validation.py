@@ -119,9 +119,9 @@ def _sd_of_dicts(dicts, means):
     return standard_deviation
 
 
-def _add_mean_sd_to_stats(stats):
-    mean = _mean_of_dicts(stats['folds'])
-    sd = _sd_of_dicts(stats['folds'], mean) 
+def _add_mean_sd_to_stats(stats, key='folds'):
+    mean = _mean_of_dicts(stats[key])
+    sd = _sd_of_dicts(stats[key], mean) 
 
     stats['mean'] = mean
     stats['sd'] = sd
@@ -147,9 +147,22 @@ def cross_validate(network_, patterns, num_folds=3, **kwargs):
 
     return stats
 
-def benchmark(network_, patterns, num_folds=3, runs=30, **kwargs):
+def benchmark(network_, patterns, num_folds=3, num_runs=30, **kwargs):
     # TODO: maybe just take a function, and aggregate stats for that function
-    assert 0
+    
+    runs = []
+    for i in range(num_runs):
+        runs.append(cross_validate(network_, patterns, num_folds, **kwargs))
+    stats = {'runs': runs}
+
+    # Calculate meta stats
+    means = [run['mean'] for run in runs]
+    mean_of_means = _mean_of_dicts(means)
+    sd_of_means = _sd_of_dicts(means, mean_of_means)
+    stats['mean_of_means'] = mean_of_means
+    stats['sd_of_means'] = sd_of_means
+
+    return stats
 
 def compare((networks, patterns), num_folds, **kwargs):
     """Compare a set of algorithms on a set of patterns."""

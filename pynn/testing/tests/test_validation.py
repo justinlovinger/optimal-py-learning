@@ -88,6 +88,9 @@ def test_validate_network(monkeypatch):
                                                           'testing_error': 4.0}
 
 def test_cross_validate(monkeypatch):
+    # Patch time.clock so time attribute is deterministic
+    monkeypatch.setattr(time, 'clock', lambda : 0.0)
+
     # Make network that returns set output for
     patterns = [
                 ([0], [1]),
@@ -96,17 +99,12 @@ def test_cross_validate(monkeypatch):
                ]
     nn = network.Network([helpers.SetOutputLayer([1])])
 
-    # Cross validate with deterministic network, and check output
-    
-    # Patch time.clock so time attribute is deterministic
-    monkeypatch.setattr(time, 'clock', lambda : 0.0)
-
     # Track patterns for training
     training_patterns = []
     def post_pattern_callback(network_, pattern):
         training_patterns.append(pattern)
 
-    # Validate
+    # Cross validate with deterministic network, and check output
     stats = validation.cross_validate(nn, patterns, num_folds=3,
                                       iterations=1,
                                       post_pattern_callback=post_pattern_callback)
@@ -125,3 +123,50 @@ def test_cross_validate(monkeypatch):
     assert training_patterns == [([1], [1]), ([2], [1]), # First fold
                                  ([0], [1]), ([2], [1]), # Second fold
                                  ([0], [1]), ([1], [1])] # Third fold
+
+def test_benchmark(monkeypatch):
+     # Patch time.clock so time attribute is deterministic
+    monkeypatch.setattr(time, 'clock', lambda : 0.0)
+
+    # Make network that returns set output for
+    patterns = [
+                ([0], [1]),
+                ([1], [1]),
+                ([2], [1])
+               ]
+    nn = network.Network([helpers.SetOutputLayer([1])])
+
+    # Track patterns for training
+    training_patterns = []
+    def post_pattern_callback(network_, pattern):
+        training_patterns.append(pattern)
+
+    # Cross validate with deterministic network, and check output
+    stats = validation.benchmark(nn, patterns, num_folds=3, num_runs=2,
+                                 iterations=1,
+                                 post_pattern_callback=post_pattern_callback)
+
+    # Check
+    cross_validation_stats = {'folds': [{'time': 0.0, 'epochs': 1,
+                                         'training_error': 0.0, 'testing_error': 0.0},
+                                        {'time': 0.0, 'epochs': 1,
+                                         'training_error': 0.0, 'testing_error': 0.0},
+                                        {'time': 0.0, 'epochs': 1,
+                                         'training_error': 0.0, 'testing_error': 0.0}],
+                              'mean': {'time': 0.0, 'epochs': 1,
+                                       'training_error': 0.0, 'testing_error': 0.0},
+                              'sd': {'time': 0.0, 'epochs': 0.0,
+                                     'training_error': 0.0, 'testing_error': 0.0}
+                             }
+    assert stats == {'runs': [cross_validation_stats, cross_validation_stats],
+                     'mean_of_means': {'time': 0.0, 'epochs': 1,
+                                       'training_error': 0.0, 'testing_error': 0.0},
+                     'sd_of_means': {'time': 0.0, 'epochs': 0.0,
+                                     'training_error': 0.0, 'testing_error': 0.0}
+                    }
+    assert training_patterns == [([1], [1]), ([2], [1]), # First fold
+                                 ([0], [1]), ([2], [1]), # Second fold
+                                 ([0], [1]), ([1], [1]), # Third fold
+                                 ([1], [1]), ([2], [1]), # First fold 2
+                                 ([0], [1]), ([2], [1]), # Second fold 2
+                                 ([0], [1]), ([1], [1])] # Third fold 2
