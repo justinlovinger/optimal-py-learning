@@ -23,7 +23,7 @@ class SetOutputLayer(network.Layer):
 class RememberPatternsLayer(network.Layer):
     """Returns the output for a given input."""
     def __init__(self):
-        super(SetOutputPerInputsLayer, self).__init__()
+        super(RememberPatternsLayer, self).__init__()
 
         self._inputs_output_dict = {}
 

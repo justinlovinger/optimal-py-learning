@@ -58,12 +58,8 @@ def test_validate_network(monkeypatch):
     # Patch time.clock so time attribute is deterministic
     monkeypatch.setattr(time, 'clock', lambda : 0.0)
 
-    # Make network that returns set output for a given input
-    patterns = [
-                ([1], [0]),
-                ([1], [1]),
-                ([1], [2])
-               ]
+    # Make network that sums remembered inputs
+    # This lets us test training error, but is kinda complicated
     store_targets = pbnn.StoreTargetsLayer()
     summation = pbnn.WeightedSummationLayer()
     nn = network.Network({'I': [summation],
@@ -76,6 +72,20 @@ def test_validate_network(monkeypatch):
                                         iterations=0) == {'time': 0.0, 'epochs': 0,
                                                           'training_error': 0.5,
                                                           'testing_error': 1.0}
+    
+    # Make network that returns set output for a given input
+    # Simpler, always 0 training error
+    nn = network.Network([helpers.RememberPatternsLayer()])
+    assert validation._validate_network(nn, [([1], [1])],
+                                        [([1], [1.5])],
+                                        iterations=0) == {'time': 0.0, 'epochs': 0,
+                                                          'training_error': 0.0,
+                                                          'testing_error': 0.25}
+    assert validation._validate_network(nn, [([0], [0])],
+                                        [([0], [2.0])],
+                                        iterations=0) == {'time': 0.0, 'epochs': 0,
+                                                          'training_error': 0.0,
+                                                          'testing_error': 4.0}
 
 def test_cross_validate(monkeypatch):
     # Make network that returns set output for
