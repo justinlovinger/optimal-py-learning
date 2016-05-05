@@ -6,6 +6,7 @@ from pynn import graph
 from pynn import network
 from pynn.data import datasets
 from pynn.architecture import mlp
+from pynn.testing import helpers
 
 
 def test_layer_as_key():
@@ -21,10 +22,10 @@ def test_layer_as_key():
 def test_incoming_order_dict():
     incoming_layers = []
     for i in range(20):
-        incoming_layers.append(network.Layer())
+        incoming_layers.append(helpers.EmptyLayer())
 
     # Construct network with many layers going into one
-    last_layer = network.Layer()
+    last_layer = helpers.EmptyLayer()
     layers = {'I': incoming_layers,
               last_layer: ['O']}
     for layer in incoming_layers:
@@ -66,18 +67,26 @@ def test_network_validation_layers():
     with pytest.raises(TypeError):
         n = network.Network(['q'])
 
-    n = network.Network([network.Layer()])
+    n = network.Network([helpers.EmptyLayer()])
 
 
 def test_network_validation_requires_next_prev():
     with pytest.raises(TypeError):
-        n = network.Network([network.GrowingLayer(), network.Layer()])
+        n = network.Network([network.GrowingLayer(), helpers.EmptyLayer()])
 
-    n = network.Network([network.GrowingLayer(), network.SupportsGrowingLayer()])
+    class EmptyGrowing(network.GrowingLayer):
+        def reset(self):
+            pass
+
+    class EmptySupportsGrowing(network.SupportsGrowingLayer):
+        def reset(self):
+            pass
+
+    n = network.Network([EmptyGrowing(), EmptySupportsGrowing()])
 
 
 def test_network_validation_parallel_requires_prev_next():
-    layer = network.Layer()
+    layer = helpers.EmptyLayer()
     layer.attributes = ['test', 'test2']
 
     layers = []

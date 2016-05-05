@@ -314,6 +314,9 @@ class Network(object):
         self.logging = True
         self.iteration = 0
 
+        # Initialize all layers
+        self.reset()
+
     def _reset_bookkeeping(self):
         self.iteration = 0
 
@@ -399,7 +402,7 @@ class Network(object):
                 and returns a set of patterns. Use partial function to embed arguments.
         """
         self._reset_bookkeeping()
-        self.reset()
+        #self.reset()
 
         # For optimization
         track_error = error_break != 0.0 or self.logging
