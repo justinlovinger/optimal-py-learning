@@ -125,7 +125,7 @@ def test_cross_validate(monkeypatch):
                                  ([0], [1]), ([1], [1])] # Third fold
 
 def test_benchmark(monkeypatch):
-     # Patch time.clock so time attribute is deterministic
+    # Patch time.clock so time attribute is deterministic
     monkeypatch.setattr(time, 'clock', lambda : 0.0)
 
     # Make network that returns set output for
@@ -170,3 +170,61 @@ def test_benchmark(monkeypatch):
                                  ([1], [1]), ([2], [1]), # First fold 2
                                  ([0], [1]), ([2], [1]), # Second fold 2
                                  ([0], [1]), ([1], [1])] # Third fold 2
+
+def test_compare(monkeypatch):
+    # Patch time.clock so time attribute is deterministic
+    monkeypatch.setattr(time, 'clock', lambda : 0.0)
+
+    # Make network that returns set output for
+    patterns = [
+                ([0], [1]),
+                ([1], [1]),
+                ([2], [1])
+               ]
+    nn = network.Network([helpers.SetOutputLayer([1])])
+    nn2 = network.Network([helpers.SetOutputLayer([0])])
+
+    # Cross validate with deterministic network, and check output
+    stats = validation.compare([('nn', nn, patterns, {'iterations':1}),
+                                ('nn2', nn2, patterns, {'iterations':1})],
+                               num_folds=3, num_runs=1)
+
+    # Check
+    assert stats == {'nn': {'runs': [{'folds': [{'time': 0.0, 'epochs': 1,
+                                         'training_error': 0.0, 'testing_error': 0.0},
+                                        {'time': 0.0, 'epochs': 1,
+                                         'training_error': 0.0, 'testing_error': 0.0},
+                                        {'time': 0.0, 'epochs': 1,
+                                         'training_error': 0.0, 'testing_error': 0.0}],
+                                      'mean': {'time': 0.0, 'epochs': 1,
+                                               'training_error': 0.0, 'testing_error': 0.0},
+                                      'sd': {'time': 0.0, 'epochs': 0.0,
+                                             'training_error': 0.0, 'testing_error': 0.0}
+                                     }],
+                            'mean_of_means': {'time': 0.0, 'epochs': 1,
+                                              'training_error': 0.0, 'testing_error': 0.0},
+                            'sd_of_means': {'time': 0.0, 'epochs': 0.0,
+                                            'training_error': 0.0, 'testing_error': 0.0}
+                           },
+                     'nn2':{'runs': [{'folds': [{'time': 0.0, 'epochs': 1,
+                                         'training_error': 1.0, 'testing_error': 1.0},
+                                        {'time': 0.0, 'epochs': 1,
+                                         'training_error': 1.0, 'testing_error': 1.0},
+                                        {'time': 0.0, 'epochs': 1,
+                                         'training_error': 1.0, 'testing_error': 1.0}],
+                                      'mean': {'time': 0.0, 'epochs': 1,
+                                               'training_error': 1.0, 'testing_error': 1.0},
+                                      'sd': {'time': 0.0, 'epochs': 0.0,
+                                             'training_error': 0.0, 'testing_error': 0.0}
+                                     }],
+                            'mean_of_means': {'time': 0.0, 'epochs': 1,
+                                              'training_error': 1.0, 'testing_error': 1.0},
+                            'sd_of_means': {'time': 0.0, 'epochs': 0.0,
+                                            'training_error': 0.0, 'testing_error': 0.0}
+                           },
+                     'mean_of_means': {'time': 0.0, 'epochs': 1,
+                                      'training_error': 0.5, 'testing_error': 0.5},
+                     'sd_of_means': {'time': 0.0, 'epochs': 0.0,
+                                     'training_error': 0.5, 'testing_error': 0.5}
+                    }
+

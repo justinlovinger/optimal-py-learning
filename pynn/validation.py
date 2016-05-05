@@ -164,6 +164,24 @@ def benchmark(network_, patterns, num_folds=3, num_runs=30, **kwargs):
 
     return stats
 
-def compare((networks, patterns), num_folds, **kwargs):
-    """Compare a set of algorithms on a set of patterns."""
+def compare(name_networks_patterns_kwargs, num_folds = 3, num_runs=30):
+    """Compare a set of algorithms on a set of patterns.
+    
+    Args:
+        name_networks_patterns_kwargs: list : tuple; list of (name, network, patterns, kwargs) tuples.
+        num_folds: int; number of folds for each cross validation test.
+        num_runs: int; number of runs for each benchmark.
+    """
 
+    stats = {}
+    for (name, network_, patterns, kwargs) in name_networks_patterns_kwargs:
+        stats[name] = benchmark(network_, patterns, num_folds, num_runs, **kwargs)
+
+    # Calculate meta stats
+    means = [results['mean_of_means'] for results in stats.itervalues()]
+    mean_of_means = _mean_of_dicts(means)
+    sd_of_means = _sd_of_dicts(means, mean_of_means)
+    stats['mean_of_means'] = mean_of_means
+    stats['sd_of_means'] = sd_of_means
+
+    return stats
