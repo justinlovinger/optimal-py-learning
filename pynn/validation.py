@@ -164,7 +164,7 @@ def benchmark(network_, patterns, num_folds=3, num_runs=30, **kwargs):
 
     return stats
 
-def compare(name_networks_patterns_kwargs, num_folds = 3, num_runs=30):
+def compare(name_networks_patterns_kwargs, num_folds=3, num_runs=30):
     """Compare a set of algorithms on a set of patterns.
     
     Args:

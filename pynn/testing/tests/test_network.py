@@ -2,6 +2,8 @@ import pytest
 import copy
 import random
 
+import numpy
+
 from pynn import graph
 from pynn import network
 from pynn.data import datasets
@@ -287,3 +289,21 @@ def test_post_iteration():
 
     # Count incremented for each iteration
     assert list(nn._activation_order)[0].count == 10
+
+
+def test_network_preprocess_func_keyword():
+    dataset = [([0], [0])]
+    def preprocess_func(patterns):
+        return [([0], [1])]
+
+    # Pre-test
+    nn_pre = network.Network([helpers.RememberPatternsLayer()])
+    nn_pre.train(dataset)
+    assert nn_pre._activation_order[0]._inputs_output_dict[(0,)] == numpy.array([0])
+
+    # Preprocess function should change pattern
+    nn = network.Network([helpers.RememberPatternsLayer()])
+    nn.train(dataset, preprocess_func=preprocess_func)
+
+    # Layer stored preprocessed dataset
+    assert nn._activation_order[0]._inputs_output_dict[(0,)] == numpy.array([1])

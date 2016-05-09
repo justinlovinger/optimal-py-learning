@@ -391,7 +391,8 @@ class Network(object):
         return error/len(patterns)
 
     def train(self, patterns, iterations=1000, error_break=0.02,
-              pattern_select_func=select_iterative, post_pattern_callback=None):
+              pattern_select_func=select_iterative, post_pattern_callback=None,
+              preprocess_func=None):
         """Train network to converge on set of patterns.
         
         Args:
@@ -406,6 +407,10 @@ class Network(object):
 
         # For optimization
         track_error = error_break != 0.0 or self.logging
+
+        # Preprocess data
+        if preprocess_func is not None:
+            patterns = preprocess_func(patterns)
 
         # Pre-training for each layer
         for layer in self._activation_order:
