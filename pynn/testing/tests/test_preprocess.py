@@ -3,11 +3,14 @@ import pytest
 from pynn import preprocess
 from pynn.data import datasets
 
-@pytest.mark.skip(reason="function isn't implemented, and doesn't need to be implemented yet.")
 def test_normalize():
     inputs = [[0.75, 0.25], [0.5, 0.5], [0.25, 0.75]]
     assert 0
 
+
+######################
+# Depuration functions
+######################
 def test_list_minus_i():
     list_ = [0, 1, 2]
     assert preprocess._list_minus_i(list_, 0) == [1, 2]
@@ -77,3 +80,9 @@ def test_clean_dataset():
 
     expected, _, _ = preprocess.clean_dataset_depuration(dataset)
     assert preprocess.clean_dataset(dataset) == expected
+
+######################
+# PCA
+######################
+def test_pca():
+    assert 0

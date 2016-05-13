@@ -1,16 +1,21 @@
 import copy
 
+import numpy
+
 from pynn.architecture import knn
 
-def normalize(input_vectors):
-    """Normalize all inputs to a mean of 0 and equal variance, for each dimension.
+def normalize(data_matrix):
+    """Normalize matrix to a mean and standard devaiation of 0, for each dimension.
     
     This improves numerical stability and allows for easier gradient descent.
     
     Args:
-        input_vectors: list of input vectors.
+        data_matrix: numpy.matrix; a matrix of values.
     """
-    assert 0
+    np_data_matrix = numpy.matrix(data_matrix)
+    np_data_matrix -= numpy.mean(np_data_matrix, 0)
+    np_data_matrix /= numpy.std(np_data_matrix, 0)
+    return np_data_matrix
 
 def softmax_normalize(input_vectors):
     """Normalize inputs, while reducing the influence of outliers.
@@ -80,6 +85,24 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
             removed_points.append(i)
 
     return cleaned_dataset, changed_points, removed_points
+
+
+def pca(data_matrix, num_components):
+    """Perform principle component analysis on dataset.
+    
+    Note: dataset is normalized before analysis, without side effects.
+    """
+    # Normalize
+    normalized_matrix = normalize(data_matrix)
+    
+
+    # Perform PCA
+    covariance = numpy.cov(normalized_matrix, rowvar=False)
+    eigen_values, eigen_vectors = numpy.linalg.eigh(covariance)
+    key = numpy.argsort(eigen_values)[::-1][:num_components]
+    eigen_values, eigen_vectors = eigen_values[key], eigen_vectors[:, key]
+    reduced_data_matrix = numpy.dot(eigen_vectors.T, normalized_matrix.T).T
+    return reduced_data_matrix, eigen_values, eigen_vectors
 
 # Set default clean dataset function
 def clean_dataset(dataset):
