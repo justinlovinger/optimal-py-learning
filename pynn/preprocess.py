@@ -47,6 +47,8 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
         raise ValueError('k_prime must be between (k + 1) / 2 and k')
 
     cleaned_dataset = []
+    changed_points = []
+    removed_points = []
     for i, point in enumerate(dataset):
         # Find k-NN of point in dataset - {point}
         k_nearest = knn.select_k_nearest_neighbors(_list_minus_i(dataset, i),
@@ -55,6 +57,7 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
         # if a class has at least k_prime representatives
         # among the k neighbours
         class_counts = _count_classes(k_nearest)
+        removed = True
         for class_, count in class_counts.iteritems():
             if count >= k_prime:
                 # Change the label of point to that class
@@ -65,11 +68,20 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
                 new_point = (point[0], class_)
 
                 cleaned_dataset.append(new_point)
-                break
-        # else
-            # discard point (do not add to cleaned_dataset)
 
-    return cleaned_dataset
+                # Check if new point is different than old point, track changed
+                if class_ != tuple(point[1]):
+                    changed_points.append(i)
+
+                removed = False
+                break
+        if removed:
+            # discard point (do not add to cleaned_dataset)
+            removed_points.append(i)
+
+    return cleaned_dataset, changed_points, removed_points
 
 # Set default clean dataset function
-clean_dataset = clean_dataset_depuration
+def clean_dataset(dataset):
+    cleaned_dataset, _, _ = clean_dataset_depuration(dataset)
+    return cleaned_dataset

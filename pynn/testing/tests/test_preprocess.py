@@ -38,21 +38,42 @@ def test_clean_dataset_depuration():
                ([0.0], (0,)),
                ([0.0], (0,)),
                ([0.0], (0,)),
-               ([0.0], (1,)),
+               ([0.01], (1,)),
+               ([0.5], (0.5,)),
+               ([0.5], (0.5,)),
+               ([0.99], (0,)),
                ([1.0], (1,)),
                ([1.0], (1,)),
                ([1.0], (1,)),
-               ([1.0], (0,)),
               ]
 
-    cleaned_dataset = preprocess.clean_dataset_depuration(dataset, k=3, k_prime=2)
+    cleaned_dataset, changed_points, removed_points = preprocess.clean_dataset_depuration(dataset, k=3, k_prime=2)
     assert cleaned_dataset == [
                                ([0.0], (0,)),
                                ([0.0], (0,)),
                                ([0.0], (0,)),
-                               ([0.0], (0,)),
-                               ([1.0], (1,)),
+                               ([0.01], (0,)),
+                               ([0.99], (1,)),
                                ([1.0], (1,)),
                                ([1.0], (1,)),
                                ([1.0], (1,)),
                               ]
+    assert changed_points == [3, 6]
+    assert removed_points == [4, 5]
+
+def test_clean_dataset():
+    dataset = [
+               ([0.0], (0,)),
+               ([0.0], (0,)),
+               ([0.0], (0,)),
+               ([0.01], (1,)),
+               ([0.5], (0.5,)),
+               ([0.5], (0.5,)),
+               ([0.99], (0,)),
+               ([1.0], (1,)),
+               ([1.0], (1,)),
+               ([1.0], (1,)),
+              ]
+
+    expected, _, _ = preprocess.clean_dataset_depuration(dataset)
+    assert preprocess.clean_dataset(dataset) == expected
