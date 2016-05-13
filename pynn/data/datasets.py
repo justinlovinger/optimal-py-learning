@@ -28,7 +28,7 @@ def get_lenses():
     return process.get_data(filename_relative('lenses.data'), 1)
 
 def get_yeast():
-    return process.get_data(filename_relative('datasets/yeast.data'), 1)
+    return process.get_data(filename_relative('yeast.data'), 1)
 
 def get_xor():
     return [
