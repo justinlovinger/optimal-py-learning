@@ -1,11 +1,39 @@
+import random
+
 import pytest
+import numpy
 
 from pynn import preprocess
 from pynn.data import datasets
 
+from pynn.testing import helpers
+
 def test_normalize():
-    inputs = [[0.75, 0.25], [0.5, 0.5], [0.25, 0.75]]
-    assert 0
+    random_matrix = numpy.random.rand(random.randint(1, 10),
+                                      random.randint(1, 10))
+    normalized_matrix = preprocess.normalize(random_matrix)
+
+    assert random_matrix.shape == normalized_matrix.shape
+
+    # Original matrix should be unchanged
+    assert not numpy.array_equal(random_matrix, normalized_matrix)
+    
+    # Normalized matrix should have mean of 0 standard deviation of 1
+    # for each dimension
+    means = numpy.mean(normalized_matrix, 0)
+    for mean in means:
+        assert helpers.approx_equal(mean, 0, tol=1e-10)
+    sds = numpy.std(normalized_matrix, 0)
+    for sd in sds:
+        assert helpers.approx_equal(sd, 1, tol=1e-10)
+
+    # TODO: deterministic test
+    #inputs = [[0.75, 0.25],
+    #          [0.5, 0.5],
+    #          [0.25, 0.75]]
+    #expected = [
+
+    #assert preprocess.normalize(inputs) == numpy.matrix(expected)
 
 
 ######################

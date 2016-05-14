@@ -5,14 +5,15 @@ import numpy
 from pynn.architecture import knn
 
 def normalize(data_matrix):
-    """Normalize matrix to a mean and standard devaiation of 0, for each dimension.
+    """Normalize matrix to a mean of 0 and standard devaiation of 1, for each dimension.
     
     This improves numerical stability and allows for easier gradient descent.
     
     Args:
-        data_matrix: numpy.matrix; a matrix of values.
+        data_matrix: numpy.matrix; A matrix of values.
+            We expect each row to be a point, and each column to be a dimension.
     """
-    np_data_matrix = numpy.matrix(data_matrix)
+    np_data_matrix = numpy.array(data_matrix)
     np_data_matrix -= numpy.mean(np_data_matrix, 0)
     np_data_matrix /= numpy.std(np_data_matrix, 0)
     return np_data_matrix
@@ -87,19 +88,18 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
     return cleaned_dataset, changed_points, removed_points
 
 
-def pca(data_matrix, num_components):
+def pca(data_matrix, desired_num_dimensions):
     """Perform principle component analysis on dataset.
     
     Note: dataset is normalized before analysis, without side effects.
     """
     # Normalize
     normalized_matrix = normalize(data_matrix)
-    
 
-    # Perform PCA
+    # Perform PCA, using covariance method
     covariance = numpy.cov(normalized_matrix, rowvar=False)
     eigen_values, eigen_vectors = numpy.linalg.eigh(covariance)
-    key = numpy.argsort(eigen_values)[::-1][:num_components]
+    key = numpy.argsort(eigen_values)[::-1][:desired_num_dimensions]
     eigen_values, eigen_vectors = eigen_values[key], eigen_vectors[:, key]
     reduced_data_matrix = numpy.dot(eigen_vectors.T, normalized_matrix.T).T
     return reduced_data_matrix, eigen_values, eigen_vectors
