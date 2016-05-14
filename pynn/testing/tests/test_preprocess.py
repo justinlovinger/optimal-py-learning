@@ -1,4 +1,5 @@
 import random
+import copy
 
 import pytest
 import numpy
@@ -112,5 +113,30 @@ def test_clean_dataset():
 ######################
 # PCA
 ######################
-def test_pca():
-    assert 0
+def test_pca_using_expected_num_dimensions():
+    data = [[-1, -1], 
+            [1, 1]]
+    expected = numpy.matrix([[-1], [1]])
+
+    assert numpy.array_equal(preprocess.pca(data, 1),
+                             expected)
+
+def test_pca_using_num_dimensions_func():
+    data = [[-1, -1], 
+            [1, 1]]
+    expected = numpy.matrix([[-1], [1]])
+
+    def selection_func(eigen_values):
+        return len([v for v in eigen_values if v > 1])
+
+    assert numpy.array_equal(preprocess.pca(data,
+                                            num_dimensions_func=selection_func),
+                             expected)
+
+def test_pca_no_expected_or_func():
+    with pytest.raises(ValueError):
+        preprocess.pca([], None, None)
+
+def test_pca_both_expected_and_func():
+    with pytest.raises(ValueError):
+        preprocess.pca([], 1, lambda x: 1)

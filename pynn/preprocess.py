@@ -87,22 +87,63 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
 
     return cleaned_dataset, changed_points, removed_points
 
+def pca_get_eigenvalues(data_matrix):
+    """Get the eigenvalues and eigenvectors of the covariance matrix.
 
-def pca(data_matrix, desired_num_dimensions):
-    """Perform principle component analysis on dataset.
+    Args:
+        data_matrix; An n by m matrix.
+            We expect each row to be a data point, and each column to be a dimension
+
+    Returns:
+        numpy.array; Eigenvalues.
+        numpy.array; Eigenvectors.
+    """
+    covariance = numpy.cov(data_matrix, rowvar=False)
+    return numpy.linalg.eigh(covariance)
+
+def pca_reduce_dimensions(data_matrix, eigen_values, eigen_vectors,
+                          desired_num_dimensions):
+    """Use principle component analysis to reduce the dimensionality of a data set.
     
     Note: dataset is normalized before analysis, without side effects.
     """
+    # Key is an array of indexes, each index corresponds to an
+    # eigenvalue and eigenvector
+    key = numpy.argsort(eigen_values)[::-1][:desired_num_dimensions]
+
+    # Numpy lets us use this key to easily construct new arrays with
+    # only the chosen indexes. The [:, key] slice selects columns with the
+    # given indexes
+    eigen_vectors = eigen_vectors[:, key]
+
+    # Perform the reduction using selected eigenvectors
+    reduced_data_matrix = numpy.dot(eigen_vectors.T, data_matrix.T).T
+    return reduced_data_matrix
+
+def pca(data_matrix, desired_num_dimensions=None, num_dimensions_func=None):
+    """Use principle component analysis to reduce the dimensionality of a data set.
+    
+    Note: dataset is normalized before analysis, without side effects,
+          and resulting matrix is normalized before returning.
+    """
+    if desired_num_dimensions is not None and num_dimensions_func is not None:
+        raise ValueError('Use only desired_num_dimensions or num_dimensions_func')
+    if desired_num_dimensions is None and num_dimensions_func is None:
+        raise ValueError('Use either desired_num_dimensions or num_dimensions_func')
+
     # Normalize
     normalized_matrix = normalize(data_matrix)
 
     # Perform PCA, using covariance method
-    covariance = numpy.cov(normalized_matrix, rowvar=False)
-    eigen_values, eigen_vectors = numpy.linalg.eigh(covariance)
-    key = numpy.argsort(eigen_values)[::-1][:desired_num_dimensions]
-    eigen_values, eigen_vectors = eigen_values[key], eigen_vectors[:, key]
-    reduced_data_matrix = numpy.dot(eigen_vectors.T, normalized_matrix.T).T
-    return reduced_data_matrix, eigen_values, eigen_vectors
+    eigen_values, eigen_vectors = pca_get_eigenvalues(normalized_matrix)
+
+    if num_dimensions_func is not None:
+        desired_num_dimensions = num_dimensions_func(eigen_values)
+
+    reduced_data_matrix = pca_reduce_dimensions(normalized_matrix, eigen_values, eigen_vectors,
+                                                desired_num_dimensions)
+    return normalize(reduced_data_matrix)
+    
 
 # Set default clean dataset function
 def clean_dataset(dataset):
