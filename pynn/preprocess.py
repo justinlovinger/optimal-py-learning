@@ -157,7 +157,6 @@ def pca(data_matrix, desired_num_dimensions=None, select_dimensions_func=None):
     
 
 # Set default clean dataset function
-
 def _pca_select_greater_than_one(eigen_values):
     return [i for i, v in enumerate(eigen_values) if v > 1]
 

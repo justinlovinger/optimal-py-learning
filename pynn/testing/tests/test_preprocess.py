@@ -12,6 +12,9 @@ from pynn.testing import helpers
 def test_normalize():
     random_matrix = numpy.random.rand(random.randint(1, 10),
                                       random.randint(1, 10))
+    print 'Generated Matrix:'
+    print random_matrix
+
     normalized_matrix = preprocess.normalize(random_matrix)
 
     assert random_matrix.shape == normalized_matrix.shape
