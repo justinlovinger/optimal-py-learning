@@ -162,14 +162,18 @@ def _pca_select_greater_than_one(eigen_values):
     return [i for i, v in enumerate(eigen_values) if v > 1]
 
 def clean_dataset(dataset):
+    # Clean inputs
+    inputs = [point[0] for point in dataset]
     if len(dataset[0][0]) > 1: # More than 1 input dimension
         # Reduce input dimensions
-        inputs = [point[0] for point in dataset]
+        # And normalize (normalization perfromed by pca)
         reduced_inputs = pca(inputs, select_dimensions_func=_pca_select_greater_than_one)
-        reduced_dataset = [(reduced_input, target) for reduced_input, (_, target)
-                           in zip(reduced_inputs, dataset)]
     else:
-        reduced_dataset = dataset
+        # Just normalize
+        reduced_inputs = normalize(inputs)
+    # Replace original inputs with reduced inputs
+    reduced_dataset = [(reduced_input, target) for reduced_input, (_, target)
+                       in zip(reduced_inputs, dataset)]
 
     # Clean erronous targets
     cleaned_dataset, _, _ = clean_dataset_depuration(reduced_dataset)

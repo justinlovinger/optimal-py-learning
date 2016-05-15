@@ -138,16 +138,25 @@ def test_clean_dataset_no_pca():
                ([0.0], (0,)),
                ([0.0], (0,)),
                ([0.0], (0,)),
-               ([0.01], (1,)),
-               ([0.5], (0.5,)),
-               ([0.5], (0.5,)),
-               ([0.99], (0,)),
+               ([0.0], (1,)),
+               ([1.0], (0,)),
                ([1.0], (1,)),
                ([1.0], (1,)),
                ([1.0], (1,)),
               ]
 
-    expected, _, _ = preprocess.clean_dataset_depuration(dataset)
+    # Normalize input
+    # And depuration should correct the 4th and 5th targets
+    expected = [
+                (numpy.array([-1.0]), (0,)),
+                (numpy.array([-1.0]), (0,)),
+                (numpy.array([-1.0]), (0,)),
+                (numpy.array([-1.0]), (0,)),
+                (numpy.array([1.0]), (1,)),
+                (numpy.array([1.0]), (1,)),
+                (numpy.array([1.0]), (1,)),
+                (numpy.array([1.0]), (1,)),
+               ]
     assert preprocess.clean_dataset(dataset) == expected
 
 def test_clean_dataset_with_pca():
