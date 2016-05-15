@@ -4,6 +4,9 @@ import numpy
 
 from pynn.architecture import knn
 
+########################
+# Normalization
+########################
 def normalize(data_matrix):
     """Normalize matrix to a mean of 0 and standard devaiation of 1, for each dimension.
     
@@ -25,6 +28,20 @@ def softmax_normalize(input_vectors):
     """
     assert 0
 
+def normalize_inputs(dataset, normalize_func=normalize, *args, **kwargs):
+    # Create new matrix of only inputs
+    inputs = [point[0] for point in dataset]
+
+    # Normalize, using user provided function
+    normalized_inputs = normalize_func(inputs, *args, **kwargs)
+    
+    # Replace original inputs with normalized inputs
+    return [(normalized_input, target) for normalized_input, (_, target)
+            in zip(normalized_inputs, dataset)]
+
+###########################
+# Depuration
+###########################
 def _list_minus_i(list_, i):
     """Return list without item i."""
     return list_[:i] + list_[i+1:]
@@ -87,6 +104,10 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
 
     return cleaned_dataset, changed_points, removed_points
 
+
+#########################
+# PCA
+#########################
 def _pca_get_eigenvalues(data_matrix):
     """Get the eigenvalues and eigenvectors of the covariance matrix.
 
@@ -156,24 +177,23 @@ def pca(data_matrix, desired_num_dimensions=None, select_dimensions_func=None):
     return normalize(reduced_data_matrix)
     
 
-# Set default clean dataset function
+##############################
+# All in one dataset cleaning
+##############################
 def _pca_select_greater_than_one(eigen_values):
     # TODO: Base on quartile or some kind of average, not 1.0
     return [i for i, v in enumerate(eigen_values) if v > 1]
 
 def clean_dataset(dataset):
     # Clean inputs
-    inputs = [point[0] for point in dataset]
     if len(dataset[0][0]) > 1: # More than 1 input dimension
         # Reduce input dimensions
         # And normalize (normalization perfromed by pca)
-        reduced_inputs = pca(inputs, select_dimensions_func=_pca_select_greater_than_one)
+        reduced_dataset = normalize_inputs(dataset, pca,
+                                           select_dimensions_func=_pca_select_greater_than_one)
     else:
         # Just normalize
-        reduced_inputs = normalize(inputs)
-    # Replace original inputs with reduced inputs
-    reduced_dataset = [(reduced_input, target) for reduced_input, (_, target)
-                       in zip(reduced_inputs, dataset)]
+        reduced_dataset = normalize_inputs(dataset)
 
     # Clean erronous targets
     cleaned_dataset, _, _ = clean_dataset_depuration(reduced_dataset)
