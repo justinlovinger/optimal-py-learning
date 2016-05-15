@@ -23,9 +23,11 @@ def test_normalize():
     # for each dimension
     means = numpy.mean(normalized_matrix, 0)
     for mean in means:
+        print mean
         assert helpers.approx_equal(mean, 0, tol=1e-10)
     sds = numpy.std(normalized_matrix, 0)
     for sd in sds:
+        print sd
         assert helpers.approx_equal(sd, 1, tol=1e-10)
 
     # TODO: deterministic test
@@ -93,23 +95,6 @@ def test_clean_dataset_depuration():
     assert changed_points == [3, 6]
     assert removed_points == [4, 5]
 
-def test_clean_dataset():
-    dataset = [
-               ([0.0], (0,)),
-               ([0.0], (0,)),
-               ([0.0], (0,)),
-               ([0.01], (1,)),
-               ([0.5], (0.5,)),
-               ([0.5], (0.5,)),
-               ([0.99], (0,)),
-               ([1.0], (1,)),
-               ([1.0], (1,)),
-               ([1.0], (1,)),
-              ]
-
-    expected, _, _ = preprocess.clean_dataset_depuration(dataset)
-    assert preprocess.clean_dataset(dataset) == expected
-
 ######################
 # PCA
 ######################
@@ -127,10 +112,10 @@ def test_pca_using_num_dimensions_func():
     expected = numpy.matrix([[-1], [1]])
 
     def selection_func(eigen_values):
-        return len([v for v in eigen_values if v > 1])
+        return [i for i, v in enumerate(eigen_values) if v > 1]
 
     assert numpy.array_equal(preprocess.pca(data,
-                                            num_dimensions_func=selection_func),
+                                            select_dimensions_func=selection_func),
                              expected)
 
 def test_pca_no_expected_or_func():
@@ -139,4 +124,53 @@ def test_pca_no_expected_or_func():
 
 def test_pca_both_expected_and_func():
     with pytest.raises(ValueError):
-        preprocess.pca([], 1, lambda x: 1)
+        preprocess.pca([], 1, lambda x: [0])
+
+###########################
+# Default cleaning function
+###########################
+def test_clean_dataset_no_pca():
+    # Should just apply depuration
+    dataset = [
+               ([0.0], (0,)),
+               ([0.0], (0,)),
+               ([0.0], (0,)),
+               ([0.01], (1,)),
+               ([0.5], (0.5,)),
+               ([0.5], (0.5,)),
+               ([0.99], (0,)),
+               ([1.0], (1,)),
+               ([1.0], (1,)),
+               ([1.0], (1,)),
+              ]
+
+    expected, _, _ = preprocess.clean_dataset_depuration(dataset)
+    assert preprocess.clean_dataset(dataset) == expected
+
+def test_clean_dataset_with_pca():
+    dataset = [
+               ([0.0, 0.0], (0,)),
+               ([0.0, 0.0], (0,)),
+               ([0.0, 0.0], (0,)),
+               ([0.0, 0.0], (1,)),
+               ([1.0, 1.0], (0,)),
+               ([1.0, 1.0], (1,)),
+               ([1.0, 1.0], (1,)),
+               ([1.0, 1.0], (1,)),
+              ]
+
+    # PCA should reduce to one dimension (since it is currently just on a
+    # diagonal)
+    # PCA will also normalize input
+    # And depuration should correct the 4th and 5th targets
+    expected = [
+                (numpy.array([-1.0]), (0,)),
+                (numpy.array([-1.0]), (0,)),
+                (numpy.array([-1.0]), (0,)),
+                (numpy.array([-1.0]), (0,)),
+                (numpy.array([1.0]), (1,)),
+                (numpy.array([1.0]), (1,)),
+                (numpy.array([1.0]), (1,)),
+                (numpy.array([1.0]), (1,)),
+               ]
+    assert preprocess.clean_dataset(dataset) == expected

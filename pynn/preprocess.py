@@ -87,7 +87,7 @@ def clean_dataset_depuration(dataset, k=3, k_prime=2):
 
     return cleaned_dataset, changed_points, removed_points
 
-def pca_get_eigenvalues(data_matrix):
+def _pca_get_eigenvalues(data_matrix):
     """Get the eigenvalues and eigenvectors of the covariance matrix.
 
     Args:
@@ -101,51 +101,76 @@ def pca_get_eigenvalues(data_matrix):
     covariance = numpy.cov(data_matrix, rowvar=False)
     return numpy.linalg.eigh(covariance)
 
-def pca_reduce_dimensions(data_matrix, eigen_values, eigen_vectors,
-                          desired_num_dimensions):
+def _pca_reduce_dimensions(data_matrix, eigen_vectors,
+                          selected_dimensions):
     """Use principle component analysis to reduce the dimensionality of a data set.
     
-    Note: dataset is normalized before analysis, without side effects.
+    Args:
+        data_matrix: numpy.array; The n x m matrix to reduce.
+        eigen_vectors: numpy.array; The array of eigenvectors from the
+            covariance matrix of data_matrix.
+        selected_dimensions: list; list of indexes, each corresponding to an
+            eigenvector.
     """
+    if not isinstance(selected_dimensions, (list, numpy.ndarray)):
+        raise TypeError('selected_dimensions must be a list of indexes') 
+
     # Key is an array of indexes, each index corresponds to an
     # eigenvalue and eigenvector
-    key = numpy.argsort(eigen_values)[::-1][:desired_num_dimensions]
 
     # Numpy lets us use this key to easily construct new arrays with
     # only the chosen indexes. The [:, key] slice selects columns with the
     # given indexes
-    eigen_vectors = eigen_vectors[:, key]
+    eigen_vectors = eigen_vectors[:, selected_dimensions]
 
     # Perform the reduction using selected eigenvectors
-    reduced_data_matrix = numpy.dot(eigen_vectors.T, data_matrix.T).T
-    return reduced_data_matrix
+    return numpy.dot(eigen_vectors.T, data_matrix.T).T
 
-def pca(data_matrix, desired_num_dimensions=None, num_dimensions_func=None):
+def pca(data_matrix, desired_num_dimensions=None, select_dimensions_func=None):
     """Use principle component analysis to reduce the dimensionality of a data set.
     
     Note: dataset is normalized before analysis, without side effects,
           and resulting matrix is normalized before returning.
     """
-    if desired_num_dimensions is not None and num_dimensions_func is not None:
+    if desired_num_dimensions is not None and select_dimensions_func is not None:
         raise ValueError('Use only desired_num_dimensions or num_dimensions_func')
-    if desired_num_dimensions is None and num_dimensions_func is None:
+    if desired_num_dimensions is None and select_dimensions_func is None:
         raise ValueError('Use either desired_num_dimensions or num_dimensions_func')
 
     # Normalize
     normalized_matrix = normalize(data_matrix)
 
     # Perform PCA, using covariance method
-    eigen_values, eigen_vectors = pca_get_eigenvalues(normalized_matrix)
+    eigen_values, eigen_vectors = _pca_get_eigenvalues(normalized_matrix)
 
-    if num_dimensions_func is not None:
-        desired_num_dimensions = num_dimensions_func(eigen_values)
+    # Select eigenvectors, based on user input
+    if desired_num_dimensions is not None:
+        selected_dimensions = numpy.argsort(eigen_values)[::-1][:desired_num_dimensions]
 
-    reduced_data_matrix = pca_reduce_dimensions(normalized_matrix, eigen_values, eigen_vectors,
-                                                desired_num_dimensions)
+    if select_dimensions_func is not None:
+        selected_dimensions = select_dimensions_func(eigen_values)
+
+    # Perform the pca reduction
+    reduced_data_matrix = _pca_reduce_dimensions(normalized_matrix, eigen_vectors,
+                                                selected_dimensions)
     return normalize(reduced_data_matrix)
     
 
 # Set default clean dataset function
+
+def _pca_select_greater_than_one(eigen_values):
+    return [i for i, v in enumerate(eigen_values) if v > 1]
+
 def clean_dataset(dataset):
-    cleaned_dataset, _, _ = clean_dataset_depuration(dataset)
+    if len(dataset[0][0]) > 1: # More than 1 input dimension
+        # Reduce input dimensions
+        inputs = [point[0] for point in dataset]
+        reduced_inputs = pca(inputs, select_dimensions_func=_pca_select_greater_than_one)
+        reduced_dataset = [(reduced_input, target) for reduced_input, (_, target)
+                           in zip(reduced_inputs, dataset)]
+    else:
+        reduced_dataset = dataset
+
+    # Clean erronous targets
+    cleaned_dataset, _, _ = clean_dataset_depuration(reduced_dataset)
     return cleaned_dataset
