@@ -41,6 +41,16 @@ def get_xor():
             [[1,1], [0]]
            ]
 
-def get_random(num_points, num_dimensions):
-    return [(list(point), (random.uniform(0, 1),)) for point in
-            numpy.random.random((num_points, num_dimensions))]
+def get_random(num_points, num_dimensions, num_classes):
+    random_inputs = numpy.random.random((num_points, num_dimensions))
+
+    # Bundle random target
+    dataset = []
+    for input in random_inputs:
+        # One hot targets
+        random_target = [0.0]*num_classes
+        random_target[random.randint(0, num_classes-1)] = 1.0
+
+        dataset.append((input, random_target))
+
+    return dataset

@@ -11,16 +11,23 @@ def test_lenses():
 def test_get_random_dataset():
     num_points = random.randint(1, 100)
     input_size = random.randint(1, 100)
+    num_classes = random.randint(2, 10)
 
-    dataset = datasets.get_random(num_points, input_size)
+    dataset = datasets.get_random(num_points, input_size, num_classes)
     
     assert len(dataset) == num_points
     for point in dataset:
         assert len(point) == 2 # (inputs, target) pair
         assert len(point[0]) == input_size
-        assert len(point[1]) == 1 # Currently hardcoded to 1 target value
+        assert len(point[1]) == num_classes
 
         # Check values in range
         for input in point[0]:
             assert 0 <= input <= 1
-        assert 0 <= point[1][0] <= 1
+
+        # Target has a single 1.0
+        target_count = 0
+        for val in point[1]:
+            if val == 1.0:
+                target_count += 1
+        assert target_count == 1
