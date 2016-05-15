@@ -1,4 +1,7 @@
 import os
+import random
+
+import numpy
 
 from pynn.data import process
 
@@ -37,3 +40,7 @@ def get_xor():
             [[1,-1], [1]],
             [[1,1], [0]]
            ]
+
+def get_random(num_points, num_dimensions):
+    return [(list(point), (random.uniform(0, 1),)) for point in
+            numpy.random.random((num_points, num_dimensions))]
