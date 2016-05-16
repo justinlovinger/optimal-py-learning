@@ -16,6 +16,9 @@ def normalize(data_matrix):
         data_matrix: numpy.matrix; A matrix of values.
             We expect each row to be a point, and each column to be a dimension.
     """
+    if len(data_matrix) < 2:
+        raise ValueError('Cannot normalize a matrix with only one row')
+
     np_data_matrix = numpy.array(data_matrix)
     np_data_matrix -= numpy.mean(np_data_matrix, 0)
     np_data_matrix /= numpy.std(np_data_matrix, 0)

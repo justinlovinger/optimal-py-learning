@@ -10,7 +10,7 @@ from pynn.data import datasets
 from pynn.testing import helpers
 
 def test_normalize():
-    random_matrix = numpy.random.rand(random.randint(1, 10),
+    random_matrix = numpy.random.rand(random.randint(2, 10),
                                       random.randint(1, 10))
     print 'Generated Matrix:'
     print random_matrix
@@ -40,6 +40,13 @@ def test_normalize():
     #expected = [
 
     #assert preprocess.normalize(inputs) == numpy.matrix(expected)
+
+def test_normalize_one_row():
+    matrix = [[0, 1, 2]]
+    with pytest.raises(ValueError):
+        preprocess.normalize(matrix)
+    with pytest.raises(ValueError):
+        preprocess.normalize(numpy.array(matrix))
 
 
 ######################

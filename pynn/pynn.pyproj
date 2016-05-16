@@ -77,6 +77,9 @@
     <Compile Include="testing\tests\test_graph.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="testing\tests\test_helpers.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="testing\tests\test_knn.py">
       <SubType>Code</SubType>
     </Compile>

@@ -17,7 +17,7 @@ def select_k_nearest_neighbors(points, center, k):
     # However, the only implementation in python requires converting to a
     # numpy array.
     # For indices: heapq.nsmallest(k, range(len(input_list)), key=input_list.__getitem__)
-    nearest_distances = heapq.nsmallest(k, point_distances)
+    nearest_distances = heapq.nsmallest(k, point_distances, key=lambda x: x[0])
 
     # Remove distance from tuples, leaving only the points
     _, sorted_points = zip(*nearest_distances)

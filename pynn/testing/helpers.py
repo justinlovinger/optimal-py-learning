@@ -1,3 +1,5 @@
+import copy
+
 import numpy
 
 from pynn import network
@@ -51,3 +53,58 @@ def approx_equal(a, b, tol=0.001):
     Useful to correct for floating point errors.
     """
     return abs(a - b) < tol
+
+
+class SaneEqualityArray(numpy.ndarray):
+    """Numpy array with working == operator."""
+    def __eq__(self, other):
+        return (isinstance(other, numpy.ndarray) and self.shape == other.shape and 
+            numpy.array_equal(self, other))
+
+def sane_equality_array(object):
+    array = numpy.array(object)
+    return SaneEqualityArray(array.shape, array.dtype, array)
+
+def _change_tuple(tuple_, i, new_item):
+    list_ = list(tuple_)
+    list_[i] = new_item
+    return tuple(list_)
+
+def fix_numpy_array_equality(iterable):
+    new_iterable = copy.deepcopy(iterable)
+
+    for i, item in enumerate(new_iterable):
+        if isinstance(item, numpy.ndarray):
+            if isinstance(new_iterable, tuple):
+                # Tuples do not directly support assignment
+                new_iterable = _change_tuple(new_iterable, i, sane_equality_array(item))
+            else:
+                new_iterable[i] = sane_equality_array(item)
+        # Recurse
+        elif hasattr(item, '__iter__'):
+            if isinstance(new_iterable, tuple):
+                # Tuples do not directly support assignment
+                new_iterable = _change_tuple(new_iterable, i,
+                                             fix_numpy_array_equality(item))
+            else:
+                new_iterable[i] = fix_numpy_array_equality(item)
+
+    return new_iterable
+
+def equal_ignore_order(a, b):
+    """Check if two lists contain the same elements.
+    
+    Note: Use only when elements are neither hashable nor sortable!
+    """
+    # Fix numpy arrays
+    copy_a = fix_numpy_array_equality(a)
+    copy_b = fix_numpy_array_equality(b)
+    
+    # Check equality
+    for element in copy_a:
+        try:
+            copy_b.remove(element)
+        except ValueError:
+            return False
+
+    return not copy_b
