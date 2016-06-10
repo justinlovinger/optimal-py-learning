@@ -1,3 +1,6 @@
+import random
+import copy
+
 import numpy
 
 from pynn import network
@@ -65,6 +68,101 @@ class Perceptron(network.Layer):
 
         # Save change as momentum for next backpropogate
         self._momentums = changes
+
+
+class DropoutPerceptron(Perceptron):
+    """Perceptron that drops neurons during training."""
+    def __init__(self, inputs, outputs, 
+                 learn_rate=0.5, momentum_rate=0.1, initial_weights_range=0.25,
+                 active_probability=0.5):
+        super(DropoutPerceptron, self).__init__(inputs, outputs, learn_rate,
+                                                momentum_rate, initial_weights_range)
+
+        self._active_probability = active_probability
+        self._active_neurons = range(self._size[1])
+        self._full_weights = copy.deepcopy(self._weights)
+
+    def pre_iteration(self, patterns):
+        # Disable active neurons based on probability
+        # TODO: ensure at least one neuron is active
+        self._active_neurons = _random_indexes(self._size[1],
+                                               self._active_probability)
+
+        # TODO: Inspect previous DropoutPerceptron layer,
+        # and adjust shape of matrix to account for new incoming neurons
+        # Note: pre_iteration is called in activation order, so incoming
+        # layers will always adjust output before this layer adjusts input
+        incoming_active_neurons = range(self._size[0]) # TODO
+
+        # Create a new weight matrix using slices from active_neurons
+        # Stupid numpy hack for row and column slice to make sense
+        # Otherwise, numpy will select specific elements, instead of rows and columns
+        self._weights = self._full_weights[numpy.array(incoming_active_neurons)[:, None],
+                                           self._active_neurons]
+
+    def post_iteration(self, patterns):
+        # Combine newly trained weights with full weight matrix
+        # Override old weights with new weights for neurons
+        assert 0
+
+    def post_training(self, patterns):
+        # Active all neurons
+        # Scale weights by dropout probability, as a form of 
+        # normalization by "expected" weight.
+
+        # NOTE: future training iterations will continue with unscaled weights
+        self._weights = self._full_weights * self._active_probability
+
+        # Not really necessary, but could avoid confusion or future bugs
+        self._active_neurons = range(self._size[1]) 
+
+
+class DropoutInputs(network.Layer):
+    """Passes inputs along unchanged, but disables inputs during training."""
+
+    def __init__(self, inputs, active_probability=0.8):
+        super(DropoutInputs, self).__init__()
+
+        self._num_inputs = inputs
+        self._active_probability = active_probability
+        self._active_neurons = range(self._num_inputs)
+
+    def reset(self):
+        self._active_neurons = range(self._num_inputs)
+
+    def activate(self, inputs):
+        return inputs[self._active_neurons]
+
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return self._avg_all_errors(all_errors, outputs.shape)
+
+    def update(self, all_inputs, outputs, all_errors):
+        pass
+
+    def pre_iteration(self, patterns):
+        # Disable random selection of inputs
+        self._active_neurons = _random_indexes(self._num_inputs,
+                                               self._active_probability)
+
+    def post_training(self, patterns):
+        # All active when not training
+        self._active_neurons = range(self._num_inputs)
+
+def _random_indexes(length, probability):
+    """Returns a list of indexes randomly selected from 0..length-1.
+    
+    Args:
+        length: int; Maximum number of indexes.
+        probability: float; Independant probability for any index to be selected.
+
+    Returns:
+        list<int>; List of selected indexes.
+    """
+    selected_indexes = []
+    for i in range(length):
+        if random.uniform(0.0, 1.0) <= probability:
+            selected_indexes.append(i)
+    return selected_indexes
 
 
 ################################################
