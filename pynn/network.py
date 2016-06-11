@@ -10,6 +10,9 @@ class Layer(object):
     requires_prev = tuple([]) # Attributes that are required in the previous layer
     requires_next = tuple([]) # Attributes that are required in the next layer
 
+    def __init__(self, *args, **kwargs):
+        self.network = None
+
     def reset(self):
         raise NotImplementedError()
 
@@ -309,6 +312,11 @@ class Network(object):
         self._activations = {}
         for layer in self._graph.nodes:
             self._activations[layer] = None
+
+        # Create link from each layer to this network, so layers can
+        # make changes based on other layers
+        for layer in self._activation_order:
+            layer.network = self
 
         # Bookkeeping
         self.logging = True

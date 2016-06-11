@@ -130,6 +130,14 @@ def test_post_pattern_callback():
     nn.train(pat, iterations=1, post_pattern_callback=callback)
     assert pat == history
 
+def test_layer_sees_network():
+    layer = helpers.EmptyLayer()
+    assert layer.network == None
+
+    # Once added to network, layer has link to that network
+    nn = network.Network([layer])
+    assert layer.network == nn
+
 ##########################
 # Full architecture tests
 ##########################
