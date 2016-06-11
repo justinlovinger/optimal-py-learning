@@ -84,15 +84,14 @@ class DropoutPerceptron(Perceptron):
 
     def pre_iteration(self, patterns):
         # Disable active neurons based on probability
-        # TODO: ensure at least one neuron is active
         self._active_neurons = _random_indexes(self._size[1],
                                                self._active_probability)
 
-        # TODO: Inspect previous DropoutPerceptron layer,
+        # Inspect previous DropoutPerceptron layer,
         # and adjust shape of matrix to account for new incoming neurons
         # Note: pre_iteration is called in activation order, so incoming
         # layers will always adjust output before this layer adjusts input
-        incoming_active_neurons = range(self._size[0]) # TODO
+        incoming_active_neurons = self._get_incoming_active_neurons()
 
         # Create a new weight matrix using slices from active_neurons
         # Stupid numpy hack for row and column slice to make sense
@@ -103,7 +102,26 @@ class DropoutPerceptron(Perceptron):
     def post_iteration(self, patterns):
         # Combine newly trained weights with full weight matrix
         # Override old weights with new weights for neurons
-        assert 0
+        incoming_active_neurons = self._get_incoming_active_neurons()
+
+        # We use numpy broadcasting to set the active rows and columns to
+        # the reduced weight matrix
+        # Testing indicates that this gives the expected result
+        self._full_weights[numpy.array(incoming_active_neurons)[:, None],
+                                       self._active_neurons] = self._weights
+
+    def _get_incoming_active_neurons(self):
+        """Return list of active neurons in a preceeding dropout layer."""
+        if self.network == None:
+            return range(self._size[0])
+        else:
+            # We assume only one incoming,
+            # since this layer only supports 1 incoming
+            incoming_layer = self.network._graph.backwards_adjacency[self][0]
+            if isinstance(incoming_layer, (DropoutPerceptron, DropoutInputs)):
+                return incoming_layer._active_neurons
+            else: # All enables, since prev is not dropout layer
+                return range(self._size[0])
 
     def post_training(self, patterns):
         # Active all neurons
@@ -114,7 +132,7 @@ class DropoutPerceptron(Perceptron):
         self._weights = self._full_weights * self._active_probability
 
         # Not really necessary, but could avoid confusion or future bugs
-        self._active_neurons = range(self._size[1]) 
+        self._active_neurons = range(self._size[1])
 
 
 class DropoutInputs(network.Layer):
@@ -162,6 +180,11 @@ def _random_indexes(length, probability):
     for i in range(length):
         if random.uniform(0.0, 1.0) <= probability:
             selected_indexes.append(i)
+
+    # Do not allow no indexes to be selected
+    if selected_indexes == []:
+        selected_indexes.append(random.randint(0, length-1))
+
     return selected_indexes
 
 
