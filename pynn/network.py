@@ -486,11 +486,10 @@ class Network(object):
 ##########################
 def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
     """Create a multi-layer perceptron network."""
-    from pynn.architecture import transfer
     from pynn.architecture import mlp
 
     # Create first layer with bias
-    add_bias = mlp.AddBias(mlp.Perceptron(shape[0]+1, shape[1], False, 
+    add_bias = mlp.AddBias(mlp.Perceptron(shape[0]+1, shape[1], 
                                           learn_rate, momentum_rate))
     tanh_transfer = mlp.TanhTransferPerceptron()
     layers = {'I': [add_bias],
@@ -498,7 +497,7 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
 
     # Create other layers without bias
     for i in range(1, len(shape)-1):
-        perceptron = mlp.Perceptron(shape[i], shape[i+1], False, 
+        perceptron = mlp.Perceptron(shape[i], shape[i+1], 
                                            learn_rate, momentum_rate)
         layers[tanh_transfer] = [perceptron]
 
@@ -507,6 +506,33 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
 
     # Last transfer connects to output
     layers[tanh_transfer] = ['O']
+
+    return Network(layers)
+
+def make_dropout_mlp(shape, learn_rate=0.5, momentum_rate=0.1,
+                     input_active_probability=0.8,
+                     hidden_active_probability=0.5):
+    """Create a multi-layer perceptron network with dropout."""
+    from pynn.architecture import mlp
+
+    # First layer is a special layer that disables inputs during training
+    # Next is a special perceptron layer with bias (bias added by DropoutInputs)
+    biased_perceptron = mlp.DropoutPerceptron(shape[0]+1, shape[1],
+                                              learn_rate, momentum_rate,
+                                              active_probability=hidden_active_probability)
+    layers = [mlp.DropoutInputs(shape[0], input_active_probability),
+              biased_perceptron, mlp.TanhTransferPerceptron()]
+
+    # After are all other layers that make up the shape
+    num_inputs = shape[1]
+    for num_outputs in shape[2:]:
+        # Add perceptron followed by transfer
+        layers.append(mlp.DropoutPerceptron(num_inputs, num_outputs,
+                                            learn_rate, momentum_rate,
+                                            active_probability=hidden_active_probability))
+        layers.append(mlp.TanhTransferPerceptron())
+
+        num_inputs = num_outputs
 
     return Network(layers)
 

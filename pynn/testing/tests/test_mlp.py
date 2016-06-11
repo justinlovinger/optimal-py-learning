@@ -177,6 +177,44 @@ def test_dropout_perceptron_post_training():
             helpers.sane_equality_array(numpy.array([[0.0, 0.5],
                                                      [1.0, 1.5]])))
 
+
+####################
+# DropoutInputs
+####################
+def test_dropout_inputs_activate_adds_bias():
+    layer = mlp.DropoutInputs(2)
+    assert (helpers.sane_equality_array(layer.activate(numpy.array([0.0, 0.0]))) ==
+            helpers.sane_equality_array(numpy.array([0.0, 0.0, 1.0])))
+
+def test_dropout_inputs_activate_inputs_disabled_bias():
+    layer = mlp.DropoutInputs(2)
+
+    layer._active_neurons = [0, 2]
+    assert (helpers.sane_equality_array(layer.activate(numpy.array([0.1, 0.2]))) ==
+            helpers.sane_equality_array(numpy.array([0.1, 1.0])))
+
+    layer._active_neurons = [1, 2]
+    assert (helpers.sane_equality_array(layer.activate(numpy.array([0.1, 0.2]))) ==
+            helpers.sane_equality_array(numpy.array([0.2, 1.0])))
+
+def test_dropout_inputs_pre_training_disables_inputs_not_bias(monkeypatch):
+    layer = mlp.DropoutInputs(2)
+
+    monkeypatch.setattr(mlp, '_random_indexes', lambda *args : [0])
+    layer.pre_iteration([])
+    assert layer._active_neurons == [0, 2]
+
+    monkeypatch.setattr(mlp, '_random_indexes', lambda *args : [1])
+    layer.pre_iteration([])
+    assert layer._active_neurons == [1, 2]
+
+def test_dropout_inputs_post_training_all_active():
+    layer = mlp.DropoutInputs(2)
+    layer._active_neurons = [0, 2]
+
+    layer.post_training([])
+    assert layer._active_neurons == [0, 1, 2]
+
 ####################
 # random_indexes
 ####################

@@ -136,20 +136,29 @@ class DropoutPerceptron(Perceptron):
 
 
 class DropoutInputs(network.Layer):
-    """Passes inputs along unchanged, but disables inputs during training."""
+    """Passes inputs along unchanged, but disables inputs during training.
+    
+    Also adds bias, since getting DropoutPerceptron to work with AddBias
+    somewhat difficult.
+    """
 
     def __init__(self, inputs, active_probability=0.8):
         super(DropoutInputs, self).__init__()
 
         self._num_inputs = inputs
         self._active_probability = active_probability
-        self._active_neurons = range(self._num_inputs)
+        self._active_neurons = None # set in reset
+        self.reset()
 
     def reset(self):
-        self._active_neurons = range(self._num_inputs)
+        self._active_neurons = range(self._num_inputs+1) # Add bias
 
     def activate(self, inputs):
-        return inputs[self._active_neurons]
+        # Active inputs, ignoring always active bias
+        active_inputs = inputs[self._active_neurons[:-1]]
+
+        # Add bias
+        return numpy.hstack((active_inputs, [1.0]))
 
     def get_prev_errors(self, all_inputs, all_errors, outputs):
         return self._avg_all_errors(all_errors, outputs.shape)
@@ -161,10 +170,16 @@ class DropoutInputs(network.Layer):
         # Disable random selection of inputs
         self._active_neurons = _random_indexes(self._num_inputs,
                                                self._active_probability)
+        
+        # Bias is always active
+        self._active_neurons.append(self._num_inputs)
 
     def post_training(self, patterns):
         # All active when not training
         self._active_neurons = range(self._num_inputs)
+
+        # Bias is always active
+        self._active_neurons.append(self._num_inputs)
 
 def _random_indexes(length, probability):
     """Returns a list of indexes randomly selected from 0..length-1.

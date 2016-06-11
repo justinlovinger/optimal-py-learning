@@ -165,6 +165,29 @@ def test_mlp_convergence():
     assert nn.get_avg_error(pat) <= cutoff
 
 
+def test_dropout_mlp():
+    # Run for a couple of iterations
+    # assert that new error is less than original
+    nn = network.make_dropout_mlp((2, 2, 1))
+    pat = datasets.get_xor()
+
+    error = nn.get_avg_error(pat)
+    nn.train(pat, 10)
+    assert nn.get_avg_error(pat) < error
+
+
+pytest.mark.slowtest()
+def test_dropout_mlp_convergence():
+    # Run until convergence
+    # assert that network can converge
+    nn = network.make_dropout_mlp((2, 2, 1))
+    pat = datasets.get_xor()
+
+    cutoff = 0.02
+    nn.train(pat, error_break=0.02)
+    assert nn.get_avg_error(pat) <= cutoff
+
+
 def test_rbf():
     # Run for a couple of iterations
     # assert that new error is less than original
