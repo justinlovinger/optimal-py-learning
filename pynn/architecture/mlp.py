@@ -115,13 +115,15 @@ class DropoutPerceptron(Perceptron):
         if self.network == None:
             return range(self._size[0])
         else:
-            # We assume only one incoming,
-            # since this layer only supports 1 incoming
-            incoming_layer = self.network._graph.backwards_adjacency[self][0]
-            if isinstance(incoming_layer, (DropoutPerceptron, DropoutInputs)):
-                return incoming_layer._active_neurons
-            else: # All enables, since prev is not dropout layer
-                return range(self._size[0])
+            # Walk backwords through graph, until a DropoutPerceptron
+            # or DropoutInputs is found. This allows us to skip transfer layers.
+            backwards_order = list(reversed(self.network._activation_order))
+            for incoming_layer in backwards_order[backwards_order.index(self)+1:]:
+                if isinstance(incoming_layer, (DropoutPerceptron, DropoutInputs)):
+                    return incoming_layer._active_neurons
+            
+            # All enabled, since no prev dropout layer
+            return range(self._size[0])
 
     def post_training(self, patterns):
         # Active all neurons
