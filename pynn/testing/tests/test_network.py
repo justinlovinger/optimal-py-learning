@@ -184,7 +184,7 @@ def test_dropout_mlp_convergence():
     pat = datasets.get_xor()
 
     cutoff = 0.02
-    nn.train(pat, error_break=0.02)
+    nn.train(pat, error_break=0.002)
     assert nn.get_avg_error(pat) <= cutoff
 
 

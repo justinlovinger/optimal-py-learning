@@ -64,7 +64,10 @@ class Perceptron(network.Layer):
 
         # Update, [:,None] quickly transposes an array to a col vector
         changes = inputs[:,None] * deltas
-        self._weights += self.learn_rate*changes + self.momentum_rate*self._momentums
+        self._weights += self.learn_rate*changes 
+        
+        if self._momentums is not None:
+            self._weights += self.momentum_rate*self._momentums
 
         # Save change as momentum for next backpropogate
         self._momentums = changes
@@ -98,6 +101,9 @@ class DropoutPerceptron(Perceptron):
         # Otherwise, numpy will select specific elements, instead of rows and columns
         self._weights = self._full_weights[numpy.array(incoming_active_neurons)[:, None],
                                            self._active_neurons]
+
+        # Invalidate previous momentums, since weight matrix changed
+        self._momentums = None
 
     def post_iteration(self, patterns):
         # Combine newly trained weights with full weight matrix
