@@ -48,6 +48,24 @@ class SummationLayer(network.Layer):
         return numpy.sum(inputs, axis=1)
 
 def approx_equal(a, b, tol=0.001):
+    """Check if two numbers or lists are about the same.
+
+    Useful to correct for floating point errors.
+    """
+    if isinstance(a, (list, tuple)):
+        # Check that each element is approx equal
+        if len(a) != len(b):
+            return False
+
+        for a_, b_ in zip(a, b):
+            if not _approx_equal(a_, b_, tol):
+                return False
+
+        return True
+    else:
+        return _approx_equal(a, b, tol)
+
+def _approx_equal(a, b, tol=0.001):
     """Check if two numbers are about the same.
 
     Useful to correct for floating point errors.

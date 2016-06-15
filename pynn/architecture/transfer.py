@@ -5,22 +5,6 @@ import math
 
 from pynn import network
 
-def tanh(x):
-    """Sigmoid like function using tanh"""
-    return numpy.tanh(x)
-
-def dtanh(y):
-    """Derivative of sigmoid above"""
-    return 1.0 - y**2
-
-def gaussian(x, variance=1.0):
-    return math.exp(-(x**2/variance))
-gaussian_vec = numpy.vectorize(gaussian)
-
-def dgaussian(y, variance):
-    return 2*y*gaussian(y, variance) / variance
-dgaussian_vec = numpy.vectorize(dgaussian)
-
 class Transfer(network.Layer):
     def reset(self):
         pass
@@ -37,7 +21,17 @@ class TanhTransfer(Transfer):
 
 
 class ReluTransfer(Transfer):
-    pass
+    """Smooth approximation of a rectified linear unit (ReLU).
+
+    Also known as softplus.
+    """
+    
+    def activate(self, inputs):
+        """Return ln(1 + e^x) for each input value."""
+        return numpy.log(1 + numpy.e**inputs)
+
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return self._avg_all_errors(all_errors, outputs.shape)
 
 
 class LogitTransfer(Transfer):
@@ -75,3 +69,22 @@ class NormalizeTransfer(Transfer):
         return (self._avg_all_errors(all_errors, outputs.shape) /
                 numpy.sum(all_inputs[1]))
     
+def tanh(x):
+    """Sigmoid like function using tanh"""
+    return numpy.tanh(x)
+
+def dtanh(y):
+    """Derivative of sigmoid above"""
+    return 1.0 - y**2
+
+def gaussian(x, variance=1.0):
+    return math.exp(-(x**2/variance))
+gaussian_vec = numpy.vectorize(gaussian)
+
+def dgaussian(y, variance):
+    return 2*y*gaussian(y, variance) / variance
+dgaussian_vec = numpy.vectorize(dgaussian)
+
+def drelu(y):
+    """Return the derivative of the softplus relu function for y."""
+    return 1.0 / (1.0 + numpy.e**(-y))
