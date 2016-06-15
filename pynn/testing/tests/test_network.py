@@ -180,12 +180,15 @@ pytest.mark.slowtest()
 def test_dropout_mlp_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = network.make_dropout_mlp((2, 2, 1))
+    # Since XOR does not really need dropout, we use high probabilities
+    nn = network.make_dropout_mlp((2, 4, 1), input_active_probability=1.0,
+                                  hidden_active_probability=0.8)
     pat = datasets.get_xor()
 
-    cutoff = 0.02
-    nn.train(pat, error_break=0.002)
-    assert nn.get_avg_error(pat) <= cutoff
+    # Error break lower than cutoff, since dropout may have different error
+    # after training
+    nn.train(pat, error_break=0.005)
+    assert nn.get_avg_error(pat) <= 0.02
 
 
 def test_rbf():
