@@ -535,9 +535,11 @@ def make_dropout_mlp(shape, learn_rate=0.5, momentum_rate=0.1,
 
         num_inputs = num_outputs
 
-    # Final transfer function must be able to output negatives and positives
+    # Final transfer function must be able to output negatives and positives,
+    # and last perceptron layer must not reduce number of outputs
     layers.append(mlp.DropoutPerceptron(shape[-2], shape[-1],
-                                        learn_rate, momentum_rate))
+                                        learn_rate, momentum_rate,
+                                        active_probability=1.0))
     layers.append(mlp.TanhTransferPerceptron())
 
     return Network(layers)
