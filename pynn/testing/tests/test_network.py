@@ -182,12 +182,12 @@ def test_dropout_mlp_convergence():
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
     nn = network.make_dropout_mlp((2, 4, 2, 1), input_active_probability=1.0,
-                                  hidden_active_probability=0.8)
+                                  hidden_active_probability=0.85)
     pat = datasets.get_xor()
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
-    nn.train(pat, error_break=0.005)
+    nn.train(pat, error_break=0.002)
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
