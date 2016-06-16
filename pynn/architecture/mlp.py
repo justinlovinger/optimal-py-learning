@@ -227,11 +227,18 @@ class ReluTransferPerceptron(transfer.ReluTransfer):
         return super(ReluTransferPerceptron, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.drelu(outputs)
 
 
-class LogitTransfer(transfer.LogitTransfer):
+class LogitTransferPerceptron(transfer.LogitTransfer):
     def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return super(LogitTransfer, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dlogit(outputs)
+        return super(LogitTransferPerceptron, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dlogit(outputs)
 
 
-class GaussianTransfer(transfer.GaussianTransfer):
+class GaussianTransferPerceptron(transfer.GaussianTransfer):
     def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return super(GaussianTransfer, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dgaussian_vec(outputs)
+        return super(GaussianTransferPerceptron, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dgaussian_vec(outputs)
+
+# TODO: not sure if softmax really works the same as others
+#class SoftmaxTransferPerceptron(transfer.SoftmaxTransfer):
+#    def get_prev_errors(self, all_inputs, all_errors, outputs):
+#        return (super(SoftmaxTransferPerceptron, self).get_prev_errors(
+#            all_inputs, all_errors, outputs) *
+#                transfer.dsoftmax(outputs))

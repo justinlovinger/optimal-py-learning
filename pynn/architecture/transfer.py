@@ -56,7 +56,6 @@ class SoftmaxTransfer(Transfer):
         exp_ = numpy.exp(inputs)
         return exp_ / numpy.sum(exp_)
 
-
 class NormalizeTransfer(Transfer):
     def activate(self, inputs, scaling_inputs):
         return inputs / numpy.sum(scaling_inputs)
@@ -88,3 +87,7 @@ dgaussian_vec = numpy.vectorize(dgaussian)
 def drelu(y):
     """Return the derivative of the softplus relu function for y."""
     return 1.0 / (1.0 + numpy.e**(-y))
+
+def dsoftmax(y):
+    """Return the derivative of the softmax function for y."""
+    assert 0
