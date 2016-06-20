@@ -45,7 +45,7 @@ class GaussianTransfer(Transfer):
         self._variance = variance
 
     def activate(self, inputs):
-        return gaussian_vec(inputs, self._variance)
+        return gaussian(inputs, self._variance)
 
     def get_prev_errors(self, all_inputs, all_errors, outputs):
         return self._avg_all_errors(all_errors, outputs.shape)
@@ -77,12 +77,10 @@ def dtanh(y):
     return 1.0 - y**2
 
 def gaussian(x, variance=1.0):
-    return math.exp(-(x**2/variance))
-gaussian_vec = numpy.vectorize(gaussian)
+    return numpy.exp(-(x**2/variance))
 
 def dgaussian(y, variance):
     return 2*y*gaussian(y, variance) / variance
-dgaussian_vec = numpy.vectorize(dgaussian)
 
 def drelu(y):
     """Return the derivative of the softplus relu function for y."""
