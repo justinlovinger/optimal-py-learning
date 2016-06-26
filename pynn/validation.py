@@ -4,19 +4,12 @@ import numbers
 
 def _validate_network(network_, training_set, testing_set, **kwargs):
     """Test the given network on a partitular trainign and testing set."""
-
-    # Temporarily disable logging
-    curr_logging = network_.logging
-    network_.logging = False
-
     # Train network on training set
     network_.reset()
 
     start = time.clock()
     network_.train(training_set, **kwargs) # Train
     elapsed = time.clock() - start
-
-    network_.logging = curr_logging # Logging back to previous
 
     # Collect stats
     stats = {}
@@ -135,12 +128,17 @@ def cross_validate(network_, patterns, num_folds=3, **kwargs):
     train_test_sets = _create_train_test_sets(sets)
 
     # Get the stats on each set
-    stats = {}
-
     folds = []
-    for (train_set, test_set) in train_test_sets:
+    for i, (train_set, test_set) in enumerate(train_test_sets):
+        if network_.logging:
+            print 'Fold {}:'.format(i)
+
         folds.append(_validate_network(network_, train_set, test_set, **kwargs))
-    stats['folds'] = folds
+    
+        if network_.logging:
+            print
+
+    stats = {'folds': folds}
 
     # Get average and standard deviation
     _add_mean_sd_to_stats(stats)
@@ -150,10 +148,16 @@ def cross_validate(network_, patterns, num_folds=3, **kwargs):
 def benchmark(network_, patterns, num_folds=3, num_runs=30, **kwargs):
     # TODO: maybe just take a function, and aggregate stats for that function
     
+    # Temporarily disable logging
+    curr_logging = network_.logging
+    network_.logging = False
+
     runs = []
     for i in range(num_runs):
         runs.append(cross_validate(network_, patterns, num_folds, **kwargs))
     stats = {'runs': runs}
+
+    network_.logging = curr_logging # Logging back to previous
 
     # Calculate meta stats
     means = [run['mean'] for run in runs]
@@ -179,6 +183,8 @@ def compare(name_networks_patterns_kwargs, num_folds=3, num_runs=30):
 
     # Calculate meta stats
     means = [results['mean_of_means'] for results in stats.itervalues()]
+
+    # TODO: calculate means and sds from all folds, instead of means of folds
     mean_of_means = _mean_of_dicts(means)
     sd_of_means = _sd_of_dicts(means, mean_of_means)
     stats['mean_of_means'] = mean_of_means
