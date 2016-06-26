@@ -3,7 +3,10 @@ import time
 import numbers
 import copy
 
-def _validate_network(network_, training_set, testing_set, **kwargs):
+import numpy
+
+def _validate_network(network_, training_set, testing_set, _classification=True,
+                      **kwargs):
     """Test the given network on a partitular trainign and testing set."""
     # Train network on training set
     network_ = copy.deepcopy(network_) # No side effects
@@ -22,7 +25,40 @@ def _validate_network(network_, training_set, testing_set, **kwargs):
     stats['training_error'] = network_.get_avg_error(training_set)
     stats['testing_error'] = network_.get_avg_error(testing_set)
 
+    if _classification:
+        # Get accuracy and confustion matrix
+        all_actual = _get_classses(
+            numpy.array([network_.activate(point[0]) for point in testing_set]))
+        all_expected = _get_classses(
+            numpy.array([point[1] for point in testing_set]))
+        stats['accuracy'] = _get_accuracy(all_actual, all_expected)
+        #stats['confusion_matrix'] = _confusion_matrix(network_, testing_set)
+
     return stats
+
+
+def _get_classses(all_outputs):
+    """Return a list of classes given a matrix of outputs.
+
+    We assume the class is the index of the highest output value for each output.
+    """
+    return numpy.argmax(all_outputs, axis=1)
+
+
+def _get_accuracy(all_actual, all_expected):
+    """Return the accuracy score for actual and expected classes.
+    
+    Args:
+        all_actual: numpy.array<int>; An array of class indices.
+        all_expected: numpy.array<int>; An array of class indices.
+
+    Returns:
+        float; Percent of matching classes.
+    """
+    # We want to count the number of matching classes,
+    # and normalize by the number of classes
+    return ((all_actual == all_expected).sum()
+            / float(all_actual.size))
 
 ############################
 # Setup for Cross Validation

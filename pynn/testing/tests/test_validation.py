@@ -1,6 +1,8 @@
 import random
 import time
 
+import numpy
+
 from pynn import validation
 from pynn import network
 from pynn.testing import helpers
@@ -54,6 +56,9 @@ def test_sd_of_dicts():
     assert validation._sd_of_dicts(folds, means) == {'test': 0.5,
                                                      'test2': 0.5}
 
+#################
+# Cross validate
+#################
 def test_validate_network(monkeypatch):
     # Patch time.clock so time attribute is deterministic
     monkeypatch.setattr(time, 'clock', lambda : 0.0)
@@ -71,7 +76,8 @@ def test_validate_network(monkeypatch):
                                         [([1], [2])],
                                         iterations=0) == {'time': 0.0, 'epochs': 0,
                                                           'training_error': 0.5,
-                                                          'testing_error': 1.0}
+                                                          'testing_error': 1.0,
+                                                          'accuracy': 1.0}
     
     # Make network that returns set output for a given input
     # Simpler, always 0 training error
@@ -80,12 +86,14 @@ def test_validate_network(monkeypatch):
                                         [([1], [1.5])],
                                         iterations=0) == {'time': 0.0, 'epochs': 0,
                                                           'training_error': 0.0,
-                                                          'testing_error': 0.25}
+                                                          'testing_error': 0.25,
+                                                          'accuracy': 1.0}
     assert validation._validate_network(nn, [([0], [0])],
                                         [([0], [2.0])],
                                         iterations=0) == {'time': 0.0, 'epochs': 0,
                                                           'training_error': 0.0,
-                                                          'testing_error': 4.0}
+                                                          'testing_error': 4.0,
+                                                          'accuracy': 1.0}
 
 def test_cross_validate(monkeypatch):
     # Patch time.clock so time attribute is deterministic
@@ -111,19 +119,57 @@ def test_cross_validate(monkeypatch):
 
     # Check
     assert stats == {'folds': [{'time': 0.0, 'epochs': 1,
-                                'training_error': 0.0, 'testing_error': 0.0},
+                                'training_error': 0.0, 'testing_error': 0.0,
+                                'accuracy': 1.0},
                                {'time': 0.0, 'epochs': 1,
-                                'training_error': 0.0, 'testing_error': 0.0},
+                                'training_error': 0.0, 'testing_error': 0.0,
+                                'accuracy': 1.0},
                                {'time': 0.0, 'epochs': 1,
-                                'training_error': 0.0, 'testing_error': 0.0}],
+                                'training_error': 0.0, 'testing_error': 0.0,
+                                'accuracy': 1.0}],
                      'mean': {'time': 0.0, 'epochs': 1,
-                              'training_error': 0.0, 'testing_error': 0.0},
+                              'training_error': 0.0, 'testing_error': 0.0,
+                              'accuracy': 1.0},
                      'sd': {'time': 0.0, 'epochs': 0.0,
-                            'training_error': 0.0, 'testing_error': 0.0}}
+                            'training_error': 0.0, 'testing_error': 0.0,
+                            'accuracy': 0.0}}
     assert training_patterns == [([1], [1]), ([2], [1]), # First fold
                                  ([0], [1]), ([2], [1]), # Second fold
                                  ([0], [1]), ([1], [1])] # Third fold
 
+################
+# Stat functions
+################
+def test_get_classes():
+    assert (validation._get_classses(
+        numpy.array([[1.0, 0.75, 0.25, 0.0],
+                     [-1.0, -0.75, -0.25, 0.0]]))
+        == numpy.array([0, 3])).all()
+
+def test_get_accuracy():
+    assert validation._get_accuracy(
+        numpy.array([0, 1, 2, 3]),
+        numpy.array([1, 0, 0, 0])) == 0.0
+
+    assert validation._get_accuracy(
+        numpy.array([0, 1, 2, 3]),
+        numpy.array([0, 0, 0, 0])) == 0.25
+
+    assert validation._get_accuracy(
+        numpy.array([0, 1, 2, 3]),
+        numpy.array([0, 1, 0, 0])) == 0.5
+
+    assert validation._get_accuracy(
+        numpy.array([0, 1, 2, 3]),
+        numpy.array([0, 1, 2, 0])) == 0.75
+
+    assert validation._get_accuracy(
+        numpy.array([0, 1, 2, 3]),
+        numpy.array([0, 1, 2, 3])) == 1.0
+
+################
+# Benchmark
+################
 def test_benchmark(monkeypatch):
     # Patch time.clock so time attribute is deterministic
     monkeypatch.setattr(time, 'clock', lambda : 0.0)
@@ -148,21 +194,28 @@ def test_benchmark(monkeypatch):
 
     # Check
     cross_validation_stats = {'folds': [{'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0},
+                                         'training_error': 0.0, 'testing_error': 0.0,
+                                         'accuracy': 1.0},
                                         {'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0},
+                                         'training_error': 0.0, 'testing_error': 0.0,
+                                         'accuracy': 1.0},
                                         {'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0}],
+                                         'training_error': 0.0, 'testing_error': 0.0,
+                                         'accuracy': 1.0}],
                               'mean': {'time': 0.0, 'epochs': 1,
-                                       'training_error': 0.0, 'testing_error': 0.0},
+                                       'training_error': 0.0, 'testing_error': 0.0,
+                                       'accuracy': 1.0},
                               'sd': {'time': 0.0, 'epochs': 0.0,
-                                     'training_error': 0.0, 'testing_error': 0.0}
+                                     'training_error': 0.0, 'testing_error': 0.0,
+                                     'accuracy': 0.0}
                              }
     assert stats == {'runs': [cross_validation_stats, cross_validation_stats],
                      'mean_of_means': {'time': 0.0, 'epochs': 1,
-                                       'training_error': 0.0, 'testing_error': 0.0},
+                                       'training_error': 0.0, 'testing_error': 0.0,
+                                       'accuracy': 1.0},
                      'sd_of_means': {'time': 0.0, 'epochs': 0.0,
-                                     'training_error': 0.0, 'testing_error': 0.0}
+                                     'training_error': 0.0, 'testing_error': 0.0,
+                                     'accuracy': 0.0}
                     }
     assert training_patterns == [([1], [1]), ([2], [1]), # First fold
                                  ([0], [1]), ([2], [1]), # Second fold
@@ -171,6 +224,9 @@ def test_benchmark(monkeypatch):
                                  ([0], [1]), ([2], [1]), # Second fold 2
                                  ([0], [1]), ([1], [1])] # Third fold 2
 
+####################
+# Compare
+####################
 def test_compare(monkeypatch):
     # Patch time.clock so time attribute is deterministic
     monkeypatch.setattr(time, 'clock', lambda : 0.0)
@@ -191,40 +247,56 @@ def test_compare(monkeypatch):
 
     # Check
     assert stats == {'nn': {'runs': [{'folds': [{'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0},
+                                         'training_error': 0.0, 'testing_error': 0.0,
+                                         'accuracy': 1.0},
                                         {'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0},
+                                         'training_error': 0.0, 'testing_error': 0.0,
+                                         'accuracy': 1.0},
                                         {'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0}],
+                                         'training_error': 0.0, 'testing_error': 0.0,
+                                         'accuracy': 1.0}],
                                       'mean': {'time': 0.0, 'epochs': 1,
-                                               'training_error': 0.0, 'testing_error': 0.0},
+                                               'training_error': 0.0, 'testing_error': 0.0,
+                                               'accuracy': 1.0},
                                       'sd': {'time': 0.0, 'epochs': 0.0,
-                                             'training_error': 0.0, 'testing_error': 0.0}
+                                             'training_error': 0.0, 'testing_error': 0.0,
+                                             'accuracy': 0.0}
                                      }],
                             'mean_of_means': {'time': 0.0, 'epochs': 1,
-                                              'training_error': 0.0, 'testing_error': 0.0},
+                                              'training_error': 0.0, 'testing_error': 0.0,
+                                              'accuracy': 1.0},
                             'sd_of_means': {'time': 0.0, 'epochs': 0.0,
-                                            'training_error': 0.0, 'testing_error': 0.0}
+                                            'training_error': 0.0, 'testing_error': 0.0,
+                                            'accuracy': 0.0}
                            },
                      'nn2':{'runs': [{'folds': [{'time': 0.0, 'epochs': 1,
-                                         'training_error': 1.0, 'testing_error': 1.0},
+                                         'training_error': 1.0, 'testing_error': 1.0,
+                                         'accuracy': 1.0},
                                         {'time': 0.0, 'epochs': 1,
-                                         'training_error': 1.0, 'testing_error': 1.0},
+                                         'training_error': 1.0, 'testing_error': 1.0,
+                                         'accuracy': 1.0},
                                         {'time': 0.0, 'epochs': 1,
-                                         'training_error': 1.0, 'testing_error': 1.0}],
+                                         'training_error': 1.0, 'testing_error': 1.0,
+                                         'accuracy': 1.0}],
                                       'mean': {'time': 0.0, 'epochs': 1,
-                                               'training_error': 1.0, 'testing_error': 1.0},
+                                               'training_error': 1.0, 'testing_error': 1.0,
+                                               'accuracy': 1.0},
                                       'sd': {'time': 0.0, 'epochs': 0.0,
-                                             'training_error': 0.0, 'testing_error': 0.0}
+                                             'training_error': 0.0, 'testing_error': 0.0,
+                                             'accuracy': 0.0}
                                      }],
                             'mean_of_means': {'time': 0.0, 'epochs': 1,
-                                              'training_error': 1.0, 'testing_error': 1.0},
+                                              'training_error': 1.0, 'testing_error': 1.0,
+                                              'accuracy': 1.0},
                             'sd_of_means': {'time': 0.0, 'epochs': 0.0,
-                                            'training_error': 0.0, 'testing_error': 0.0}
+                                            'training_error': 0.0, 'testing_error': 0.0,
+                                            'accuracy': 0.0}
                            },
                      'mean_of_means': {'time': 0.0, 'epochs': 1,
-                                      'training_error': 0.5, 'testing_error': 0.5},
+                                      'training_error': 0.5, 'testing_error': 0.5,
+                                      'accuracy': 1.0},
                      'sd_of_means': {'time': 0.0, 'epochs': 0.0,
-                                     'training_error': 0.5, 'testing_error': 0.5}
+                                     'training_error': 0.5, 'testing_error': 0.5,
+                                     'accuracy': 0.0}
                     }
 
