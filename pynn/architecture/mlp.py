@@ -82,6 +82,12 @@ class DropoutPerceptron(Perceptron):
                                                 momentum_rate, initial_weights_range)
 
         self._active_probability = active_probability
+        self._active_neurons = None
+        self._full_weights = None
+        self.reset()
+
+    def reset(self):
+        super(DropoutPerceptron, self).reset()
         self._active_neurons = range(self._size[1])
         self._full_weights = copy.deepcopy(self._weights)
 

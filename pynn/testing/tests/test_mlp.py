@@ -66,12 +66,13 @@ def test_dropout_perceptron_pre_iteration_reduce_incoming(monkeypatch):
 
     # Should not deactivate, so we only test incoming
     layer = mlp.DropoutPerceptron(2, 2, active_probability=1.0)
-    layer._weights = weights
-    layer._full_weights = weights
 
     # Make network to test incoming weight matrix reduction
     prev_layer = mlp.DropoutPerceptron(1, 2)
     nn = network.Network([prev_layer, layer])
+
+    layer._weights = weights
+    layer._full_weights = weights
 
     # pre_iteration hook should reduce incoming component of weight matrix
     # based on incoming dropout perceptrons
@@ -96,10 +97,11 @@ def test_dropout_perceptron_pre_iteration_correct_order(monkeypatch):
 
     # Create network with two dropout layers
     layer = mlp.DropoutPerceptron(2, 2)
-    layer._weights = weights
-    layer._full_weights = weights
     prev_layer = mlp.DropoutPerceptron(1, 2)
     nn = network.Network([prev_layer, layer])
+
+    layer._weights = weights
+    layer._full_weights = weights
 
     # Disable other training functions
     monkeypatch.setattr(mlp.DropoutPerceptron, 'update', lambda *args : None)

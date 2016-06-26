@@ -1,10 +1,12 @@
 import math
 import time
 import numbers
+import copy
 
 def _validate_network(network_, training_set, testing_set, **kwargs):
     """Test the given network on a partitular trainign and testing set."""
     # Train network on training set
+    network_ = copy.deepcopy(network_) # No side effects
     network_.reset()
 
     start = time.clock()
