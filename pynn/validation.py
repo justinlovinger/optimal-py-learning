@@ -124,7 +124,7 @@ def _create_train_test_sets(sets):
 # Statistics
 #############################
 def _mean(list_):
-    return sum(list_) / len(list_)
+    return sum(list_) / float(len(list_))
 
 def _mean_of_dicts(dicts):
     """Obtain a mean dict from a list of dicts with the same keys.
@@ -143,7 +143,7 @@ def _mean_of_dicts(dicts):
     return mean
 
 def _sd(list_, mean):
-    return numpy.sqrt(sum([(val - mean)**2 for val in list_]) / len(list_))
+    return numpy.sqrt(sum([(val - mean)**2 for val in list_]) / float(len(list_)))
 
 def _sd_of_dicts(dicts, means):
     """Obtain a standard deviation dict from a list of dicts with the same keys.
