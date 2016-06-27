@@ -72,28 +72,34 @@ def test_validate_network(monkeypatch):
                           summation: ['O']},
                          incoming_order_dict = {summation: ['I', store_targets]})
 
-    assert validation._validate_network(nn, [([1], [0]), ([1], [1])],
-                                        [([1], [2])],
-                                        iterations=0) == {'time': 0.0, 'epochs': 0,
-                                                          'training_error': 0.5,
-                                                          'testing_error': 1.0,
-                                                          'accuracy': 1.0}
+    assert (validation._validate_network(nn, [([1], [0]), ([1], [1])],
+                                         [([1], [2])],
+                                         iterations=0)
+            == {'time': 0.0, 'epochs': 0,
+                'training_error': 0.5,
+                'testing_error': 1.0,
+                'accuracy': 1.0,
+                'confusion_matrix': numpy.array([[1]])})
     
     # Make network that returns set output for a given input
     # Simpler, always 0 training error
     nn = network.Network([helpers.RememberPatternsLayer()])
-    assert validation._validate_network(nn, [([1], [1])],
+    assert (validation._validate_network(nn, [([1], [1])],
                                         [([1], [1.5])],
-                                        iterations=0) == {'time': 0.0, 'epochs': 0,
-                                                          'training_error': 0.0,
-                                                          'testing_error': 0.25,
-                                                          'accuracy': 1.0}
-    assert validation._validate_network(nn, [([0], [0])],
+                                        iterations=0)
+            == {'time': 0.0, 'epochs': 0,
+                'training_error': 0.0,
+                'testing_error': 0.25,
+                'accuracy': 1.0,
+                'confusion_matrix': numpy.array([[1]])})
+    assert (validation._validate_network(nn, [([0], [0])],
                                         [([0], [2.0])],
-                                        iterations=0) == {'time': 0.0, 'epochs': 0,
-                                                          'training_error': 0.0,
-                                                          'testing_error': 4.0,
-                                                          'accuracy': 1.0}
+                                        iterations=0)
+            == {'time': 0.0, 'epochs': 0,
+                'training_error': 0.0,
+                'testing_error': 4.0,
+                'accuracy': 1.0,
+                'confusion_matrix': numpy.array([[1]])})
 
 def test_cross_validate(monkeypatch):
     # Patch time.clock so time attribute is deterministic
@@ -118,21 +124,7 @@ def test_cross_validate(monkeypatch):
                                       post_pattern_callback=post_pattern_callback)
 
     # Check
-    assert stats == {'folds': [{'time': 0.0, 'epochs': 1,
-                                'training_error': 0.0, 'testing_error': 0.0,
-                                'accuracy': 1.0},
-                               {'time': 0.0, 'epochs': 1,
-                                'training_error': 0.0, 'testing_error': 0.0,
-                                'accuracy': 1.0},
-                               {'time': 0.0, 'epochs': 1,
-                                'training_error': 0.0, 'testing_error': 0.0,
-                                'accuracy': 1.0}],
-                     'mean': {'time': 0.0, 'epochs': 1,
-                              'training_error': 0.0, 'testing_error': 0.0,
-                              'accuracy': 1.0},
-                     'sd': {'time': 0.0, 'epochs': 0.0,
-                            'training_error': 0.0, 'testing_error': 0.0,
-                            'accuracy': 0.0}}
+    assert stats == _CROSS_VALIDATION_STATS
     assert training_patterns == [([1], [1]), ([2], [1]), # First fold
                                  ([0], [1]), ([2], [1]), # Second fold
                                  ([0], [1]), ([1], [1])] # Third fold
@@ -167,6 +159,22 @@ def test_get_accuracy():
         numpy.array([0, 1, 2, 3]),
         numpy.array([0, 1, 2, 3])) == 1.0
 
+
+def test_get_confusion_matrix():
+    assert (validation._get_confusion_matrix(
+        numpy.array([0, 1, 1, 0]),
+        numpy.array([0, 1, 0, 1]),
+        2)
+            == numpy.array([[1, 1],
+                            [1, 1]])).all()
+
+    assert (validation._get_confusion_matrix(
+        numpy.array([1, 1, 1, 1]),
+        numpy.array([0, 0, 0, 0]),
+        2)
+            == numpy.array([[0, 4],
+                            [0, 0]])).all()
+
 ################
 # Benchmark
 ################
@@ -193,30 +201,7 @@ def test_benchmark(monkeypatch):
                                  post_pattern_callback=post_pattern_callback)
 
     # Check
-    cross_validation_stats = {'folds': [{'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0,
-                                         'accuracy': 1.0},
-                                        {'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0,
-                                         'accuracy': 1.0},
-                                        {'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0,
-                                         'accuracy': 1.0}],
-                              'mean': {'time': 0.0, 'epochs': 1,
-                                       'training_error': 0.0, 'testing_error': 0.0,
-                                       'accuracy': 1.0},
-                              'sd': {'time': 0.0, 'epochs': 0.0,
-                                     'training_error': 0.0, 'testing_error': 0.0,
-                                     'accuracy': 0.0}
-                             }
-    assert stats == {'runs': [cross_validation_stats, cross_validation_stats],
-                     'mean_of_means': {'time': 0.0, 'epochs': 1,
-                                       'training_error': 0.0, 'testing_error': 0.0,
-                                       'accuracy': 1.0},
-                     'sd_of_means': {'time': 0.0, 'epochs': 0.0,
-                                     'training_error': 0.0, 'testing_error': 0.0,
-                                     'accuracy': 0.0}
-                    }
+    assert stats == _BENCHMARK_STATS
     assert training_patterns == [([1], [1]), ([2], [1]), # First fold
                                  ([0], [1]), ([2], [1]), # Second fold
                                  ([0], [1]), ([1], [1]), # Third fold
@@ -238,65 +223,50 @@ def test_compare(monkeypatch):
                 ([2], [1])
                ]
     nn = network.Network([helpers.SetOutputLayer([1])])
-    nn2 = network.Network([helpers.SetOutputLayer([0])])
+    nn2 = network.Network([helpers.SetOutputLayer([1])])
 
     # Cross validate with deterministic network, and check output
     stats = validation.compare([('nn', nn, patterns, {'iterations':1}),
                                 ('nn2', nn2, patterns, {'iterations':1})],
-                               num_folds=3, num_runs=1)
+                               num_folds=3, num_runs=2)
 
     # Check
-    assert stats == {'nn': {'runs': [{'folds': [{'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0,
-                                         'accuracy': 1.0},
-                                        {'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0,
-                                         'accuracy': 1.0},
-                                        {'time': 0.0, 'epochs': 1,
-                                         'training_error': 0.0, 'testing_error': 0.0,
-                                         'accuracy': 1.0}],
-                                      'mean': {'time': 0.0, 'epochs': 1,
-                                               'training_error': 0.0, 'testing_error': 0.0,
-                                               'accuracy': 1.0},
-                                      'sd': {'time': 0.0, 'epochs': 0.0,
-                                             'training_error': 0.0, 'testing_error': 0.0,
-                                             'accuracy': 0.0}
-                                     }],
-                            'mean_of_means': {'time': 0.0, 'epochs': 1,
-                                              'training_error': 0.0, 'testing_error': 0.0,
-                                              'accuracy': 1.0},
-                            'sd_of_means': {'time': 0.0, 'epochs': 0.0,
-                                            'training_error': 0.0, 'testing_error': 0.0,
-                                            'accuracy': 0.0}
-                           },
-                     'nn2':{'runs': [{'folds': [{'time': 0.0, 'epochs': 1,
-                                         'training_error': 1.0, 'testing_error': 1.0,
-                                         'accuracy': 1.0},
-                                        {'time': 0.0, 'epochs': 1,
-                                         'training_error': 1.0, 'testing_error': 1.0,
-                                         'accuracy': 1.0},
-                                        {'time': 0.0, 'epochs': 1,
-                                         'training_error': 1.0, 'testing_error': 1.0,
-                                         'accuracy': 1.0}],
-                                      'mean': {'time': 0.0, 'epochs': 1,
-                                               'training_error': 1.0, 'testing_error': 1.0,
-                                               'accuracy': 1.0},
-                                      'sd': {'time': 0.0, 'epochs': 0.0,
-                                             'training_error': 0.0, 'testing_error': 0.0,
-                                             'accuracy': 0.0}
-                                     }],
-                            'mean_of_means': {'time': 0.0, 'epochs': 1,
-                                              'training_error': 1.0, 'testing_error': 1.0,
-                                              'accuracy': 1.0},
-                            'sd_of_means': {'time': 0.0, 'epochs': 0.0,
-                                            'training_error': 0.0, 'testing_error': 0.0,
-                                            'accuracy': 0.0}
-                           },
+    assert stats == {'nn': _BENCHMARK_STATS,
+                     'nn2':_BENCHMARK_STATS,
                      'mean_of_means': {'time': 0.0, 'epochs': 1,
-                                      'training_error': 0.5, 'testing_error': 0.5,
-                                      'accuracy': 1.0},
+                                      'training_error': 0.0, 'testing_error': 0.0,
+                                      'accuracy': 1.0,
+                                      'confusion_matrix': numpy.array([[1.0]])},
                      'sd_of_means': {'time': 0.0, 'epochs': 0.0,
-                                     'training_error': 0.5, 'testing_error': 0.5,
-                                     'accuracy': 0.0}
+                                     'training_error': 0.0, 'testing_error': 0.0,
+                                     'accuracy': 0.0,
+                                     'confusion_matrix': numpy.array([[0.0]])}
                     }
 
+
+_VALIDATION_STATS = {'time': 0.0, 'epochs': 1,
+                     'training_error': 0.0, 'testing_error': 0.0,
+                     'accuracy': 1.0,
+                     'confusion_matrix': numpy.array([[1]])}
+
+_CROSS_VALIDATION_STATS = {'folds': [_VALIDATION_STATS, _VALIDATION_STATS,
+                                     _VALIDATION_STATS],
+                            'mean': {'time': 0.0, 'epochs': 1,
+                                     'training_error': 0.0, 'testing_error': 0.0,
+                                     'accuracy': 1.0,
+                                     'confusion_matrix': numpy.array([[1.0]])},
+                            'sd': {'time': 0.0, 'epochs': 0.0,
+                                   'training_error': 0.0, 'testing_error': 0.0,
+                                   'accuracy': 0.0,
+                                   'confusion_matrix': numpy.array([[0.0]])}}
+
+_BENCHMARK_STATS = {'runs': [_CROSS_VALIDATION_STATS, _CROSS_VALIDATION_STATS],
+                    'mean_of_means': {'time': 0.0, 'epochs': 1,
+                                      'training_error': 0.0, 'testing_error': 0.0,
+                                      'accuracy': 1.0,
+                                      'confusion_matrix': numpy.array([[1.0]])},
+                    'sd_of_means': {'time': 0.0, 'epochs': 0.0,
+                                    'training_error': 0.0, 'testing_error': 0.0,
+                                    'accuracy': 0.0,
+                                    'confusion_matrix': numpy.array([[0.0]])}
+                   }

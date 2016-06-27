@@ -32,7 +32,8 @@ def _validate_network(network_, training_set, testing_set, _classification=True,
         all_expected = _get_classses(
             numpy.array([point[1] for point in testing_set]))
         stats['accuracy'] = _get_accuracy(all_actual, all_expected)
-        #stats['confusion_matrix'] = _confusion_matrix(network_, testing_set)
+        stats['confusion_matrix'] = _get_confusion_matrix(all_actual, all_expected,
+                                                          len(testing_set[0][1]))
 
     return stats
 
@@ -59,6 +60,21 @@ def _get_accuracy(all_actual, all_expected):
     # and normalize by the number of classes
     return ((all_actual == all_expected).sum()
             / float(all_actual.size))
+
+
+def _get_confusion_matrix(all_actual, all_expected, num_classes):
+    """Return the confusion matrix for actual and expected classes.
+    
+    Args:
+        all_actual: numpy.array<int>; An array of class indices.
+        all_expected: numpy.array<int>; An array of class indices.
+
+    Returns:
+        numpy.array; Matrix with rows for expected classes, columns for actual
+            classes, and cells with counts.
+    """
+    return numpy.bincount(num_classes * (all_expected) + (all_actual),
+                       minlength=num_classes*num_classes).reshape(num_classes, num_classes)
 
 ############################
 # Setup for Cross Validation
@@ -121,13 +137,13 @@ def _mean_of_dicts(dicts):
     mean = {}
     for key in first:
         # Skip non numberic attributes
-        if isinstance(first[key], numbers.Number):
+        if isinstance(first[key], (numbers.Number, numpy.ndarray)):
             mean[key] = _mean([dict_[key] for dict_ in dicts])
 
     return mean
 
 def _sd(list_, mean):
-    return math.sqrt(sum([(val - mean)**2 for val in list_]) / len(list_))
+    return numpy.sqrt(sum([(val - mean)**2 for val in list_]) / len(list_))
 
 def _sd_of_dicts(dicts, means):
     """Obtain a standard deviation dict from a list of dicts with the same keys.
@@ -144,7 +160,7 @@ def _sd_of_dicts(dicts, means):
     standard_deviation = {}
     for key in first:
         # Skip non numberic attributes
-        if isinstance(first[key], numbers.Number):
+        if isinstance(first[key], (numbers.Number, numpy.ndarray)):
             standard_deviation[key] = _sd([dict_[key] for dict_ in dicts], means[key])
 
     return standard_deviation
