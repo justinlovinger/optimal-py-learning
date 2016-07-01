@@ -26,6 +26,15 @@ class SetOutputLayer(EmptyLayer):
     def activate(self, inputs):
         return self.output
 
+class ManySetOutputsLayer(EmptyLayer):
+    def __init__(self, outputs):
+        super(ManySetOutputsLayer, self).__init__()
+
+        self.outputs = [numpy.array(output) for output in outputs]
+
+    def activate(self, inputs):
+        return self.outputs.pop(0)
+
 class RememberPatternsLayer(EmptyLayer):
     """Returns the output for a given input."""
     def __init__(self):

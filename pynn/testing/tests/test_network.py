@@ -160,9 +160,8 @@ def test_mlp_convergence():
     nn = network.make_mlp((2, 2, 2, 1))
     pat = datasets.get_xor()
 
-    cutoff = 0.02
-    nn.train(pat, error_break=cutoff)
-    assert nn.get_avg_error(pat) <= cutoff
+    nn.train(pat, error_break=0.015)
+    assert nn.get_avg_error(pat) <= 0.02
 
 
 def test_dropout_mlp():
@@ -212,9 +211,8 @@ def test_rbf_convergence():
     nn = network.make_rbf(2, 4, 1, normalize=True)
     pat = datasets.get_xor()
 
-    cutoff = 0.02
-    nn.train(pat, error_break=0.02)
-    assert nn.get_avg_error(pat) <= cutoff
+    nn.train(pat, error_break=0.015)
+    assert nn.get_avg_error(pat) <= 0.02
 
 
 ################################
@@ -344,3 +342,29 @@ def test_network_preprocess_func_keyword():
 
     # Layer stored preprocessed dataset
     assert nn._activation_order[0]._inputs_output_dict[(0,)] == numpy.array([1])
+
+
+####################
+# Train function
+####################
+def test_break_on_stagnation_completely_stagnant():
+    # If error doesn't change by enough after enough iterations
+    # stop training
+
+    nn = network.Network([helpers.SetOutputLayer([1.0])])
+
+    # Stop training if error does not change by more than threshold after
+    # distance iterations
+    nn.train([([0.0], [0.0])], error_stagnant_distance=5, error_stagnant_threshold=0.01)
+    assert nn.iteration == 6 # The 6th is 5 away from the first
+
+def test_break_on_stagnation_dont_break_if_wrapped_around():
+    # Should not break on situations like: 1.0, 0.9, 0.8, 0.7, 1.0
+    # Since error did change, even if it happens to be the same after
+    # n iterations
+    nn = network.Network([helpers.ManySetOutputsLayer(
+        [[1.0], [0.9], [0.8], [0.7], [1.0], [1.0], [1.0], [1.0], [1.0]])])
+
+    # Should pass wrap around to [1.0], and stop after consecutive [1.0]s
+    nn.train([([0.0], [0.0])], error_stagnant_distance=4, error_stagnant_threshold=0.01)
+    assert nn.iteration == 9

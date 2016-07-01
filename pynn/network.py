@@ -398,7 +398,8 @@ class Network(object):
  
         return error/len(patterns)
 
-    def train(self, patterns, iterations=1000, error_break=0.02,
+    def train(self, patterns, iterations=1000, error_break=0.002,
+              error_stagnant_distance=5, error_stagnant_threshold=0.0001,
               pattern_select_func=select_iterative, post_pattern_callback=None,
               preprocess_func=None):
         """Train network to converge on set of patterns.
@@ -411,10 +412,6 @@ class Network(object):
                 and returns a set of patterns. Use partial function to embed arguments.
         """
         self._reset_bookkeeping()
-        #self.reset()
-
-        # For optimization
-        track_error = error_break != 0.0 or self.logging
 
         # Preprocess data
         if preprocess_func is not None:
@@ -423,6 +420,10 @@ class Network(object):
         # Pre-training for each layer
         for layer in self._activation_order:
             layer.pre_training(patterns)
+
+        # Initialize error history with errors that are
+        # unlikey to be close in reality
+        error_history = [1e10]*error_stagnant_distance
 
         # Learn on each pattern for each iteration
         for self.iteration in range(1, iterations+1):
@@ -443,22 +444,35 @@ class Network(object):
                     post_pattern_callback(self, pattern)
 
                 # Sum errors
-                if track_error:
-                    error += numpy.mean(errors**2)
+                error += numpy.mean(errors**2)
 
             # Post-iteration for each layer
             for layer in self._activation_order:
                 layer.post_iteration(patterns)
                 
             # Logging and breaking
-            if track_error:
-                error = error / len(patterns)
-                if self.logging:
-                    print "Iteration {}, Error: {}".format(self.iteration, error)
+            error = error / len(patterns)
+            if self.logging:
+                print "Iteration {}, Error: {}".format(self.iteration, error)
 
-                # Break early to prevent overtraining
-                if error < error_break:
-                    break
+            # Break early to prevent overtraining
+            if error < error_break:
+                break
+
+            # Break if no progress is made
+            def _all_close(values, other_value, threshold):
+                for value in values:
+                    if abs(value - other_value) > threshold:
+                        return False
+                return True
+            
+            if _all_close(error_history, error, error_stagnant_threshold):
+                # Break if not enough difference between all resent errors
+                # and current error
+                break
+
+            error_history.append(error)
+            error_history.pop(0)
 
         # Post-training for each layer
         for layer in self._activation_order:
