@@ -201,17 +201,11 @@ def cross_validate(network_, patterns, num_folds=3, **kwargs):
 
 def benchmark(network_, patterns, num_folds=3, num_runs=30, **kwargs):
     # TODO: maybe just take a function, and aggregate stats for that function
-    
-    # Temporarily disable logging
-    curr_logging = network_.logging
-    network_.logging = False
 
     runs = []
     for i in range(num_runs):
         runs.append(cross_validate(network_, patterns, num_folds, **kwargs))
     stats = {'runs': runs}
-
-    network_.logging = curr_logging # Logging back to previous
 
     # Calculate meta stats
     means = [run['mean'] for run in runs]
