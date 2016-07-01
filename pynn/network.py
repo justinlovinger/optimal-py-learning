@@ -575,7 +575,7 @@ def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=
 
     return Network(layers, incoming_order_dict)
 
-def make_pbnn():
+def make_pbnn(variance=None):
     from pynn.architecture import pbnn
     from pynn.architecture import transfer
 
@@ -584,7 +584,10 @@ def make_pbnn():
     distances = pbnn.DistancesLayer()
 
     # Gaussian transfer
-    gaussian_transfer = transfer.GaussianTransfer()
+    if variance is not None:
+        gaussian_transfer = transfer.GaussianTransfer(variance=variance)
+    else:
+        gaussian_transfer = transfer.GaussianTransfer()
 
     # Weighted summation (weighted by output of guassian transfer), sums targets
     store_targets = pbnn.StoreTargetsLayer()
