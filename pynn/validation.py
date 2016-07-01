@@ -26,14 +26,27 @@ def _validate_network(network_, training_set, testing_set, _classification=True,
     stats['testing_error'] = network_.get_avg_error(testing_set)
 
     if _classification:
-        # Get accuracy and confustion matrix
-        all_actual = _get_classses(
+        # Get accuracy and confustion matrix for training set
+        all_actual_training = _get_classses(
+            numpy.array([network_.activate(point[0]) for point in training_set]))
+        all_expected_training= _get_classses(
+            numpy.array([point[1] for point in training_set]))
+
+        stats['training_accuracy'] = _get_accuracy(
+            all_actual_training, all_expected_training)
+        stats['training_confusion_matrix'] = _get_confusion_matrix(
+            all_actual_training, all_expected_training, len(training_set[0][1]))
+
+        # Get accuracy and confustion matrix for testing set
+        all_actual_testing = _get_classses(
             numpy.array([network_.activate(point[0]) for point in testing_set]))
-        all_expected = _get_classses(
+        all_expected_testing = _get_classses(
             numpy.array([point[1] for point in testing_set]))
-        stats['accuracy'] = _get_accuracy(all_actual, all_expected)
-        stats['confusion_matrix'] = _get_confusion_matrix(all_actual, all_expected,
-                                                          len(testing_set[0][1]))
+
+        stats['testing_accuracy'] = _get_accuracy(
+            all_actual_testing, all_expected_testing)
+        stats['testing_confusion_matrix'] = _get_confusion_matrix(
+            all_actual_testing, all_expected_testing, len(testing_set[0][1]))
 
     return stats
 

@@ -78,8 +78,10 @@ def test_validate_network(monkeypatch):
             == {'time': 0.0, 'epochs': 0,
                 'training_error': 0.5,
                 'testing_error': 1.0,
-                'accuracy': 1.0,
-                'confusion_matrix': numpy.array([[1]])})
+                'training_accuracy': 1.0,
+                'training_confusion_matrix': numpy.array([[2]]),
+                'testing_accuracy': 1.0,
+                'testing_confusion_matrix': numpy.array([[1]])})
     
     # Make network that returns set output for a given input
     # Simpler, always 0 training error
@@ -90,16 +92,20 @@ def test_validate_network(monkeypatch):
             == {'time': 0.0, 'epochs': 0,
                 'training_error': 0.0,
                 'testing_error': 0.25,
-                'accuracy': 1.0,
-                'confusion_matrix': numpy.array([[1]])})
+                'training_accuracy': 1.0,
+                'training_confusion_matrix': numpy.array([[1]]),
+                'testing_accuracy': 1.0,
+                'testing_confusion_matrix': numpy.array([[1]])})
     assert (validation._validate_network(nn, [([0], [0])],
                                         [([0], [2.0])],
                                         iterations=0)
             == {'time': 0.0, 'epochs': 0,
                 'training_error': 0.0,
                 'testing_error': 4.0,
-                'accuracy': 1.0,
-                'confusion_matrix': numpy.array([[1]])})
+                'training_accuracy': 1.0,
+                'training_confusion_matrix': numpy.array([[1]]),
+                'testing_accuracy': 1.0,
+                'testing_confusion_matrix': numpy.array([[1]])})
 
 def test_cross_validate(monkeypatch):
     # Patch time.clock so time attribute is deterministic
@@ -235,38 +241,52 @@ def test_compare(monkeypatch):
                      'nn2':_BENCHMARK_STATS,
                      'mean_of_means': {'time': 0.0, 'epochs': 1,
                                       'training_error': 0.0, 'testing_error': 0.0,
-                                      'accuracy': 1.0,
-                                      'confusion_matrix': numpy.array([[1.0]])},
+                                      'training_accuracy': 1.0,
+                                      'training_confusion_matrix': numpy.array([[2]]),
+                                      'testing_accuracy': 1.0,
+                                      'testing_confusion_matrix': numpy.array([[1]])},
                      'sd_of_means': {'time': 0.0, 'epochs': 0.0,
                                      'training_error': 0.0, 'testing_error': 0.0,
-                                     'accuracy': 0.0,
-                                     'confusion_matrix': numpy.array([[0.0]])}
+                                     'training_accuracy': 0.0,
+                                     'training_confusion_matrix': numpy.array([[0]]),
+                                     'testing_accuracy': 0.0,
+                                     'testing_confusion_matrix': numpy.array([[0]])}
                     }
 
 
 _VALIDATION_STATS = {'time': 0.0, 'epochs': 1,
                      'training_error': 0.0, 'testing_error': 0.0,
-                     'accuracy': 1.0,
-                     'confusion_matrix': numpy.array([[1]])}
+                     'training_accuracy': 1.0,
+                     'training_confusion_matrix': numpy.array([[2]]),
+                     'testing_accuracy': 1.0,
+                     'testing_confusion_matrix': numpy.array([[1]])}
 
 _CROSS_VALIDATION_STATS = {'folds': [_VALIDATION_STATS, _VALIDATION_STATS,
                                      _VALIDATION_STATS],
                             'mean': {'time': 0.0, 'epochs': 1,
                                      'training_error': 0.0, 'testing_error': 0.0,
-                                     'accuracy': 1.0,
-                                     'confusion_matrix': numpy.array([[1.0]])},
+                                     'training_accuracy': 1.0,
+                                     'training_confusion_matrix': numpy.array([[2]]),
+                                     'testing_accuracy': 1.0,
+                                     'testing_confusion_matrix': numpy.array([[1]])},
                             'sd': {'time': 0.0, 'epochs': 0.0,
                                    'training_error': 0.0, 'testing_error': 0.0,
-                                   'accuracy': 0.0,
-                                   'confusion_matrix': numpy.array([[0.0]])}}
+                                   'training_accuracy': 0.0,
+                                   'training_confusion_matrix': numpy.array([[0]]),
+                                   'testing_accuracy': 0.0,
+                                   'testing_confusion_matrix': numpy.array([[0]])}}
 
 _BENCHMARK_STATS = {'runs': [_CROSS_VALIDATION_STATS, _CROSS_VALIDATION_STATS],
                     'mean_of_means': {'time': 0.0, 'epochs': 1,
                                       'training_error': 0.0, 'testing_error': 0.0,
-                                      'accuracy': 1.0,
-                                      'confusion_matrix': numpy.array([[1.0]])},
+                                      'training_accuracy': 1.0,
+                                      'training_confusion_matrix': numpy.array([[2]]),
+                                      'testing_accuracy': 1.0,
+                                      'testing_confusion_matrix': numpy.array([[1]])},
                     'sd_of_means': {'time': 0.0, 'epochs': 0.0,
                                     'training_error': 0.0, 'testing_error': 0.0,
-                                    'accuracy': 0.0,
-                                    'confusion_matrix': numpy.array([[0.0]])}
+                                    'training_accuracy': 0.0,
+                                    'training_confusion_matrix': numpy.array([[0]]),
+                                    'testing_accuracy': 0.0,
+                                    'testing_confusion_matrix': numpy.array([[0]])}
                    }
