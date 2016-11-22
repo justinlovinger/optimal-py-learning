@@ -52,9 +52,18 @@ class GaussianTransfer(Transfer):
 
 
 class SoftmaxTransfer(Transfer):
+    def __init__(self):
+        super(SoftmaxTransfer, self).__init__()
+
+        self._sum = None
+
     def activate(self, inputs):
         exp_ = numpy.exp(inputs)
-        return exp_ / numpy.sum(exp_)
+        self._sum = numpy.sum(exp_)
+        return exp_ / self._sum
+
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        return self._avg_all_errors(all_errors, outputs.shape)
 
 class NormalizeTransfer(Transfer):
     def activate(self, inputs, scaling_inputs):
@@ -88,4 +97,8 @@ def drelu(y):
 
 def dsoftmax(y):
     """Return the derivative of the softmax function for y."""
+    # TODO: see http://stats.stackexchange.com/questions/79454/softmax-layer-in-a-neural-network
+    # Compute matrix J, n x n, with y_i(1 - h_j) on the diagonals
+    # and - y_i y_j on the non-diagonals
+    # When getting erros multiply by error vector (J \vec{e})
     assert 0

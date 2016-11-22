@@ -288,7 +288,7 @@ class Network(object):
 
         self._graph = graph.Graph(layers)
         _validate_graph(self._graph)
-        
+
 
         # User can specify an order for incoming layers.
         # This is important for some layers that have multiple inputs.
@@ -329,7 +329,7 @@ class Network(object):
         self.iteration = 0
 
     def _incoming_activations(self, layer):
-        return [self._activations[incoming] for incoming in 
+        return [self._activations[incoming] for incoming in
                 self._graph.backwards_adjacency[layer]]
 
     def _outgoing_errors(self, layer, errors_dict):
@@ -340,7 +340,7 @@ class Network(object):
         """Return the network outputs for given inputs."""
         inputs = numpy.array(inputs)
         self._activations['I'] = inputs
-        
+
         for layer in self._activation_order:
             ouputs = layer.activate(*self._incoming_activations(layer))
 
@@ -353,7 +353,6 @@ class Network(object):
     def update(self, inputs, targets):
         """Adjust the network towards the targets for given inputs."""
         outputs = self.activate(inputs)
-        outputs_dict = {'O': outputs}
 
         errors = targets - outputs
         output_errors = errors # For returning
@@ -367,9 +366,9 @@ class Network(object):
 
             # Compute errors for preceding layer before this layers changes
             errors_dict[layer] = layer.get_prev_errors(all_inputs,
-                                                       all_errors, 
+                                                       all_errors,
                                                        outputs)
-                
+
             # Update
             layer.update(all_inputs, outputs, all_errors)
 
@@ -392,7 +391,7 @@ class Network(object):
 
     def get_avg_error(self, patterns):
         """Return the average mean squared error for a set of patterns."""
-        error = 0.0        
+        error = 0.0
         for pattern in patterns:
             error = error + self.get_error(pattern)
  
@@ -403,7 +402,7 @@ class Network(object):
               pattern_select_func=select_iterative, post_pattern_callback=None,
               preprocess_func=None):
         """Train network to converge on set of patterns.
-        
+
         Args:
             patterns: A set of (inputs, targets) pairs.
             iterations: Max iterations to train network.
@@ -449,7 +448,7 @@ class Network(object):
             # Post-iteration for each layer
             for layer in self._activation_order:
                 layer.post_iteration(patterns)
-                
+
             # Logging and breaking
             error = error / len(patterns)
             if self.logging:
@@ -465,7 +464,7 @@ class Network(object):
                     if abs(value - other_value) > threshold:
                         return False
                 return True
-            
+
             if _all_close(error_history, error, error_stagnant_threshold):
                 # Break if not enough difference between all resent errors
                 # and current error
@@ -480,7 +479,7 @@ class Network(object):
 
     def serialize(self):
         """Convert network into string.
-        
+
         Returns:
             string; A string representing this network.
         """
@@ -498,12 +497,32 @@ class Network(object):
 ##########################
 # Quick network functions
 ##########################
+def make_mlp_classifier(shape, learn_rate=0.5, momentum_rate=0.1):
+    """Create a multi-layer perceptron network for classification."""
+    from pynn.architecture import mlp
+
+    layers = _make_mlp(shape, learn_rate, momentum_rate)
+
+    # Softmax for classification
+    layers.append(mlp.SoftmaxTransferPerceptron())
+
+    return Network(layers)
+
 def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
-    """Create a multi-layer perceptron network."""
+    """Create a multi-layer perceptron network for regression or classification."""
+    from pynn.architecture import mlp
+
+    layers = _make_mlp(shape, learn_rate, momentum_rate)
+
+    # Linear output for regression
+    return Network(layers)
+
+def _make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
+    """Return the common layers in regression and classification mlps."""
     from pynn.architecture import mlp
 
     # Create first layer with bias
-    layers = [mlp.AddBias(mlp.Perceptron(shape[0]+1, shape[1], 
+    layers = [mlp.AddBias(mlp.Perceptron(shape[0]+1, shape[1],
                                          learn_rate, momentum_rate)),
               mlp.ReluTransferPerceptron()]
 
@@ -519,15 +538,40 @@ def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
 
     # Final transfer function must be able to output negatives and positives
     layers.append(mlp.Perceptron(shape[-2], shape[-1],
-                                learn_rate, momentum_rate))
-    layers.append(mlp.TanhTransferPerceptron())
+                                 learn_rate, momentum_rate))
+
+    return layers
+
+
+def make_dropout_mlp_classifier(shape, learn_rate=0.5, momentum_rate=0.1,
+                                input_active_probability=0.8, hidden_active_probability=0.5):
+    """Create a multi-layer perceptron network with dropout for classification."""
+    from pynn.architecture import mlp
+
+    layers = _make_dropout_mlp(shape, learn_rate, momentum_rate,
+                               input_active_probability, hidden_active_probability)
+
+    # Softmax for classification
+    layers.append(mlp.SoftmaxTransferPerceptron())
 
     return Network(layers)
 
+
 def make_dropout_mlp(shape, learn_rate=0.5, momentum_rate=0.1,
-                     input_active_probability=0.8,
-                     hidden_active_probability=0.5):
-    """Create a multi-layer perceptron network with dropout."""
+                     input_active_probability=0.8, hidden_active_probability=0.5):
+    """Create a multi-layer perceptron network with dropout for regression or classification."""
+    from pynn.architecture import mlp
+
+    layers = _make_dropout_mlp(shape, learn_rate, momentum_rate,
+                               input_active_probability, hidden_active_probability)
+
+    # Linear output for regression
+    return Network(layers)
+
+
+def _make_dropout_mlp(shape, learn_rate, momentum_rate,
+                      input_active_probability, hidden_active_probability):
+    """Return the common layers in regression and classification dropout mlps."""
     from pynn.architecture import mlp
 
     # First layer is a special layer that disables inputs during training
@@ -550,13 +594,13 @@ def make_dropout_mlp(shape, learn_rate=0.5, momentum_rate=0.1,
         num_inputs = num_outputs
 
     # Final transfer function must be able to output negatives and positives,
-    # and last perceptron layer must not reduce number of outputs
+    # Last perceptron layer must not reduce number of outputs
     layers.append(mlp.DropoutPerceptron(shape[-2], shape[-1],
                                         learn_rate, momentum_rate,
                                         active_probability=1.0))
-    layers.append(mlp.TanhTransferPerceptron())
 
-    return Network(layers)
+    return layers
+
 
 def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=True,
              move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0,):

@@ -164,6 +164,30 @@ def test_mlp_convergence():
     assert nn.get_avg_error(pat) <= 0.02
 
 
+def test_mlp_classifier():
+    # Run for a couple of iterations
+    # assert that new error is less than original
+    nn = network.make_mlp_classifier((2, 2, 2))
+    pat = datasets.get_xor()
+    _make_xor_one_hot(pat)
+
+    error = nn.get_avg_error(pat)
+    nn.train(pat, 10)
+    assert nn.get_avg_error(pat) < error
+
+
+pytest.mark.slowtest()
+def test_mlp_classifier_convergence():
+    # Run until convergence
+    # assert that network can converge
+    nn = network.make_mlp_classifier((2, 2, 2), learn_rate=0.01, momentum_rate=0.005)
+    pat = datasets.get_xor()
+    _make_xor_one_hot(pat)
+
+    nn.train(pat, error_break=0.015)
+    assert nn.get_avg_error(pat) <= 0.02
+
+
 def test_dropout_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
@@ -180,9 +204,42 @@ def test_dropout_mlp_convergence():
     # Run until convergence
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
-    nn = network.make_dropout_mlp((2, 4, 2, 1), input_active_probability=1.0,
-                                  hidden_active_probability=0.85)
+    nn = network.make_dropout_mlp((2, 6, 3, 1), learn_rate=0.2, momentum_rate=0.1,
+                                  input_active_probability=1.0,
+                                  hidden_active_probability=0.9)
     pat = datasets.get_xor()
+
+    # Error break lower than cutoff, since dropout may have different error
+    # after training
+    nn.train(pat, error_break=0.002, pattern_select_func=network.select_sample)
+
+    # Dropout sacrifices training accuracy for better generalization
+    # so we don't worry as much about convergence
+    assert nn.get_avg_error(pat) <= 0.1
+
+
+def test_dropout_mlp_classifier():
+    # Run for a couple of iterations
+    # assert that new error is less than original
+    nn = network.make_dropout_mlp_classifier((2, 6, 3, 2), learn_rate=0.2, momentum_rate=0.1)
+    pat = datasets.get_xor()
+    _make_xor_one_hot(pat)
+
+    error = nn.get_avg_error(pat)
+    nn.train(pat, 10, pattern_select_func=network.select_sample)
+    assert nn.get_avg_error(pat) < error
+
+
+pytest.mark.slowtest()
+def test_dropout_mlp_classifier_convergence():
+    # Run until convergence
+    # assert that network can converge
+    # Since XOR does not really need dropout, we use high probabilities
+    nn = network.make_dropout_mlp_classifier((2, 6, 3, 2), learn_rate=0.2, momentum_rate=0.1,
+                                             input_active_probability=1.0,
+                                             hidden_active_probability=0.9)
+    pat = datasets.get_xor()
+    _make_xor_one_hot(pat)
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
@@ -192,6 +249,16 @@ def test_dropout_mlp_convergence():
     # so we don't worry as much about convergence
     assert nn.get_avg_error(pat) <= 0.1
 
+
+def _make_xor_one_hot(dataset):
+    # TODO: make a function in process.py to automatically do this
+    for pattern in dataset:
+        if pattern[1][0] == 0:
+            pattern[1] = [1, 0]
+        elif pattern[1][0] == 1:
+            pattern[1] = [0, 1]
+        else:
+            raise ValueError()
 
 def test_rbf():
     # Run for a couple of iterations
