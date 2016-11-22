@@ -245,15 +245,9 @@ class GaussianTransferPerceptron(transfer.GaussianTransfer):
 
 class SoftmaxTransferPerceptron(transfer.SoftmaxTransfer):
     def get_prev_errors(self, all_inputs, all_errors, outputs):
-        # See http://stats.stackexchange.com/questions/79454/softmax-layer-in-a-neural-network
-        errors =  (super(SoftmaxTransferPerceptron, self).get_prev_errors(
-            all_inputs, all_errors, outputs))
-        if self.network._activation_order[-1] is self:
-            # TODO: not sure if this is correct
-            # NOTE: Only accurate for mse loss
-            return errors
-        else:
-            # see http://stats.stackexchange.com/questions/79454/softmax-layer-in-a-neural-network
-            return (transfer.dsoftmax(
-                outputs, self._avg_all_errors(all_errors, outputs.shape)) *
-                    errors)
+        # dsoftmax returns a jacobian
+        # Mutliply output errors by jacobian for input errors
+        # numpy.array dot numpy.matrix is equivalent to matrix multiplication,
+        # where the first array is a row matrix.
+        return super(SoftmaxTransferPerceptron, self).get_prev_errors(
+            all_inputs, all_errors, outputs).dot(transfer.dsoftmax(outputs))

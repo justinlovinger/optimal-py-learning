@@ -1,3 +1,6 @@
+import random
+
+import pytest
 import numpy
 
 from pynn.architecture import transfer
@@ -47,6 +50,28 @@ def test_softmax_transfer():
     output_ = list(layer.activate(numpy.array([1.0, -1.0])))
     assert output_[0] > 0.5 and output_[1] < 0.5
     assert sum(output_) == 1.0
+
+@pytest.mark.skip(reason="I don't think the approx gradient is right")
+def test_softmax_gradient():
+    softmax = transfer.SoftmaxTransfer()
+    epsilon = 1e-10
+
+    def _approximate_softmax(x):
+        # Approximate derivative
+        def _approximate_ith(i):
+            x_plus_i = x.copy()
+            x_plus_i[i] += epsilon
+            x_minus_i = x.copy()
+            x_minus_i[i] -= epsilon
+            return ((softmax.activate(x_plus_i) - softmax.activate(x_minus_i))
+                    /(2*epsilon))[i]
+        return numpy.array([_approximate_ith(i) for i in range(x.shape[0])])
+
+    inputs = numpy.random.rand(random.randint(2, 10))
+    errors = numpy.random.rand(inputs.shape[0])
+    real_grad = errors.dot(transfer.dsoftmax(softmax.activate(inputs)))
+    approx_grad = errors * _approximate_softmax(inputs)
+    assert numpy.sum(numpy.abs(real_grad - approx_grad)) < 1e-4
 
 
 ###############

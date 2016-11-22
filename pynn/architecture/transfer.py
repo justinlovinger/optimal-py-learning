@@ -97,8 +97,12 @@ def drelu(y):
 
 def dsoftmax(y):
     """Return the derivative of the softmax function for y."""
-    # TODO: see http://stats.stackexchange.com/questions/79454/softmax-layer-in-a-neural-network
-    # Compute matrix J, n x n, with y_i(1 - h_j) on the diagonals
+    # see http://stats.stackexchange.com/questions/79454/softmax-layer-in-a-neural-network
+    # Compute matrix J, n x n, with y_i(1 - y_j) on the diagonals
     # and - y_i y_j on the non-diagonals
     # When getting erros multiply by error vector (J \vec{e})
-    assert 0
+
+    # Start with - y_i y_j matrix, then replace diagonal with y_i(1 - y_j)
+    jacobian = -y[:, None] * y
+    jacobian[numpy.diag_indices(y.shape[0])] = y*(1 - y)
+    return jacobian
