@@ -19,7 +19,7 @@ def test_tanh_transfer():
 
 
 def test_tanh_gradient():
-    check_gradient(transfer.tanh, transfer.dtanh)
+    check_gradient(transfer.tanh, lambda x: transfer.dtanh(transfer.tanh(x)))
 
 
 #####################
@@ -40,7 +40,8 @@ def test_gaussian_transfer():
 
 
 def test_gaussian_gradient():
-    check_gradient(transfer.gaussian, transfer.dgaussian)
+    check_gradient(transfer.gaussian,
+                   lambda x: transfer.dgaussian(x, transfer.gaussian(x)))
 
 #####################
 # Softmax
@@ -111,7 +112,8 @@ def test_relu_gradient():
 # Helpers
 ##############
 def test_check_gradient():
-    check_gradient(lambda x: x**2, lambda y: 2*numpy.sqrt(y))
+    check_gradient(lambda x: x**2, lambda x: 2*x)
+    check_gradient(lambda x: numpy.sqrt(x), lambda x: 1.0 / (2*numpy.sqrt(x)))
 
 
 def check_gradient(f, df, inputs=None, epsilon=1e-6):
@@ -119,7 +121,7 @@ def check_gradient(f, df, inputs=None, epsilon=1e-6):
         inputs = numpy.random.rand(random.randint(2, 10))
 
     assert numpy.mean(numpy.abs(
-        df(f(inputs)) - _approximate_gradient(f, inputs, epsilon))) <= epsilon
+        df(inputs) - _approximate_gradient(f, inputs, epsilon))) <= epsilon
 
 
 def _approximate_gradient(f, x, epsilon):

@@ -225,22 +225,21 @@ def _random_indexes(length, probability):
 # The output learning for an rbf, by contrast, does not.
 class TanhTransferPerceptron(transfer.TanhTransfer):
     def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return super(TanhTransferPerceptron, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dtanh(outputs)
+        return super(TanhTransferPerceptron, self).get_prev_errors(
+            all_inputs, all_errors, outputs) * transfer.dtanh(outputs)
 
 
 class ReluTransferPerceptron(transfer.ReluTransfer):
     def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return super(ReluTransferPerceptron, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.drelu(outputs)
-
-
-class LogitTransferPerceptron(transfer.LogitTransfer):
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return super(LogitTransferPerceptron, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dlogit(outputs)
+        return super(ReluTransferPerceptron, self).get_prev_errors(
+            all_inputs, all_errors, outputs) * transfer.drelu(all_inputs[0])
 
 
 class GaussianTransferPerceptron(transfer.GaussianTransfer):
     def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return super(GaussianTransferPerceptron, self).get_prev_errors(all_inputs, all_errors, outputs) * transfer.dgaussian_vec(outputs)
+        return super(GaussianTransferPerceptron, self).get_prev_errors(
+            all_inputs, all_errors, outputs) * transfer.dgaussian_vec(
+                all_inputs[0], outputs, self._variance)
 
 
 class SoftmaxTransferPerceptron(transfer.SoftmaxTransfer):

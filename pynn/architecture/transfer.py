@@ -81,16 +81,16 @@ def dtanh(y):
 def gaussian(x, variance=1.0):
     return numpy.exp(-(x**2/variance))
 
-def dgaussian(y, variance=1.0):
-    return 2*y*gaussian(y, variance) / variance
+def dgaussian(x, y, variance=1.0):
+    return -2.0*x*y / variance
 
 def relu(x):
     """Return ln(1 + e^x) for each input value."""
     return numpy.log(1 + numpy.e**x)
 
-def drelu(y):
+def drelu(x):
     """Return the derivative of the softplus relu function for y."""
-    return 1.0 / (1.0 + numpy.e**(-y))
+    return 1.0 / (1.0 + numpy.e**(-x))
 
 def softmax(x):
     """Return the softmax of vector x."""
