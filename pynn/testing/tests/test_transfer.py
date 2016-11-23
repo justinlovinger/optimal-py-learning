@@ -2,6 +2,7 @@ import random
 
 import pytest
 import numpy
+from scipy import optimize
 
 from pynn.architecture import transfer
 from pynn.testing import helpers
@@ -15,6 +16,10 @@ def test_tanh_transfer():
     output = layer.activate(numpy.array([-1.0, 0.0, 0.5, 1.0]))
     output = [round(v, 6) for v in output]
     assert output == expected
+
+
+def test_tanh_gradient():
+    check_gradient(transfer.tanh, transfer.dtanh)
 
 
 #####################
@@ -34,6 +39,9 @@ def test_gaussian_transfer():
     assert output == expected
 
 
+def test_gaussian_gradient():
+    check_gradient(transfer.gaussian, transfer.dgaussian)
+
 #####################
 # Softmax
 #####################
@@ -51,28 +59,9 @@ def test_softmax_transfer():
     assert output_[0] > 0.5 and output_[1] < 0.5
     assert sum(output_) == 1.0
 
-@pytest.mark.skip(reason="I don't think the approx gradient is right")
+@pytest.mark.skip(reason='check_gradient is not tested with jacobian')
 def test_softmax_gradient():
-    softmax = transfer.SoftmaxTransfer()
-    epsilon = 1e-10
-
-    def _approximate_softmax(x):
-        # Approximate derivative
-        def _approximate_ith(i):
-            x_plus_i = x.copy()
-            x_plus_i[i] += epsilon
-            x_minus_i = x.copy()
-            x_minus_i[i] -= epsilon
-            return ((softmax.activate(x_plus_i) - softmax.activate(x_minus_i))
-                    /(2*epsilon))[i]
-        return numpy.array([_approximate_ith(i) for i in range(x.shape[0])])
-
-    inputs = numpy.random.rand(random.randint(2, 10))
-    errors = numpy.random.rand(inputs.shape[0])
-    real_grad = errors.dot(transfer.dsoftmax(softmax.activate(inputs)))
-    approx_grad = errors * _approximate_softmax(inputs)
-    assert numpy.sum(numpy.abs(real_grad - approx_grad)) < 1e-4
-
+    assert check_gradient(transfer.softmax, transfer.dsoftmax)
 
 ###############
 # Normalize
@@ -112,3 +101,34 @@ def test_relu_derivative():
                                 [0.5, 0.73105857])
     assert helpers.approx_equal(list(transfer.drelu(numpy.array([-1.5, 10]))),
                                 [0.182426, 0.9999546])
+
+
+def test_relu_gradient():
+    check_gradient(transfer.relu, transfer.drelu)
+
+
+##############
+# Helpers
+##############
+def test_check_gradient():
+    check_gradient(lambda x: x**2, lambda y: 2*numpy.sqrt(y))
+
+
+def check_gradient(f, df, inputs=None, epsilon=1e-6):
+    if inputs is None:
+        inputs = numpy.random.rand(random.randint(2, 10))
+
+    assert numpy.mean(numpy.abs(
+        df(f(inputs)) - _approximate_gradient(f, inputs, epsilon))) <= epsilon
+
+
+def _approximate_gradient(f, x, epsilon):
+    return numpy.array([_approximate_ith(i, f, x, epsilon) for i in range(x.shape[0])])
+
+
+def _approximate_ith(i, f, x, epsilon):
+    x_plus_i = x.copy()
+    x_plus_i[i] += epsilon
+    x_minus_i = x.copy()
+    x_minus_i[i] -= epsilon
+    return ((f(x_plus_i) - f(x_minus_i)) / (2*epsilon))[i]

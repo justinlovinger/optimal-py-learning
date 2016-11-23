@@ -27,8 +27,7 @@ class ReluTransfer(Transfer):
     """
     
     def activate(self, inputs):
-        """Return ln(1 + e^x) for each input value."""
-        return numpy.log(1 + numpy.e**inputs)
+        return relu(inputs)
 
     def get_prev_errors(self, all_inputs, all_errors, outputs):
         return self._avg_all_errors(all_errors, outputs.shape)
@@ -52,18 +51,12 @@ class GaussianTransfer(Transfer):
 
 
 class SoftmaxTransfer(Transfer):
-    def __init__(self):
-        super(SoftmaxTransfer, self).__init__()
-
-        self._sum = None
-
     def activate(self, inputs):
-        exp_ = numpy.exp(inputs)
-        self._sum = numpy.sum(exp_)
-        return exp_ / self._sum
+        return softmax(inputs)
 
     def get_prev_errors(self, all_inputs, all_errors, outputs):
         return self._avg_all_errors(all_errors, outputs.shape)
+
 
 class NormalizeTransfer(Transfer):
     def activate(self, inputs, scaling_inputs):
@@ -88,12 +81,21 @@ def dtanh(y):
 def gaussian(x, variance=1.0):
     return numpy.exp(-(x**2/variance))
 
-def dgaussian(y, variance):
+def dgaussian(y, variance=1.0):
     return 2*y*gaussian(y, variance) / variance
+
+def relu(x):
+    """Return ln(1 + e^x) for each input value."""
+    return numpy.log(1 + numpy.e**x)
 
 def drelu(y):
     """Return the derivative of the softplus relu function for y."""
     return 1.0 / (1.0 + numpy.e**(-y))
+
+def softmax(x):
+    """Return the softmax of vector x."""
+    exp_ = numpy.exp(x)
+    return exp_ / numpy.sum(exp_)
 
 def dsoftmax(y):
     """Return the derivative of the softmax function for y."""
@@ -106,3 +108,5 @@ def dsoftmax(y):
     jacobian = -y[:, None] * y
     jacobian[numpy.diag_indices(y.shape[0])] = y*(1 - y)
     return jacobian
+
+    # NOTE: We can instead return a vector by summing rows
