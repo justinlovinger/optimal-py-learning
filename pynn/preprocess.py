@@ -19,7 +19,7 @@ def normalize(data_matrix):
     if len(data_matrix) < 2:
         raise ValueError('Cannot normalize a matrix with only one row')
 
-    np_data_matrix = numpy.array(data_matrix)
+    np_data_matrix = numpy.array(data_matrix, dtype='float')
     np_data_matrix -= numpy.mean(np_data_matrix, 0)
     np_data_matrix /= numpy.std(np_data_matrix, 0)
     return np_data_matrix
