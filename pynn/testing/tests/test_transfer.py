@@ -1,4 +1,5 @@
 import random
+import math
 
 import pytest
 import numpy
@@ -60,9 +61,20 @@ def test_softmax_transfer():
     assert output_[0] > 0.5 and output_[1] < 0.5
     assert sum(output_) == 1.0
 
-@pytest.mark.skip(reason='check_gradient is not tested with jacobian')
+
+def test_softmax_jacobian():
+    check_gradient(transfer.softmax, lambda x: transfer.dsoftmax(transfer.softmax(x)),
+                   jacobian=True)
+
+@pytest.mark.skip(reason='Not sure approximate gradient is correct')
 def test_softmax_gradient():
-    assert check_gradient(transfer.softmax, transfer.dsoftmax)
+    inputs = numpy.random.rand(random.randint(2, 10))
+    errors = numpy.random.rand(inputs.shape[0])
+    assert check_gradient(
+       lambda x: errors * transfer.softmax(x),
+       lambda x: errors.dot(transfer.dsoftmax(transfer.softmax(x))),
+       inputs=inputs)
+    check_gradient(transfer.softmax, lambda x: transfer.dsoftmax(transfer.softmax(x)))
 
 ###############
 # Normalize
@@ -116,12 +128,25 @@ def test_check_gradient():
     check_gradient(lambda x: numpy.sqrt(x), lambda x: 1.0 / (2*numpy.sqrt(x)))
 
 
-def check_gradient(f, df, inputs=None, epsilon=1e-6):
+def test_check_gradient_jacobian():
+    check_gradient(lambda x: numpy.array([x[0]**2*x[1], 5*x[0]+math.sin(x[1])]),
+                   lambda x: numpy.array([[2*x[0]*x[1], x[0]**2       ],
+                                          [5.0,         math.cos(x[1])]]),
+                   inputs=numpy.random.rand(2),
+                   jacobian=True)
+
+
+def check_gradient(f, df, inputs=None, epsilon=1e-6, jacobian=False):
     if inputs is None:
         inputs = numpy.random.rand(random.randint(2, 10))
 
+    if jacobian:
+        approx_func = _approximate_jacobian
+    else:
+        approx_func = _approximate_gradient
+
     assert numpy.mean(numpy.abs(
-        df(inputs) - _approximate_gradient(f, inputs, epsilon))) <= epsilon
+        df(inputs) - approx_func(f, inputs, epsilon))) <= epsilon
 
 
 def _approximate_gradient(f, x, epsilon):
@@ -134,3 +159,15 @@ def _approximate_ith(i, f, x, epsilon):
     x_minus_i = x.copy()
     x_minus_i[i] -= epsilon
     return ((f(x_plus_i) - f(x_minus_i)) / (2*epsilon))[i]
+
+def _approximate_jacobian(f, x, epsilon):
+    jacobian = numpy.zeros((x.shape[0], x.shape[0]))
+    # Jocobian has inputs on cols and outputs on rows
+    for j in range(x.shape[0]):
+        for i in range(x.shape[0]):
+            x_plus_i = x.copy()
+            x_plus_i[i] += epsilon
+            x_minus_i = x.copy()
+            x_minus_i[i] -= epsilon
+            jacobian[j,i] = (f(x_plus_i)[j] - f(x_minus_i)[j])/(2.0*epsilon)
+    return jacobian

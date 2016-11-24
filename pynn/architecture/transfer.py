@@ -90,6 +90,7 @@ def relu(x):
 
 def drelu(x):
     """Return the derivative of the softplus relu function for y."""
+    # NOTE: Can be optimized by caching numpy.e**(x) and returning e^x / (e^x + 1)
     return 1.0 / (1.0 + numpy.e**(-x))
 
 def softmax(x):
@@ -108,5 +109,3 @@ def dsoftmax(y):
     jacobian = -y[:, None] * y
     jacobian[numpy.diag_indices(y.shape[0])] = y*(1 - y)
     return jacobian
-
-    # NOTE: We can instead return a vector by summing rows
