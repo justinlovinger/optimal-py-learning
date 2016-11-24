@@ -181,7 +181,7 @@ def test_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
     nn = network.make_mlp_classifier((2, 2, 2), learn_rate=0.01, momentum_rate=0.005)
-    pat = datasets.get_xor()
+    pat = datasets.get_and()
     _make_xor_one_hot(pat)
 
     nn.train(pat, error_break=0.015)
@@ -222,7 +222,7 @@ def test_dropout_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
     nn = network.make_dropout_mlp_classifier((2, 6, 3, 2), learn_rate=0.2, momentum_rate=0.1)
-    pat = datasets.get_xor()
+    pat = datasets.get_and()
     _make_xor_one_hot(pat)
 
     error = nn.get_avg_error(pat)
@@ -238,7 +238,7 @@ def test_dropout_mlp_classifier_convergence():
     nn = network.make_dropout_mlp_classifier((2, 6, 3, 2), learn_rate=0.2, momentum_rate=0.1,
                                              input_active_probability=1.0,
                                              hidden_active_probability=0.9)
-    pat = datasets.get_xor()
+    pat = datasets.get_and()
     _make_xor_one_hot(pat)
 
     # Error break lower than cutoff, since dropout may have different error
@@ -253,9 +253,9 @@ def test_dropout_mlp_classifier_convergence():
 def _make_xor_one_hot(dataset):
     # TODO: make a function in process.py to automatically do this
     for pattern in dataset:
-        if pattern[1][0] == 0:
+        if pattern[1][0] == 0.0:
             pattern[1] = [1, 0]
-        elif pattern[1][0] == 1:
+        elif pattern[1][0] == 1.0:
             pattern[1] = [0, 1]
         else:
             raise ValueError()
