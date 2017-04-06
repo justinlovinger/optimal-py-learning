@@ -5,19 +5,22 @@ import math
 
 from pynn import network
 
-class Transfer(network.Layer):
-    def reset(self):
+class Transfer(object):
+    def update(self, *args):
         pass
 
-    def update(self, inputs, outputs, errors):
-        pass
+    def activate(self, inputs):
+        raise NotImplementedError()
+
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
+        raise NotImplementedError()
 
 class TanhTransfer(Transfer):
     def activate(self, inputs):
         return tanh(inputs)
 
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return self._avg_all_errors(all_errors, outputs.shape)
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
+        return error_vec
 
 
 class ReluTransfer(Transfer):
@@ -25,12 +28,11 @@ class ReluTransfer(Transfer):
 
     Also known as softplus.
     """
-    
     def activate(self, inputs):
         return relu(inputs)
 
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return self._avg_all_errors(all_errors, outputs.shape)
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
+        return error_vec
 
 
 class LogitTransfer(Transfer):
@@ -46,16 +48,16 @@ class GaussianTransfer(Transfer):
     def activate(self, inputs):
         return gaussian(inputs, self._variance)
 
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return self._avg_all_errors(all_errors, outputs.shape)
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
+        return error_vec
 
 
 class SoftmaxTransfer(Transfer):
     def activate(self, inputs):
         return softmax(inputs)
 
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return self._avg_all_errors(all_errors, outputs.shape)
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
+        return error_vec
 
 
 class NormalizeTransfer(Transfer):
@@ -65,11 +67,10 @@ class NormalizeTransfer(Transfer):
     # TODO: what to do with get_prev_errors?
     # Look at current gaussian output for inspiration
     # divide errors by sum scaling inputs?
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
+    def get_prev_errors(self, input_vec, scaling_inputs, error_vec, output_vec):
         # errors / sum(scaling_inputs)
-        return (self._avg_all_errors(all_errors, outputs.shape) /
-                numpy.sum(all_inputs[1]))
-    
+        return error_vec / numpy.sum(scaling_inputs)
+
 def tanh(x):
     """Sigmoid like function using tanh"""
     return numpy.tanh(x)

@@ -52,7 +52,7 @@ class SOM(network.Layer):
         for i in range(closest-self.neighborhood, closest+self.neighborhood+1):
             if i >= 0 and i < self._size[0]: # if in range
                 neighbor_distance = float(abs(i-closest))
-                move_rate_modifier = transfer.gaussian(neighbor_distance, 
+                move_rate_modifier = transfer.gaussian(neighbor_distance,
                                                        self.neighbor_move_rate)
                 final_rate = move_rate_modifier*self.move_rate
 

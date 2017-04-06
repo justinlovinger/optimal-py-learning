@@ -6,7 +6,162 @@ import numpy
 from pynn import network
 from pynn.architecture import transfer
 
-class AddBias(network.ParallelLayer):
+class MLP(network.Model):
+    """MultiLayer Perceptron"""
+    def __init__(self, shape, transfers=None, learn_rate=0.5, momentum_rate=0.1):
+        super(MLP, self).__init__()
+
+        if transfers is None:
+            transfers = [ReluTransferPerceptron() for _ in range((len(shape)-1))]+[LinearTransfer()]
+
+        if len(transfers) != len(shape):
+            raise ValueError(
+                'Must have exactly 1 transfer between each pair of layers, and after the output')
+
+
+        # Create mlp layers, containing perceptrons and transfers
+        # Create first layer with bias
+        layers = [AddBias(Perceptron(shape[0]+1, shape[1],
+                                     learn_rate, momentum_rate)),
+                  transfers[0]]
+
+        # After are hidden layers with given shape
+        num_inputs = shape[1]
+        for num_outputs, transfer_layer in zip(shape[2:-1], transfers[1:-1]):
+            # Add perceptron followed by transfer
+            layers.append(Perceptron(num_inputs, num_outputs,
+                                     learn_rate, momentum_rate))
+            layers.append(transfer_layer)
+
+            num_inputs = num_outputs
+
+        # Final transfer function must be able to output negatives and positives
+        layers.append(Perceptron(shape[-2], shape[-1],
+                                 learn_rate, momentum_rate))
+        layers.append(transfers[-1])
+
+        self._layers = layers
+
+        # Setup activation vectors
+        # 1 for input, then 2 for each hidden and output (1 perceptron, 1 transfer)
+        self._activations = [numpy.zeros(shape[0])]
+        for size in shape[1:]:
+            self._activations.append(numpy.zeros(size))
+            self._activations.append(numpy.zeros(size))
+
+    def reset(self):
+        """Reset this model."""
+        raise NotImplementedError()
+
+    def activate(self, inputs):
+        """Return the model outputs for given inputs."""
+        inputs = numpy.array(inputs)
+        self._activations[0] = inputs
+
+        for i, layer in enumerate(self._layers):
+            ouputs = layer.activate(self._activations[i])
+
+            # Track all activations for learning, and layer inputs
+            self._activations[i+1] = ouputs
+
+        # Return activation of the only layer that feeds into output
+        return self._activations[-1]
+
+    def train_step(self, inputs, targets):
+        """Adjust the model towards the targets for given inputs.
+
+        Optional.
+        Only for incremental learning models.
+        """
+        outputs = self.activate(inputs)
+
+        error = targets - outputs
+        output_error = error # For returning
+
+        for i, layer in reversed(list(enumerate(self._layers))):
+            # Grab all the variables we need from storage dicts
+            inputs = self._activations[i]
+            outputs = self._activations[i+1]
+
+            # Compute errors for preceding layer before this layers changes
+            preceding_error = layer.get_prev_errors(inputs, error, outputs)
+
+            # Update
+            layer.update(inputs, outputs, error)
+
+            error = preceding_error
+
+        return output_error
+
+class Layer(object):
+    """A layer of computation for a supervised learning network."""
+    attributes = tuple([]) # Attributes for this layer
+
+    requires_prev = tuple([]) # Attributes that are required in the previous layer
+    requires_next = tuple([]) # Attributes that are required in the next layer
+
+    def __init__(self, *args, **kwargs):
+        self.network = None
+
+    def reset(self):
+        raise NotImplementedError()
+
+    def activate(self, inputs):
+        raise NotImplementedError()
+
+    def _avg_all_errors(self, all_errors, expected_shape):
+        # For efficiency, and because it is a common case
+        if len(all_errors) == 1:
+            return all_errors[0]
+
+        # Avg all non None errors
+        sum = numpy.zeros_like(all_errors[0])
+        num_averaged = 0
+        for errors in all_errors:
+            if errors is not None and errors.shape == expected_shape:
+                sum += errors
+                num_averaged += 1
+
+        if num_averaged == 0:
+            # No errors in lsit
+            return None
+        else:
+            return sum / num_averaged
+
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        raise NotImplementedError()
+
+    def update(self, all_inputs, outputs, all_errors):
+        raise NotImplementedError()
+
+    def pre_training(self, patterns):
+        """Called before each training run.
+
+        Optional.
+        """
+
+    def post_training(self, patterns):
+        """Called after each training run.
+
+        Optional.
+        """
+
+    def pre_iteration(self, patterns):
+        """Called before each training iteration.
+
+        Optional.
+        """
+
+    def post_iteration(self, patterns):
+        """Called after each training iteration.
+
+        Optional.
+        """
+
+class ParallelLayer(Layer):
+    """A composite of layers connected in parallel."""
+
+class AddBias(ParallelLayer):
     def __init__(self, layer):
         self.layer = layer
 
@@ -21,12 +176,10 @@ class AddBias(network.ParallelLayer):
         # Clip the last delta, which was for bias input
         return self.layer.get_prev_errors(all_inputs, all_errors, outputs)[:-1]
 
-    def update(self, all_inputs, outputs, all_errors):
-        assert len(all_inputs) == 1
-        inputs = all_inputs[0]
-        self.layer.update([numpy.hstack((inputs, [1]))], outputs, all_errors)
+    def update(self, inputs, outputs, all_errors):
+        self.layer.update(numpy.hstack((inputs, [1])), outputs, all_errors)
 
-class Perceptron(network.Layer):
+class Perceptron(Layer):
     def __init__(self, inputs, outputs, 
                  learn_rate=0.5, momentum_rate=0.1, initial_weights_range=0.25):
         super(Perceptron, self).__init__()
@@ -53,19 +206,16 @@ class Perceptron(network.Layer):
     def activate(self, inputs):
         return numpy.dot(inputs, self._weights)
 
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        errors = self._avg_all_errors(all_errors, outputs.shape)
-        return numpy.dot(errors, self._weights.T)
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
+        return numpy.dot(error_vec, self._weights.T)
 
-    def update(self, all_inputs, outputs, all_errors):
-        assert len(all_inputs) == 1
-        inputs = all_inputs[0]
-        deltas = self._avg_all_errors(all_errors, outputs.shape)
+    def update(self, inputs, outputs, error_vec):
+        deltas = error_vec
 
         # Update, [:,None] quickly transposes an array to a col vector
         changes = inputs[:,None] * deltas
-        self._weights += self.learn_rate*changes 
-        
+        self._weights += self.learn_rate*changes
+
         if self._momentums is not None:
             self._weights += self.momentum_rate*self._momentums
 
@@ -149,7 +299,7 @@ class DropoutPerceptron(Perceptron):
         self._active_neurons = range(self._size[1])
 
 
-class DropoutInputs(network.Layer):
+class DropoutInputs(Layer):
     """Passes inputs along unchanged, but disables inputs during training.
     
     Also adds bias, since getting DropoutPerceptron to work with AddBias
@@ -184,7 +334,7 @@ class DropoutInputs(network.Layer):
         # Disable random selection of inputs
         self._active_neurons = _random_indexes(self._num_inputs,
                                                self._active_probability)
-        
+
         # Bias is always active
         self._active_neurons.append(self._num_inputs)
 
@@ -197,7 +347,7 @@ class DropoutInputs(network.Layer):
 
 def _random_indexes(length, probability):
     """Returns a list of indexes randomly selected from 0..length-1.
-    
+
     Args:
         length: int; Maximum number of indexes.
         probability: float; Independant probability for any index to be selected.
@@ -220,33 +370,40 @@ def _random_indexes(length, probability):
 ################################################
 # Transfer functions with perceptron error rule
 ################################################
+class LinearTransfer(transfer.Transfer):
+    def activate(self, inputs):
+        return inputs
+
+    def get_prev_errors(self, input, error, output):
+        return error
+
 # The perceptron learning rule states that its errors
 # are multiplied by the derivative of the transfers output.
 # The output learning for an rbf, by contrast, does not.
 class TanhTransferPerceptron(transfer.TanhTransfer):
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
         return super(TanhTransferPerceptron, self).get_prev_errors(
-            all_inputs, all_errors, outputs) * transfer.dtanh(outputs)
+            input_vec, error_vec, output_vec) * transfer.dtanh(output_vec)
 
 
 class ReluTransferPerceptron(transfer.ReluTransfer):
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
         return super(ReluTransferPerceptron, self).get_prev_errors(
-            all_inputs, all_errors, outputs) * transfer.drelu(all_inputs[0])
+            input_vec, error_vec, output_vec) * transfer.drelu(input_vec)
 
 
 class GaussianTransferPerceptron(transfer.GaussianTransfer):
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
         return super(GaussianTransferPerceptron, self).get_prev_errors(
-            all_inputs, all_errors, outputs) * transfer.dgaussian_vec(
-                all_inputs[0], outputs, self._variance)
+            input_vec, error_vec, output_vec) * transfer.dgaussian_vec(
+                input_vec, output_vec, self._variance)
 
 
 class SoftmaxTransferPerceptron(transfer.SoftmaxTransfer):
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
+    def get_prev_errors(self, input_vec, error_vec, output_vec):
         # dsoftmax returns a jacobian
         # Mutliply output errors by jacobian for input errors
         # numpy.array dot numpy.matrix is equivalent to matrix multiplication,
         # where the first array is a row matrix.
         return super(SoftmaxTransferPerceptron, self).get_prev_errors(
-            all_inputs, all_errors, outputs).dot(transfer.dsoftmax(outputs))
+            input_vec, error_vec, output_vec).dot(transfer.dsoftmax(output_vec))
