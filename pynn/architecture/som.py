@@ -6,13 +6,8 @@ from pynn import network
 from pynn.architecture import transfer
 from pynn import calculate
 
-def min_index(values):
-    return min(enumerate(values), key=operator.itemgetter(1))[0]
-
-class SOM(network.Layer):
-    requires_prev = (None,)
-
-    def __init__(self, inputs, neurons, 
+class SOM(network.Model):
+    def __init__(self, attributes, neurons, 
                  move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0,
                  initial_weights_range=1.0):
         super(SOM, self).__init__()
@@ -22,30 +17,35 @@ class SOM(network.Layer):
         self.neighbor_move_rate = neighbor_move_rate
         self.initial_weights_range = initial_weights_range
 
-        self._size = (neurons, inputs)
+        self._size = (neurons, attributes)
         self._weights = numpy.zeros(self._size)
-        self._distances = numpy.zeros(self._size)
+        self._distances = numpy.zeros(neurons)
         self.reset()
 
     def reset(self):
+        """Reset this model."""
         # Randomize weights, between -1 and 1
         random_matrix = numpy.random.random(self._size)
         self._weights = (2*random_matrix-1)*self.initial_weights_range
 
     def activate(self, inputs):
+        """Return the model outputs for given inputs."""
         diffs = inputs - self._weights
         self._distances = [numpy.sqrt(d.dot(d)) for d in diffs]
         return numpy.array(self._distances)
 
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return None
+    def train_step(self, inputs, targets):
+        """Adjust the model towards the targets for given inputs.
 
-    def get_closest(self):
-        return min_index(self._distances)
+        Optional.
+        Only for incremental learning models.
+        """
+        self.activate(inputs)
+        self._move_neurons(inputs)
 
-    def move_neurons(self, inputs):
+    def _move_neurons(self, inputs):
         # Perform a competition, and move the winner closer to the input
-        closest = self.get_closest()
+        closest = self._get_closest()
 
         # Move the winner and neighbors closer
         # The further the neighbor, the less it should move
@@ -58,7 +58,8 @@ class SOM(network.Layer):
 
                 self._weights[i] += final_rate*(inputs-self._weights[i])
 
-    def update(self, all_inputs, outputs, all_errors):
-        assert len(all_inputs) == 1
-        inputs = all_inputs[0]
-        self.move_neurons(inputs)
+    def _get_closest(self):
+        return _min_index(self._distances)
+
+def _min_index(values):
+    return min(enumerate(values), key=operator.itemgetter(1))[0]

@@ -86,31 +86,34 @@ class Model(object):
                     post_pattern_callback(self, pattern)
 
                 # Sum errors
-                error += numpy.mean(errors**2)
+                try:
+                    error += numpy.mean(errors**2)
+                except TypeError:
+                    # train_step doesn't return error
+                    error = None
 
             # Logging and breaking
-            error = error / len(patterns)
+            try:
+                error = error / len(patterns)
+            except TypeError:
+                # train_step doesn't return error
+                error = None
             if self.logging:
                 print "Iteration {}, Error: {}".format(self.iteration, error)
 
-            # Break early to prevent overtraining
-            if error < error_break:
-                break
+            if error is not None:
+                # Break early to prevent overtraining
+                if error < error_break:
+                    break
 
-            # Break if no progress is made
-            def _all_close(values, other_value, threshold):
-                for value in values:
-                    if abs(value - other_value) > threshold:
-                        return False
-                return True
+                # Break if no progress is made
+                if _all_close(error_history, error, error_stagnant_threshold):
+                    # Break if not enough difference between all resent errors
+                    # and current error
+                    break
 
-            if _all_close(error_history, error, error_stagnant_threshold):
-                # Break if not enough difference between all resent errors
-                # and current error
-                break
-
-            error_history.append(error)
-            error_history.pop(0)
+                error_history.append(error)
+                error_history.pop(0)
 
     def serialize(self):
         """Convert model into string.
@@ -149,6 +152,13 @@ class Model(object):
             error = error + self.mse(pattern)
 
         return error/len(patterns)
+
+def _all_close(values, other_value, threshold):
+    """Return true if all values are within threshold distance of other_value."""
+    for value in values:
+        if abs(value - other_value) > threshold:
+            return False
+    return True
 
 ##########################
 # Quick network functions
