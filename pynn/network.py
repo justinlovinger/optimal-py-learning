@@ -266,35 +266,3 @@ def _make_dropout_mlp(shape, learn_rate, momentum_rate,
                                         active_probability=1.0))
 
     return layers
-
-
-def make_rbf(inputs, neurons, outputs, learn_rate=1.0, variance=None, normalize=True,
-             move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0,):
-    """Create a radial-basis function network."""
-    from pynn.architecture import transfer
-    from pynn.architecture import mlp
-    from pynn.architecture import som
-
-    if variance == None:
-        variance = 4.0/neurons
-
-    som_ = som.SOM(inputs, neurons, move_rate, neighborhood, neighbor_move_rate)
-    gaussian_transfer = transfer.GaussianTransfer(variance)
-    perceptron = mlp.Perceptron(neurons, outputs, learn_rate, momentum_rate=0.0)
-    
-    layers = {'I': [som_],
-              som_: [gaussian_transfer],
-              gaussian_transfer: [perceptron]}
-
-    if normalize:
-        normalize_layer = transfer.NormalizeTransfer()
-        layers[perceptron] = [normalize_layer]
-        layers[gaussian_transfer].append(normalize_layer)
-        layers[normalize_layer] = ['O']
-
-        incoming_order_dict = {normalize_layer: [perceptron, gaussian_transfer]}
-    else:
-        layers[perceptron] = ['O']
-        incoming_order_dict = None
-
-    return Network(layers, incoming_order_dict)
