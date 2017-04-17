@@ -2,7 +2,7 @@ import numpy
 
 from pynn import network
 
-class Ensemble(network.ParallelLayer):
+class Ensemble(network.Model):
     def __init__(self, networks):
         super(Ensemble, self).__init__()
 

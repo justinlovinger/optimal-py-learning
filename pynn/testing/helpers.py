@@ -4,55 +4,54 @@ import numpy
 
 from pynn import network
 
-class EmptyLayer(network.Layer):
+class EmptyModel(network.Model):
     def activate(self, inputs):
         pass
 
     def reset(self):
         pass
 
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        pass
+    def train_step(self, inputs, targets):
+        output = self.activate(inputs)
+        if output is not None:
+            return targets - output
 
-    def update(self, inputs, outputs, errors):
-        pass
-
-class SetOutputLayer(EmptyLayer):
+class SetOutputModel(EmptyModel):
     def __init__(self, output):
-        super(SetOutputLayer, self).__init__()
+        super(SetOutputModel, self).__init__()
 
         self.output = numpy.array(output)
 
     def activate(self, inputs):
         return self.output
 
-class ManySetOutputsLayer(EmptyLayer):
+class ManySetOutputsModel(EmptyModel):
     def __init__(self, outputs):
-        super(ManySetOutputsLayer, self).__init__()
+        super(ManySetOutputsModel, self).__init__()
 
         self.outputs = [numpy.array(output) for output in outputs]
 
     def activate(self, inputs):
         return self.outputs.pop(0)
 
-class RememberPatternsLayer(EmptyLayer):
+class RememberPatternsModel(EmptyModel):
     """Returns the output for a given input."""
     def __init__(self):
-        super(RememberPatternsLayer, self).__init__()
+        super(RememberPatternsModel, self).__init__()
 
         self._inputs_output_dict = {}
 
-    def pre_training(self, patterns):
+    def reset(self):
+        self._inputs_output_dict = {}
+
+    def train(self, patterns):
         for (inputs, targets) in patterns:
             self._inputs_output_dict[tuple(inputs)] = numpy.array(targets)
 
     def activate(self, inputs):
         return numpy.array(self._inputs_output_dict[tuple(inputs)])
 
-    def reset(self):
-        self._inputs_output_dict = {}
-
-class SummationLayer(network.Layer):
+class SummationModel(EmptyModel):
     def activate(self, inputs):
         return numpy.sum(inputs, axis=1)
 

@@ -9,6 +9,9 @@ class Transfer(object):
     def update(self, *args):
         pass
 
+    def reset(self):
+        pass
+
     def activate(self, inputs):
         raise NotImplementedError()
 

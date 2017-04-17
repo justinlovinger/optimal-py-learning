@@ -7,121 +7,22 @@ import numpy
 from pynn import graph
 from pynn import network
 from pynn.data import datasets
-from pynn.architecture import mlp
+from pynn.architecture import mlp, rbf
 from pynn.testing import helpers
 
-
-def test_layer_as_key():
-    layer = network.Layer()
-    layer2 = network.Layer()
-    dict_ = {layer: layer2,
-             layer2: layer}
-
-    assert dict_[layer] == layer2
-    assert dict_[layer2] == layer
-
-
-def test_incoming_order_dict():
-    incoming_layers = []
-    for i in range(20):
-        incoming_layers.append(helpers.EmptyLayer())
-
-    # Construct network with many layers going into one
-    last_layer = helpers.EmptyLayer()
-    layers = {'I': incoming_layers,
-              last_layer: ['O']}
-    for layer in incoming_layers:
-        layers[layer] = [last_layer]
-
-    incoming_order = {last_layer: incoming_layers} # Same order as we constructed
-    nn = network.Network(layers, incoming_order_dict=incoming_order)
-
-    assert nn._graph.backwards_adjacency[last_layer] == incoming_layers
-
-
-def test_activation_order():
-    adjacency_dict = {'I': ['a'],
-                      '1': ['a'],
-                      'a': ['b', 'c'],
-                      'b': ['c'],
-                      'c': ['O']}
-    activation_order = network._make_activation_order(graph.Graph(adjacency_dict))
-    assert activation_order == ['1', 'a', 'b', 'c']
-
-
-def test_activation_order_cycle():
-    adjacency_dict = {'I': ['a'],
-                      'a': ['b'],
-                      'b': ['1', 'O'],
-                      '1': ['a']}
-    activation_order = network._make_activation_order(graph.Graph(adjacency_dict))
-    assert activation_order == ['a', 'b', '1']
-
-
-
-def test_network_validation_layers():
-    with pytest.raises(TypeError):
-        n = network.Network([None])
-
-    with pytest.raises(TypeError):
-        n = network.Network([1])
-
-    with pytest.raises(TypeError):
-        n = network.Network(['q'])
-
-    n = network.Network([helpers.EmptyLayer()])
-
-
-def test_network_validation_requires_next_prev():
-    with pytest.raises(TypeError):
-        n = network.Network([network.GrowingLayer(), helpers.EmptyLayer()])
-
-    class EmptyGrowing(network.GrowingLayer):
-        def reset(self):
-            pass
-
-    class EmptySupportsGrowing(network.SupportsGrowingLayer):
-        def reset(self):
-            pass
-
-    n = network.Network([EmptyGrowing(), EmptySupportsGrowing()])
-
-
-def test_network_validation_parallel_requires_prev_next():
-    layer = helpers.EmptyLayer()
-    layer.attributes = ['test', 'test2']
-
-    layers = []
-    for i in range(3):
-        layers.append(copy.deepcopy(layer))
-
-    prev_layer = network.Layer()
-    prev_layer.requires_next = ['test']
-    next_layer = network.Layer()
-    next_layer.requires_prev = ['test2']
-
-    # All layers same: valid
-    network._validate_layers_parallel(layers, prev_layer, next_layer)
-
-    # Change 1: invalid
-    layers[0].attributes = []
-    with pytest.raises(TypeError):
-        network._validate_layers_parallel(layers, prev_layer, next_layer)
-
-
-def test_get_error():
+def test_mse():
     # This network will always output 0 for input 0
-    nn = network.Network([mlp.Perceptron(1, 1)])
-    assert nn.get_error([[0], [1]]) == 1.0
-    assert nn.get_error([[0], [0.5]]) == 0.25
+    nn = helpers.SetOutputModel(0)
+    assert nn.mse([[0], [1]]) == 1.0
+    assert nn.mse([[0], [0.5]]) == 0.25
 
-    nn = network.Network([mlp.Perceptron(1, 2)])
-    assert nn.get_error([[0], [1, 1]]) == 1.0
+    nn = helpers.SetOutputModel([0, 0])
+    assert nn.mse([[0], [1, 1]]) == 1.0
 
 
 def test_post_pattern_callback():
     pat = datasets.get_xor()
-    nn = network.Network([])
+    nn = helpers.EmptyModel()
 
     history = []
     def callback(nn, pattern):
@@ -130,14 +31,6 @@ def test_post_pattern_callback():
     nn.train(pat, iterations=1, post_pattern_callback=callback)
     assert pat == history
 
-def test_layer_sees_network():
-    layer = helpers.EmptyLayer()
-    assert layer.network == None
-
-    # Once added to network, layer has link to that network
-    nn = network.Network([layer])
-    assert layer.network == nn
-
 ##########################
 # Full architecture tests
 ##########################
@@ -145,58 +38,59 @@ def test_layer_sees_network():
 def test_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = network.make_mlp((2, 2, 1))
+    nn = mlp.MLP((2, 2, 1))
     pat = datasets.get_xor()
 
-    error = nn.get_avg_error(pat)
+    error = nn.avg_mse(pat)
     nn.train(pat, 10)
-    assert nn.get_avg_error(pat) < error
+    assert nn.avg_mse(pat) < error
 
 
 pytest.mark.slowtest()
 def test_mlp_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = network.make_mlp((2, 2, 2, 1))
+    nn = mlp.MLP((2, 2, 2, 1))
     pat = datasets.get_xor()
 
     nn.train(pat, error_break=0.015)
-    assert nn.get_avg_error(pat) <= 0.02
+    assert nn.avg_mse(pat) <= 0.02
 
 
 def test_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = network.make_mlp_classifier((2, 2, 2))
+    nn = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransferPerceptron())
     pat = datasets.get_xor()
     _make_xor_one_hot(pat)
 
-    error = nn.get_avg_error(pat)
+    error = nn.avg_mse(pat)
     nn.train(pat, 10)
-    assert nn.get_avg_error(pat) < error
+    assert nn.avg_mse(pat) < error
 
 
 pytest.mark.slowtest()
 def test_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = network.make_mlp_classifier((2, 2, 2), learn_rate=0.01, momentum_rate=0.005)
+    nn = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransferPerceptron(),
+                 learn_rate=0.01, momentum_rate=0.005)
     pat = datasets.get_and()
     _make_xor_one_hot(pat)
 
     nn.train(pat, error_break=0.015)
-    assert nn.get_avg_error(pat) <= 0.02
+    assert nn.avg_mse(pat) <= 0.02
 
 
 def test_dropout_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = network.make_dropout_mlp((2, 2, 1))
+    nn = mlp.DropoutMLP((2, 2, 1))
     pat = datasets.get_xor()
 
-    error = nn.get_avg_error(pat)
+    error = nn.avg_mse(pat)
     nn.train(pat, 10)
-    assert nn.get_avg_error(pat) < error
+    assert nn.avg_mse(pat) < error
 
 
 pytest.mark.slowtest()
@@ -204,9 +98,9 @@ def test_dropout_mlp_convergence():
     # Run until convergence
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
-    nn = network.make_dropout_mlp((2, 6, 3, 1), learn_rate=0.2, momentum_rate=0.1,
-                                  input_active_probability=1.0,
-                                  hidden_active_probability=0.9)
+    nn = mlp.DropoutMLP((2, 6, 3, 1), learn_rate=0.2, momentum_rate=0.1,
+                        input_active_probability=1.0,
+                        hidden_active_probability=0.9)
     pat = datasets.get_xor()
 
     # Error break lower than cutoff, since dropout may have different error
@@ -215,19 +109,20 @@ def test_dropout_mlp_convergence():
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
-    assert nn.get_avg_error(pat) <= 0.1
+    assert nn.avg_mse(pat) <= 0.1
 
 
 def test_dropout_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = network.make_dropout_mlp_classifier((2, 6, 3, 2), learn_rate=0.2, momentum_rate=0.1)
+    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
+                        learn_rate=0.2, momentum_rate=0.1)
     pat = datasets.get_and()
     _make_xor_one_hot(pat)
 
-    error = nn.get_avg_error(pat)
+    error = nn.avg_mse(pat)
     nn.train(pat, 10, pattern_select_func=network.select_sample)
-    assert nn.get_avg_error(pat) < error
+    assert nn.avg_mse(pat) < error
 
 
 pytest.mark.slowtest()
@@ -235,9 +130,10 @@ def test_dropout_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
-    nn = network.make_dropout_mlp_classifier((2, 6, 3, 2), learn_rate=0.2, momentum_rate=0.1,
-                                             input_active_probability=1.0,
-                                             hidden_active_probability=0.9)
+    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
+                        learn_rate=0.2, momentum_rate=0.1,
+                        input_active_probability=1.0,
+                        hidden_active_probability=0.9)
     pat = datasets.get_and()
     _make_xor_one_hot(pat)
 
@@ -247,7 +143,7 @@ def test_dropout_mlp_classifier_convergence():
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
-    assert nn.get_avg_error(pat) <= 0.1
+    assert nn.avg_mse(pat) <= 0.1
 
 
 def _make_xor_one_hot(dataset):
@@ -263,23 +159,23 @@ def _make_xor_one_hot(dataset):
 def test_rbf():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = network.make_rbf(2, 4, 1, normalize=True)
+    nn = rbf.RBF(2, 4, 1, scale_by_similarity=True)
     pat = datasets.get_xor()
 
-    error = nn.get_avg_error(pat)
+    error = nn.avg_mse(pat)
     nn.train(pat, 10)
-    assert nn.get_avg_error(pat) < error
+    assert nn.avg_mse(pat) < error
 
 
 pytest.mark.slowtest()
 def test_rbf_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = network.make_rbf(2, 4, 1, normalize=True)
+    nn = rbf.RBF(2, 4, 1, scale_by_similarity=True)
     pat = datasets.get_xor()
 
     nn.train(pat, error_break=0.015)
-    assert nn.get_avg_error(pat) <= 0.02
+    assert nn.avg_mse(pat) <= 0.02
 
 
 ################################
@@ -331,85 +227,38 @@ def test_select_random(monkeypatch):
 #########################
 # Pre and post hooks
 #########################
-class CountPerceptron(mlp.Perceptron):
+class CountMLP(mlp.MLP):
     def __init__(self, *args, **kwargs):
-        super(CountPerceptron, self).__init__(*args, **kwargs)
+        super(CountMLP, self).__init__(*args, **kwargs)
         self.count = 0
-
-
-def test_pre_training():
-    # Setup pre_training function
-    class TestPerceptron(CountPerceptron):
-        def pre_training(self, patterns):
-            self.count += 1
-
-    # Train for a few iterations
-    nn = network.Network([TestPerceptron(1, 1)])
-    nn.train([[[1], [1]]], iterations=10, error_break=None)
-
-    # Count incremented only once
-    assert list(nn._activation_order)[0].count == 1
-
-
-def test_post_training():
-    # Setup post_training function
-    class TestPerceptron(CountPerceptron):
-        def post_training(self, patterns):
-            self.count += 1
-
-    # Train for a few iterations
-    nn = network.Network([TestPerceptron(1, 1)])
-    nn.train([[[1], [1]]], iterations=10, error_break=None)
-
-    # Count incremented only once
-    assert list(nn._activation_order)[0].count == 1
 
 
 def test_pre_iteration():
     # Setup pre_iteration function
-    class TestPerceptron(CountPerceptron):
+    class TestMLP(CountMLP):
         def pre_iteration(self, patterns):
             self.count += 1
 
     # Train for a few iterations
-    nn = network.Network([TestPerceptron(1, 1)])
+    nn = TestMLP((1, 1))
     nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented for each iteration
-    assert list(nn._activation_order)[0].count == 10
+    assert nn.count == 10
 
 
 def test_post_iteration():
     # Setup post_iteration function
-    class TestPerceptron(CountPerceptron):
+    class TestMLP(CountMLP):
         def post_iteration(self, patterns):
             self.count += 1
 
     # Train for a few iterations
-    nn = network.Network([TestPerceptron(1, 1)])
+    nn = TestMLP((1, 1))
     nn.train([[[1], [1]]], iterations=10, error_break=None)
 
     # Count incremented for each iteration
-    assert list(nn._activation_order)[0].count == 10
-
-
-def test_network_preprocess_func_keyword():
-    dataset = [([0], [0])]
-    def preprocess_func(patterns):
-        return [([0], [1])]
-
-    # Pre-test
-    nn_pre = network.Network([helpers.RememberPatternsLayer()])
-    nn_pre.train(dataset)
-    assert nn_pre._activation_order[0]._inputs_output_dict[(0,)] == numpy.array([0])
-
-    # Preprocess function should change pattern
-    nn = network.Network([helpers.RememberPatternsLayer()])
-    nn.train(dataset, preprocess_func=preprocess_func)
-
-    # Layer stored preprocessed dataset
-    assert nn._activation_order[0]._inputs_output_dict[(0,)] == numpy.array([1])
-
+    assert nn.count == 10
 
 ####################
 # Train function
@@ -418,7 +267,7 @@ def test_break_on_stagnation_completely_stagnant():
     # If error doesn't change by enough after enough iterations
     # stop training
 
-    nn = network.Network([helpers.SetOutputLayer([1.0])])
+    nn = helpers.SetOutputModel(1.0)
 
     # Stop training if error does not change by more than threshold after
     # distance iterations
@@ -429,8 +278,7 @@ def test_break_on_stagnation_dont_break_if_wrapped_around():
     # Should not break on situations like: 1.0, 0.9, 0.8, 0.7, 1.0
     # Since error did change, even if it happens to be the same after
     # n iterations
-    nn = network.Network([helpers.ManySetOutputsLayer(
-        [[1.0], [0.9], [0.8], [0.7], [1.0], [1.0], [1.0], [1.0], [1.0]])])
+    nn = helpers.ManySetOutputsModel([[1.0], [0.9], [0.8], [0.7], [1.0], [1.0], [1.0], [1.0], [1.0]])
 
     # Should pass wrap around to [1.0], and stop after consecutive [1.0]s
     nn.train([([0.0], [0.0])], error_stagnant_distance=4, error_stagnant_threshold=0.01)

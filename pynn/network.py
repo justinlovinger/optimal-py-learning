@@ -48,8 +48,7 @@ class Model(object):
 
     def train(self, patterns, iterations=1000, error_break=0.002,
               error_stagnant_distance=5, error_stagnant_threshold=0.0001,
-              pattern_select_func=select_iterative, post_pattern_callback=None,
-              preprocess_func=None):
+              pattern_select_func=select_iterative, post_pattern_callback=None):
         """Train model to converge on set of patterns.
 
         Note: Override this method for batch learning models.
@@ -63,16 +62,13 @@ class Model(object):
         """
         self._reset_bookkeeping()
 
-        # Preprocess data
-        if preprocess_func is not None:
-            patterns = preprocess_func(patterns)
-
         # Initialize error history with errors that are
         # unlikey to be close in reality
         error_history = [1e10]*error_stagnant_distance
 
         # Learn on each pattern for each iteration
         for self.iteration in range(1, iterations+1):
+            self.pre_iteration(patterns)
 
             # Learn each selected pattern
             error = 0.0
@@ -91,6 +87,8 @@ class Model(object):
                 except TypeError:
                     # train_step doesn't return error
                     error = None
+
+            self.post_iteration(patterns)
 
             # Logging and breaking
             try:
@@ -114,6 +112,20 @@ class Model(object):
 
                 error_history.append(error)
                 error_history.pop(0)
+
+    def pre_iteration(self, patterns):
+        """Optional. Callback performed before each training iteration.
+
+        Note: If self.train is overwritten, this may not be called.
+        """
+        pass
+
+    def post_iteration(self, patterns):
+        """Optional. Callback performed after each training iteration.
+
+        Note: If self.train is overwritten, this may not be called.
+        """
+        pass
 
     def serialize(self):
         """Convert model into string.

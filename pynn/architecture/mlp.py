@@ -40,6 +40,8 @@ class MLP(network.Model):
             self._activations.append(numpy.zeros(size))
             self._activations.append(numpy.zeros(size))
 
+        self.reset()
+
     def _make_layers(self, shape, transfers, learn_rate, momentum_rate):
         """Return sequence of perceptron and transfer layers."""
         # Create mlp layers, containing perceptrons and transfers
@@ -62,7 +64,8 @@ class MLP(network.Model):
 
     def reset(self):
         """Reset this model."""
-        raise NotImplementedError()
+        for layer in self._layers:
+            layer.reset()
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
@@ -105,6 +108,7 @@ class MLP(network.Model):
         return output_error
 
 class DropoutMLP(MLP):
+    # TODO: Make sure the pre_iteration callback to disable neurons is implemented
     def __init__(self, shape, transfers=None, learn_rate=0.5, momentum_rate=0.1,
                  input_active_probability=0.8, hidden_active_probability=0.5):
         self._inp_act_prob = input_active_probability
