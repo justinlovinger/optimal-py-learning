@@ -18,7 +18,17 @@ class MLP(network.Model):
             raise ValueError(
                 'Must have exactly 1 transfer between each pair of layers, and after the output')
 
+        self._layers = self._make_layers(shape, transfers, learn_rate, momentum_rate)
 
+        # Setup activation vectors
+        # 1 for input, then 2 for each hidden and output (1 perceptron, 1 transfer)
+        self._activations = [numpy.zeros(shape[0])]
+        for size in shape[1:]:
+            self._activations.append(numpy.zeros(size))
+            self._activations.append(numpy.zeros(size))
+
+    def _make_layers(self, shape, transfers, learn_rate, momentum_rate):
+        """Return sequence of perceptron and transfer layers."""
         # Create mlp layers, containing perceptrons and transfers
         # Create first layer with bias
         layers = [AddBias(Perceptron(shape[0]+1, shape[1],
@@ -27,7 +37,7 @@ class MLP(network.Model):
 
         # After are hidden layers with given shape
         num_inputs = shape[1]
-        for num_outputs, transfer_layer in zip(shape[2:-1], transfers[1:-1]):
+        for num_outputs, transfer_layer in zip(shape[2:], transfers[1:]):
             # Add perceptron followed by transfer
             layers.append(Perceptron(num_inputs, num_outputs,
                                      learn_rate, momentum_rate))
@@ -35,19 +45,7 @@ class MLP(network.Model):
 
             num_inputs = num_outputs
 
-        # Final transfer function must be able to output negatives and positives
-        layers.append(Perceptron(shape[-2], shape[-1],
-                                 learn_rate, momentum_rate))
-        layers.append(transfers[-1])
-
-        self._layers = layers
-
-        # Setup activation vectors
-        # 1 for input, then 2 for each hidden and output (1 perceptron, 1 transfer)
-        self._activations = [numpy.zeros(shape[0])]
-        for size in shape[1:]:
-            self._activations.append(numpy.zeros(size))
-            self._activations.append(numpy.zeros(size))
+        return layers
 
     def reset(self):
         """Reset this model."""
@@ -92,6 +90,45 @@ class MLP(network.Model):
             error = preceding_error
 
         return output_error
+
+class DropoutMLP(MLP):
+    def __init__(self, shape, transfers=None, learn_rate=0.5, momentum_rate=0.1,
+                 input_active_probability=0.8, hidden_active_probability=0.5):
+        self._inp_act_prob = input_active_probability
+        self._hid_act_prob = hidden_active_probability
+        super(DropoutMLP, self).__init__(shape, transfers, learn_rate, momentum_rate)
+
+        # Prepend new activations for dropout inputs layer
+        self._activations.insert(0, numpy.zeros(shape[0]))
+
+    def _make_layers(self, shape, transfers, learn_rate, momentum_rate):
+        """Return sequence of perceptron and transfer layers."""
+        # First layer is a special layer that disables inputs during training
+        # Next is a special perceptron layer with bias (bias added by DropoutInputs)
+        biased_perceptron = DropoutPerceptron(shape[0]+1, shape[1],
+                                              learn_rate, momentum_rate,
+                                              active_probability=self._hid_act_prob)
+        layers = [DropoutInputs(shape[0], self._inp_act_prob),
+                  biased_perceptron, transfers[0]]
+
+        # After are hidden layers with given shape
+        num_inputs = shape[1]
+        for num_outputs, transfer_layer in zip(shape[2:-1], transfers[1:-1]):
+            # Add perceptron followed by transfer
+            layers.append(DropoutPerceptron(num_inputs, num_outputs,
+                                            learn_rate, momentum_rate,
+                                            active_probability=self._hid_act_prob))
+            layers.append(transfer_layer)
+
+            num_inputs = num_outputs
+
+        # Last perceptron layer must not reduce number of outputs
+        layers.append(DropoutPerceptron(shape[-2], shape[-1],
+                                        learn_rate, momentum_rate,
+                                        active_probability=1.0))
+        layers.append(transfers[-1])
+
+        return layers
 
 class Layer(object):
     """A layer of computation for a supervised learning network."""

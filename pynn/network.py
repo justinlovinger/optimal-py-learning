@@ -174,41 +174,6 @@ def make_mlp_classifier(shape, learn_rate=0.5, momentum_rate=0.1):
 
     return Network(layers)
 
-def make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
-    """Create a multi-layer perceptron network for regression or classification."""
-    from pynn.architecture import mlp
-
-    layers = _make_mlp(shape, learn_rate, momentum_rate)
-
-    # Linear output for regression
-    return Network(layers)
-
-def _make_mlp(shape, learn_rate=0.5, momentum_rate=0.1):
-    """Return the common layers in regression and classification mlps."""
-    from pynn.architecture import mlp
-
-    # Create first layer with bias
-    layers = [mlp.AddBias(mlp.Perceptron(shape[0]+1, shape[1],
-                                         learn_rate, momentum_rate)),
-              mlp.ReluTransferPerceptron()]
-
-    # After are hidden layers with given shape
-    num_inputs = shape[1]
-    for num_outputs in shape[2:-1]:
-        # Add perceptron followed by transfer
-        layers.append(mlp.Perceptron(num_inputs, num_outputs,
-                                     learn_rate, momentum_rate))
-        layers.append(mlp.ReluTransferPerceptron())
-
-        num_inputs = num_outputs
-
-    # Final transfer function must be able to output negatives and positives
-    layers.append(mlp.Perceptron(shape[-2], shape[-1],
-                                 learn_rate, momentum_rate))
-
-    return layers
-
-
 def make_dropout_mlp_classifier(shape, learn_rate=0.5, momentum_rate=0.1,
                                 input_active_probability=0.8, hidden_active_probability=0.5):
     """Create a multi-layer perceptron network with dropout for classification."""
@@ -221,48 +186,3 @@ def make_dropout_mlp_classifier(shape, learn_rate=0.5, momentum_rate=0.1,
     layers.append(mlp.SoftmaxTransferPerceptron())
 
     return Network(layers)
-
-
-def make_dropout_mlp(shape, learn_rate=0.5, momentum_rate=0.1,
-                     input_active_probability=0.8, hidden_active_probability=0.5):
-    """Create a multi-layer perceptron network with dropout for regression or classification."""
-    from pynn.architecture import mlp
-
-    layers = _make_dropout_mlp(shape, learn_rate, momentum_rate,
-                               input_active_probability, hidden_active_probability)
-
-    # Linear output for regression
-    return Network(layers)
-
-
-def _make_dropout_mlp(shape, learn_rate, momentum_rate,
-                      input_active_probability, hidden_active_probability):
-    """Return the common layers in regression and classification dropout mlps."""
-    from pynn.architecture import mlp
-
-    # First layer is a special layer that disables inputs during training
-    # Next is a special perceptron layer with bias (bias added by DropoutInputs)
-    biased_perceptron = mlp.DropoutPerceptron(shape[0]+1, shape[1],
-                                              learn_rate, momentum_rate,
-                                              active_probability=hidden_active_probability)
-    layers = [mlp.DropoutInputs(shape[0], input_active_probability),
-              biased_perceptron, mlp.ReluTransferPerceptron()]
-
-    # After are all other layers that make up the shape
-    num_inputs = shape[1]
-    for num_outputs in shape[2:-1]:
-        # Add perceptron followed by transfer
-        layers.append(mlp.DropoutPerceptron(num_inputs, num_outputs,
-                                            learn_rate, momentum_rate,
-                                            active_probability=hidden_active_probability))
-        layers.append(mlp.ReluTransferPerceptron())
-
-        num_inputs = num_outputs
-
-    # Final transfer function must be able to output negatives and positives,
-    # Last perceptron layer must not reduce number of outputs
-    layers.append(mlp.DropoutPerceptron(shape[-2], shape[-1],
-                                        learn_rate, momentum_rate,
-                                        active_probability=1.0))
-
-    return layers
