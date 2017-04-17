@@ -7,12 +7,25 @@ from pynn import network
 from pynn.architecture import transfer
 
 class MLP(network.Model):
-    """MultiLayer Perceptron"""
+    """MultiLayer Perceptron
+
+    Args:
+        shape: Number of inputs, followed by number of outputs of each layer.
+            Shape of each weight matrix is given by sequential pairs in shape.
+        tranfers: Optional. List of transfer layers.
+            Can be given as a single transfer layer to easily define output transfer.
+            Defaults to ReLU hidden followed by linear output.
+        learn_rate: Learning rate for backpropogation.
+        momentum_rate: Momentum rate for backpropagation.
+    """
     def __init__(self, shape, transfers=None, learn_rate=0.5, momentum_rate=0.1):
         super(MLP, self).__init__()
 
         if transfers is None:
             transfers = [ReluTransferPerceptron() for _ in range((len(shape)-1))]+[LinearTransfer()]
+        elif isinstance(transfers, transfer.Transfer):
+            # Treat single given transfer as output transfer
+            transfers = [ReluTransferPerceptron() for _ in range((len(shape)-1))]+[transfers]
 
         if len(transfers) != len(shape):
             raise ValueError(

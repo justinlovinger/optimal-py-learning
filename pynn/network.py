@@ -159,30 +159,3 @@ def _all_close(values, other_value, threshold):
         if abs(value - other_value) > threshold:
             return False
     return True
-
-##########################
-# Quick network functions
-##########################
-def make_mlp_classifier(shape, learn_rate=0.5, momentum_rate=0.1):
-    """Create a multi-layer perceptron network for classification."""
-    from pynn.architecture import mlp
-
-    layers = _make_mlp(shape, learn_rate, momentum_rate)
-
-    # Softmax for classification
-    layers.append(mlp.SoftmaxTransferPerceptron())
-
-    return Network(layers)
-
-def make_dropout_mlp_classifier(shape, learn_rate=0.5, momentum_rate=0.1,
-                                input_active_probability=0.8, hidden_active_probability=0.5):
-    """Create a multi-layer perceptron network with dropout for classification."""
-    from pynn.architecture import mlp
-
-    layers = _make_dropout_mlp(shape, learn_rate, momentum_rate,
-                               input_active_probability, hidden_active_probability)
-
-    # Softmax for classification
-    layers.append(mlp.SoftmaxTransferPerceptron())
-
-    return Network(layers)
