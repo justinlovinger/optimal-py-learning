@@ -3,6 +3,7 @@ import copy
 import numpy
 
 from pynn import network
+from pynn.architecture import pbnn
 
 class EmptyModel(network.Model):
     def activate(self, inputs):
@@ -44,7 +45,7 @@ class RememberPatternsModel(EmptyModel):
     def reset(self):
         self._inputs_output_dict = {}
 
-    def train(self, patterns):
+    def train(self, patterns, *args, **kwargs):
         for (inputs, targets) in patterns:
             self._inputs_output_dict[tuple(inputs)] = numpy.array(targets)
 
@@ -54,6 +55,21 @@ class RememberPatternsModel(EmptyModel):
 class SummationModel(EmptyModel):
     def activate(self, inputs):
         return numpy.sum(inputs, axis=1)
+
+class WeightedSumModel(network.Model):
+    """Model that returns stored targets weighted by inputs."""
+    def __init__(self):
+        super(WeightedSumModel, self).__init__()
+        self._stored_targets = None
+
+    def reset(self):
+        self._stored_targets = None
+
+    def activate(self, inputs):
+        return pbnn._weighted_sum_rows(self._stored_targets, numpy.array(inputs))
+
+    def train(self, patterns, *args, **kwargs):
+        self._stored_targets = numpy.array([p[1] for p in patterns])
 
 def approx_equal(a, b, tol=0.001):
     """Check if two numbers or lists are about the same.

@@ -5,30 +5,30 @@ import copy
 
 import numpy
 
-def _validate_network(network_, training_set, testing_set, _classification=True,
+def _validate_network(model_, training_set, testing_set, _classification=True,
                       **kwargs):
     """Test the given network on a partitular trainign and testing set."""
     # Train network on training set
-    network_ = copy.deepcopy(network_) # No side effects
-    network_.reset()
+    model_ = copy.deepcopy(model_) # No side effects
+    model_.reset()
 
     start = time.clock()
-    network_.train(training_set, **kwargs) # Train
+    model_.train(training_set, **kwargs) # Train
     elapsed = time.clock() - start
 
     # Collect stats
     stats = {}
     stats['time'] = elapsed
-    stats['epochs'] = network_.iteration
+    stats['epochs'] = model_.iteration
 
     # Get error for training and testing set
-    stats['training_error'] = network_.get_avg_error(training_set)
-    stats['testing_error'] = network_.get_avg_error(testing_set)
+    stats['training_error'] = model_.avg_mse(training_set)
+    stats['testing_error'] = model_.avg_mse(testing_set)
 
     if _classification:
         # Get accuracy and confustion matrix for training set
         all_actual_training = _get_classses(
-            numpy.array([network_.activate(point[0]) for point in training_set]))
+            numpy.array([model_.activate(point[0]) for point in training_set]))
         all_expected_training= _get_classses(
             numpy.array([point[1] for point in training_set]))
 
@@ -39,7 +39,7 @@ def _validate_network(network_, training_set, testing_set, _classification=True,
 
         # Get accuracy and confustion matrix for testing set
         all_actual_testing = _get_classses(
-            numpy.array([network_.activate(point[0]) for point in testing_set]))
+            numpy.array([model_.activate(point[0]) for point in testing_set]))
         all_expected_testing = _get_classses(
             numpy.array([point[1] for point in testing_set]))
 
@@ -61,7 +61,7 @@ def _get_classses(all_outputs):
 
 def _get_accuracy(all_actual, all_expected):
     """Return the accuracy score for actual and expected classes.
-    
+
     Args:
         all_actual: numpy.array<int>; An array of class indices.
         all_expected: numpy.array<int>; An array of class indices.
@@ -77,7 +77,7 @@ def _get_accuracy(all_actual, all_expected):
 
 def _get_confusion_matrix(all_actual, all_expected, num_classes):
     """Return the confusion matrix for actual and expected classes.
-    
+
     Args:
         all_actual: numpy.array<int>; An array of class indices.
         all_expected: numpy.array<int>; An array of class indices.
@@ -187,7 +187,7 @@ def _add_mean_sd_to_stats(stats, key='folds'):
     stats['sd'] = sd
 
 
-def cross_validate(network_, patterns, num_folds=3, **kwargs):
+def cross_validate(model_, patterns, num_folds=3, **kwargs):
     """Split the patterns, then train and test network on each fold."""
 
     # Get our sets, for use in cross validation
@@ -197,12 +197,12 @@ def cross_validate(network_, patterns, num_folds=3, **kwargs):
     # Get the stats on each set
     folds = []
     for i, (train_set, test_set) in enumerate(train_test_sets):
-        if network_.logging:
+        if model_.logging:
             print 'Fold {}:'.format(i)
 
-        folds.append(_validate_network(network_, train_set, test_set, **kwargs))
+        folds.append(_validate_network(model_, train_set, test_set, **kwargs))
     
-        if network_.logging:
+        if model_.logging:
             print
 
     stats = {'folds': folds}
@@ -212,12 +212,12 @@ def cross_validate(network_, patterns, num_folds=3, **kwargs):
 
     return stats
 
-def benchmark(network_, patterns, num_folds=3, num_runs=30, **kwargs):
+def benchmark(model_, patterns, num_folds=3, num_runs=30, **kwargs):
     # TODO: maybe just take a function, and aggregate stats for that function
 
     runs = []
     for i in range(num_runs):
-        runs.append(cross_validate(network_, patterns, num_folds, **kwargs))
+        runs.append(cross_validate(model_, patterns, num_folds, **kwargs))
     stats = {'runs': runs}
 
     # Calculate meta stats
@@ -231,16 +231,17 @@ def benchmark(network_, patterns, num_folds=3, num_runs=30, **kwargs):
 
 def compare(name_networks_patterns_kwargs, num_folds=3, num_runs=30):
     """Compare a set of algorithms on a set of patterns.
-    
+
     Args:
-        name_networks_patterns_kwargs: list : tuple; list of (name, network, patterns, kwargs) tuples.
+        name_networks_patterns_kwargs: list : tuple;
+            list of (name, network, patterns, kwargs) tuples.
         num_folds: int; number of folds for each cross validation test.
         num_runs: int; number of runs for each benchmark.
     """
 
     stats = {}
-    for (name, network_, patterns, kwargs) in name_networks_patterns_kwargs:
-        stats[name] = benchmark(network_, patterns, num_folds, num_runs, **kwargs)
+    for (name, model_, patterns, kwargs) in name_networks_patterns_kwargs:
+        stats[name] = benchmark(model_, patterns, num_folds, num_runs, **kwargs)
 
     # Calculate meta stats
     means = [results['mean_of_means'] for results in stats.itervalues()]
