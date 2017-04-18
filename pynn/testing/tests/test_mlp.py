@@ -32,13 +32,18 @@ def test_add_bias():
 ####################
 # DropoutPerceptron
 ####################
+class MockDropoutLayer(object):
+    """Mock dropout layer that has _active_neurons attribute with all active."""
+    def __init__(self, num_outputs):
+        self._active_neurons = range(num_outputs)
+
 # pre_iteration
 def test_dropout_perceptron_pre_iteration_reduce_outgoing(monkeypatch):
     # Set weights for later comparison
     weights = numpy.array([[0.0, 1.0],
                            [2.0, 3.0]])
 
-    layer = mlp.DropoutPerceptron(2, 2)
+    layer = mlp.DropoutPerceptron(2, 2, MockDropoutLayer(2))
     layer._weights = weights
     layer._full_weights = weights
 
@@ -64,12 +69,10 @@ def test_dropout_perceptron_pre_iteration_reduce_incoming(monkeypatch):
     weights = numpy.array([[0.0, 1.0],
                            [2.0, 3.0]])
 
-    # Should not deactivate, so we only test incoming
-    layer = mlp.DropoutPerceptron(2, 2, active_probability=1.0)
-
     # Make network to test incoming weight matrix reduction
-    prev_layer = mlp.DropoutPerceptron(1, 2)
-    nn = network.Network([prev_layer, layer])
+    nn = mlp.DropoutMLP((1, 2, 2))
+    prev_layer = nn._layers[1]
+    layer = nn._layers[3]
 
     layer._weights = weights
     layer._full_weights = weights
@@ -96,9 +99,9 @@ def test_dropout_perceptron_pre_iteration_correct_order(monkeypatch):
                            [2.0, 3.0]])
 
     # Create network with two dropout layers
-    layer = mlp.DropoutPerceptron(2, 2)
-    prev_layer = mlp.DropoutPerceptron(1, 2)
-    nn = network.Network([prev_layer, layer])
+    nn = mlp.DropoutMLP((1, 2, 2, 1))
+    prev_layer = nn._layers[1]
+    layer = nn._layers[3]
 
     layer._weights = weights
     layer._full_weights = weights
@@ -107,11 +110,11 @@ def test_dropout_perceptron_pre_iteration_correct_order(monkeypatch):
     monkeypatch.setattr(mlp.DropoutPerceptron, 'update', lambda *args : None)
     monkeypatch.setattr(mlp.DropoutPerceptron, 'post_iteration', lambda *args : None)
     monkeypatch.setattr(mlp.DropoutPerceptron, 'post_training', lambda *args : None)
-    
+
     # prev_layer should set active neurons first, such that will adjust
     # based on incoming active neurons
     monkeypatch.setattr(mlp, '_random_indexes', lambda *args : [0])
-    nn.train([[0.0, 0.0], [0.0, 0.0]], 1)
+    nn.train([([0.0], [0.0])], 1)
 
     assert (helpers.sane_equality_array(layer._weights) ==
             helpers.sane_equality_array(numpy.array([[0.0]])))
@@ -119,9 +122,9 @@ def test_dropout_perceptron_pre_iteration_correct_order(monkeypatch):
 
 # post_iteration
 def test_dropout_perceptron_post_iteration(monkeypatch):
-    layer = mlp.DropoutPerceptron(2, 2)
-    prev_layer = mlp.DropoutPerceptron(1, 2)
-    nn = network.Network([prev_layer, layer])
+    nn = mlp.DropoutMLP((1, 2, 2))
+    prev_layer = nn._layers[1]
+    layer = nn._layers[3]
 
     layer._full_weights = numpy.array([[-1.0, -2.0],
                                        [-3.0, -4.0]])
@@ -166,7 +169,8 @@ def test_dropout_perceptron_post_iteration(monkeypatch):
 
 # post_training
 def test_dropout_perceptron_post_training():
-    layer = mlp.DropoutPerceptron(2, 2, active_probability=0.5)
+    layer = mlp.DropoutPerceptron(2, 2, MockDropoutLayer(2),
+                                  active_probability=0.5)
     layer._full_weights = numpy.array([[0.0, 1.0],
                                        [2.0, 3.0]])
 

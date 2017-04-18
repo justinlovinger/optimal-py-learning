@@ -122,30 +122,62 @@ class DropoutMLP(MLP):
         """Return sequence of perceptron and transfer layers."""
         # First layer is a special layer that disables inputs during training
         # Next is a special perceptron layer with bias (bias added by DropoutInputs)
-        biased_perceptron = DropoutPerceptron(shape[0]+1, shape[1],
+        # NOTE: DropoutInputs also acts as bias layer
+        dropout_inputs_layer = DropoutInputs(shape[0], self._inp_act_prob)
+        biased_perceptron = DropoutPerceptron(shape[0]+1, shape[1], dropout_inputs_layer,
                                               learn_rate, momentum_rate,
                                               active_probability=self._hid_act_prob)
-        layers = [DropoutInputs(shape[0], self._inp_act_prob),
+        layers = [dropout_inputs_layer,
                   biased_perceptron, transfers[0]]
 
         # After are hidden layers with given shape
         num_inputs = shape[1]
+        dropout_perceptron = biased_perceptron
         for num_outputs, transfer_layer in zip(shape[2:-1], transfers[1:-1]):
+            dropout_perceptron = DropoutPerceptron(num_inputs, num_outputs, dropout_perceptron,
+                                                   learn_rate, momentum_rate,
+                                                   active_probability=self._hid_act_prob)
+
             # Add perceptron followed by transfer
-            layers.append(DropoutPerceptron(num_inputs, num_outputs,
-                                            learn_rate, momentum_rate,
-                                            active_probability=self._hid_act_prob))
+            layers.append(dropout_perceptron)
             layers.append(transfer_layer)
 
             num_inputs = num_outputs
 
         # Last perceptron layer must not reduce number of outputs
-        layers.append(DropoutPerceptron(shape[-2], shape[-1],
+        layers.append(DropoutPerceptron(shape[-2], shape[-1], dropout_perceptron,
                                         learn_rate, momentum_rate,
                                         active_probability=1.0))
         layers.append(transfers[-1])
 
         return layers
+
+    def train(self, *args, **kwargs):
+        super(DropoutMLP, self).train(*args, **kwargs)
+
+        # Post training callbacks
+        for layer in self._layers:
+            try:
+                layer.post_training(None)
+            except AttributeError: # Not dropout layer
+                # Ignore transfer layers
+                pass
+
+    def pre_iteration(self, patterns):
+        for layer in self._layers:
+            try:
+                layer.pre_iteration(patterns)
+            except AttributeError: # Not dropout layer
+                # Ignore transfer layers
+                pass
+
+    def post_iteration(self, patterns):
+        for layer in self._layers:
+            try:
+                layer.post_iteration(patterns)
+            except AttributeError: # Not dropout layer
+                # Ignore transfer layers
+                pass
 
 class Layer(object):
     """A layer of computation for a supervised learning network."""
@@ -279,12 +311,13 @@ class Perceptron(Layer):
 
 class DropoutPerceptron(Perceptron):
     """Perceptron that drops neurons during training."""
-    def __init__(self, inputs, outputs, 
+    def __init__(self, inputs, outputs, incoming_layer,
                  learn_rate=0.5, momentum_rate=0.1, initial_weights_range=0.25,
                  active_probability=0.5):
         super(DropoutPerceptron, self).__init__(inputs, outputs, learn_rate,
                                                 momentum_rate, initial_weights_range)
 
+        self._incoming_layer = incoming_layer # For incoming active
         self._active_probability = active_probability
         self._active_neurons = None
         self._full_weights = None
@@ -324,22 +357,11 @@ class DropoutPerceptron(Perceptron):
         # the reduced weight matrix
         # Testing indicates that this gives the expected result
         self._full_weights[numpy.array(incoming_active_neurons)[:, None],
-                                       self._active_neurons] = self._weights
+                           self._active_neurons] = self._weights
 
     def _get_incoming_active_neurons(self):
         """Return list of active neurons in a preceeding dropout layer."""
-        if self.network == None:
-            return range(self._size[0])
-        else:
-            # Walk backwords through graph, until a DropoutPerceptron
-            # or DropoutInputs is found. This allows us to skip transfer layers.
-            backwards_order = list(reversed(self.network._activation_order))
-            for incoming_layer in backwards_order[backwards_order.index(self)+1:]:
-                if isinstance(incoming_layer, (DropoutPerceptron, DropoutInputs)):
-                    return incoming_layer._active_neurons
-            
-            # All enabled, since no prev dropout layer
-            return range(self._size[0])
+        return self._incoming_layer._active_neurons
 
     def post_training(self, patterns):
         # Active all neurons
@@ -355,7 +377,7 @@ class DropoutPerceptron(Perceptron):
 
 class DropoutInputs(Layer):
     """Passes inputs along unchanged, but disables inputs during training.
-    
+
     Also adds bias, since getting DropoutPerceptron to work with AddBias
     somewhat difficult.
     """
