@@ -34,16 +34,16 @@ class SOM(network.Model):
         self._distances = [numpy.sqrt(d.dot(d)) for d in diffs]
         return numpy.array(self._distances)
 
-    def train_step(self, inputs, targets):
-        """Adjust the model towards the targets for given inputs.
+    def _train_increment(self, input_vec, target_vec):
+        """Train on a single input, target pair.
 
         Optional.
-        Only for incremental learning models.
+        Model must either override train_step or implement _train_increment.
         """
-        self.activate(inputs)
-        self._move_neurons(inputs)
+        self.activate(input_vec)
+        self._move_neurons(input_vec)
 
-    def _move_neurons(self, inputs):
+    def _move_neurons(self, input_vec):
         # Perform a competition, and move the winner closer to the input
         closest = self._get_closest()
 
@@ -56,7 +56,7 @@ class SOM(network.Model):
                                                        self.neighbor_move_rate)
                 final_rate = move_rate_modifier*self.move_rate
 
-                self._weights[i] += final_rate*(inputs-self._weights[i])
+                self._weights[i] += final_rate*(input_vec-self._weights[i])
 
     def _get_closest(self):
         return _min_index(self._distances)

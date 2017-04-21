@@ -25,8 +25,8 @@ def test_post_pattern_callback():
     nn = helpers.EmptyModel()
 
     history = []
-    def callback(nn, pattern):
-        history.append(pattern)
+    def callback(nn, input_vec, target_vec):
+        history.append([list(input_vec), list(target_vec)])
 
     nn.train(pat, iterations=1, post_pattern_callback=callback)
     assert pat == history

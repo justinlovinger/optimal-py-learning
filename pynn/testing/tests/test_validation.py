@@ -115,8 +115,8 @@ def test_cross_validate(monkeypatch):
 
     # Track patterns for training
     training_patterns = []
-    def post_pattern_callback(network_, pattern):
-        training_patterns.append(pattern)
+    def post_pattern_callback(network_, input_vec, target_vec):
+        training_patterns.append((list(input_vec), list(target_vec)))
 
     # Cross validate with deterministic network, and check output
     stats = validation.cross_validate(nn, patterns, num_folds=3,
@@ -192,8 +192,8 @@ def test_benchmark(monkeypatch):
 
     # Track patterns for training
     training_patterns = []
-    def post_pattern_callback(network_, pattern):
-        training_patterns.append(pattern)
+    def post_pattern_callback(network_, input_vec, target_vec):
+        training_patterns.append((list(input_vec), list(target_vec)))
 
     # Cross validate with deterministic network, and check output
     stats = validation.benchmark(nn, patterns, num_folds=3, num_runs=2,

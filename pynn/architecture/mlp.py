@@ -81,15 +81,15 @@ class MLP(network.Model):
         # Return activation of the only layer that feeds into output
         return self._activations[-1]
 
-    def train_step(self, inputs, targets):
-        """Adjust the model towards the targets for given inputs.
+    def _train_increment(self, input_vec, target_vec):
+        """Train on a single input, target pair.
 
         Optional.
-        Only for incremental learning models.
+        Model must either override train_step or implement _train_increment.
         """
-        outputs = self.activate(inputs)
+        outputs = self.activate(input_vec)
 
-        error = targets - outputs
+        error = target_vec - outputs
         output_error = error # For returning
 
         for i, layer in reversed(list(enumerate(self._layers))):

@@ -55,14 +55,30 @@ class RBF(network.Model):
 
         return output
 
-    def train_step(self, inputs, targets):
+    def train_step(self, input_matrix, target_matrix):
         """Adjust the model towards the targets for given inputs.
 
+        Train on a mini-batch.
+
         Optional.
-        Only for incremental learning models.
+        Model must either override train_step or implement _train_increment.
         """
-        output = self.activate(inputs)
-        error_vec = targets - output
+        # Train RBF
+        error_vec = super(RBF, self).train_step(input_matrix, target_matrix)
+
+        # Train SOM clusters
+        self._som.train_step(input_matrix, target_matrix)
+
+        return error_vec
+
+    def _train_increment(self, input_vec, target_vec):
+        """Train on a single input, target pair.
+
+        Optional.
+        Model must either override train_step or implement _train_increment.
+        """
+        output = self.activate(input_vec)
+        error_vec = target_vec - output
 
         if self._scale_by_similarity:
             # NOTE: The math seems to say that we should divide by total_similarity
@@ -76,8 +92,5 @@ class RBF(network.Model):
         # Update perceptron
         # NOTE: Gradient is just error vector in this case
         self._perceptron.update(self._similarities, output, error_vec)
-
-        # Update clusters
-        self._som.train_step(inputs, None)
 
         return error_vec

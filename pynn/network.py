@@ -23,6 +23,8 @@ def select_random(patterns, size=None):
 class Model(object):
     """A supervised learning model."""
     def __init__(self):
+        self._post_pattern_callback = None
+
         # Bookkeeping
         self.logging = True
         self.iteration = 0
@@ -36,14 +38,6 @@ class Model(object):
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
-        raise NotImplementedError()
-
-    def train_step(self, inputs, targets):
-        """Adjust the model towards the targets for given inputs.
-
-        Optional.
-        Only for incremental learning models.
-        """
         raise NotImplementedError()
 
     def train(self, patterns, iterations=1000, error_break=0.002,
@@ -61,6 +55,7 @@ class Model(object):
                 and returns a set of patterns. Use partial function to embed arguments.
         """
         self._reset_bookkeeping()
+        self._post_pattern_callback = post_pattern_callback # For calling in other method
 
         # Initialize error history with errors that are
         # unlikey to be close in reality
@@ -71,31 +66,14 @@ class Model(object):
             self.pre_iteration(patterns)
 
             # Learn each selected pattern
-            error = 0.0
-            for pattern in pattern_select_func(patterns):
-                # Learn
-                errors = self.train_step(pattern[0], pattern[1])
-
-                # Optional callback for user extension,
-                # such as a visualization or history tracking
-                if post_pattern_callback:
-                    post_pattern_callback(self, pattern)
-
-                # Sum errors
-                try:
-                    error += numpy.mean(errors**2)
-                except TypeError:
-                    # train_step doesn't return error
-                    error = None
+            selected_patterns = pattern_select_func(patterns)
+            input_matrix = numpy.array([p[0] for p in selected_patterns])
+            target_matrix = numpy.array([p[1] for p in selected_patterns])
+            error = self.train_step(input_matrix, target_matrix)
 
             self.post_iteration(patterns)
 
             # Logging and breaking
-            try:
-                error = error / len(patterns)
-            except TypeError:
-                # train_step doesn't return error
-                error = None
             if self.logging:
                 print "Iteration {}, Error: {}".format(self.iteration, error)
 
@@ -112,6 +90,47 @@ class Model(object):
 
                 error_history.append(error)
                 error_history.pop(0)
+
+    def train_step(self, input_matrix, target_matrix):
+        """Adjust the model towards the targets for given inputs.
+
+        Train on a mini-batch.
+
+        Optional.
+        Model must either override train_step or implement _train_increment.
+        """
+        # Learn each selected pattern
+        error = 0.0
+        for input_vec, target_vec in zip(input_matrix, target_matrix):
+            # Learn
+            errors = self._train_increment(input_vec, target_vec)
+
+            # Optional callback for user extension,
+            # such as a visualization or history tracking
+            if self._post_pattern_callback:
+                self._post_pattern_callback(self, input_vec, target_vec)
+
+            # Sum errors
+            try:
+                error += numpy.mean(errors**2)
+            except TypeError:
+                # train_step doesn't return error
+                error = None
+
+        # Logging and breaking
+        try:
+            return error / input_matrix.shape[0]
+        except TypeError:
+            # _train_increment doesn't return error
+            return None
+
+    def _train_increment(self, input_vec, target_vec):
+        """Train on a single input, target pair.
+
+        Optional.
+        Model must either override train_step or implement _train_increment.
+        """
+        raise NotImplementedError()
 
     def pre_iteration(self, patterns):
         """Optional. Callback performed before each training iteration.

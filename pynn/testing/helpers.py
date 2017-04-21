@@ -12,10 +12,15 @@ class EmptyModel(network.Model):
     def reset(self):
         pass
 
-    def train_step(self, inputs, targets):
-        output = self.activate(inputs)
+    def _train_increment(self, input_vec, target_vec):
+        """Train on a single input, target pair.
+
+        Optional.
+        Model must either override train_step or implement _train_increment.
+        """
+        output = self.activate(input_vec)
         if output is not None:
-            return targets - output
+            return target_vec - output
 
 class SetOutputModel(EmptyModel):
     def __init__(self, output):
