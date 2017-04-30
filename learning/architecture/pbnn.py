@@ -45,7 +45,7 @@ class PBNN(Model):
         output_vec /= sum(output_vec)
         return output_vec
 
-    def train(self, patterns):
+    def train(self, patterns, *args, **kwargs):
         # Extract inputs from patterns
         # And store them to recall later
         inputs = [p[0] for p in patterns]
