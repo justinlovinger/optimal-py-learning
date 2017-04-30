@@ -40,8 +40,8 @@ class Model(object):
         """Return the model outputs for given inputs."""
         raise NotImplementedError()
 
-    def train(self, patterns, iterations=1000, error_break=0.002,
-              error_stagnant_distance=5, error_stagnant_threshold=0.0001,
+    def train(self, patterns, iterations=1000, retries=0, error_break=0.002,
+              error_stagnant_distance=5, error_stagnant_threshold=0.00001,
               pattern_select_func=select_iterative, post_pattern_callback=None):
         """Train model to converge on set of patterns.
 
@@ -50,6 +50,8 @@ class Model(object):
         Args:
             patterns: A set of (inputs, targets) pairs.
             iterations: Max iterations to train network.
+            retries: Number of times to reset model and retries if it does not converge.
+                Convergence is defined as reaching error_break.
             error_break: Training will end once error is less than this.
             pattern_select_func: Function that takes a set of patterns,
                 and returns a set of patterns. Use partial function to embed arguments.
@@ -62,34 +64,45 @@ class Model(object):
         error_history = [1e10]*error_stagnant_distance
 
         # Learn on each pattern for each iteration
-        for self.iteration in range(1, iterations+1):
-            self.pre_iteration(patterns)
+        for attempt in range(retries+1):
+            for self.iteration in range(1, iterations+1):
+                self.pre_iteration(patterns)
 
-            # Learn each selected pattern
-            selected_patterns = pattern_select_func(patterns)
-            input_matrix = numpy.array([p[0] for p in selected_patterns])
-            target_matrix = numpy.array([p[1] for p in selected_patterns])
-            error = self.train_step(input_matrix, target_matrix)
+                # Learn each selected pattern
+                selected_patterns = pattern_select_func(patterns)
+                input_matrix = numpy.array([p[0] for p in selected_patterns])
+                target_matrix = numpy.array([p[1] for p in selected_patterns])
+                error = self.train_step(input_matrix, target_matrix)
 
-            self.post_iteration(patterns)
+                self.post_iteration(patterns)
 
-            # Logging and breaking
-            if self.logging:
-                print "Iteration {}, Error: {}".format(self.iteration, error)
+                # Logging and breaking
+                if self.logging:
+                    print "Iteration {}, Error: {}".format(self.iteration, error)
 
-            if error is not None:
-                # Break early to prevent overtraining
-                if error < error_break:
-                    break
+                if error is not None:
+                    # Break early to prevent overtraining
+                    if error < error_break:
+                        break
 
-                # Break if no progress is made
-                if _all_close(error_history, error, error_stagnant_threshold):
-                    # Break if not enough difference between all resent errors
-                    # and current error
-                    break
+                    # Break if no progress is made
+                    # TODO: Change to break if best error has not improved within n iterations
+                    if _all_close(error_history, error, error_stagnant_threshold):
+                        # Break if not enough difference between all resent errors
+                        # and current error
+                        break
 
-                error_history.append(error)
-                error_history.pop(0)
+                    error_history.append(error)
+                    error_history.pop(0)
+
+            # End when out of retries or model converged
+            # TODO: Should we use use defined error function?
+            # Check if we are out of retires, so we don't waste time calculating
+            # avg_mse
+            if attempt >= retries or self.avg_mse(patterns) <= error_break:
+                break
+            self.reset()
+
 
     def train_step(self, input_matrix, target_matrix):
         """Adjust the model towards the targets for given inputs.

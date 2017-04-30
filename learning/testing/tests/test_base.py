@@ -51,10 +51,10 @@ pytest.mark.slowtest()
 def test_mlp_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = mlp.MLP((2, 2, 2, 2))
+    nn = mlp.MLP((2, 4, 2), learn_rate=0.05, momentum_rate=0.025)
     pat = datasets.get_xor()
 
-    nn.train(pat, error_break=0.002)
+    nn.train(pat, retries=5, error_break=0.002)
     assert nn.avg_mse(pat) <= 0.02
 
 
@@ -73,11 +73,11 @@ pytest.mark.slowtest()
 def test_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransferPerceptron(),
-                 learn_rate=0.01, momentum_rate=0.005)
+    nn = mlp.MLP((2, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
+                 learn_rate=0.05, momentum_rate=0.025)
     pat = datasets.get_and()
 
-    nn.train(pat, error_break=0.002)
+    nn.train(pat, retries=5, error_break=0.002)
     assert nn.avg_mse(pat) <= 0.02
 
 
@@ -97,14 +97,14 @@ def test_dropout_mlp_convergence():
     # Run until convergence
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
-    nn = mlp.DropoutMLP((2, 6, 3, 2), learn_rate=0.2, momentum_rate=0.1,
+    nn = mlp.DropoutMLP((2, 6, 3, 2), learn_rate=0.1, momentum_rate=0.05,
                         input_active_probability=1.0,
                         hidden_active_probability=0.9)
-    pat = datasets.get_xor()
+    pat = datasets.get_and() # Easier and dataset for lienar output
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
-    nn.train(pat, error_break=0.002, pattern_select_func=base.select_sample)
+    nn.train(pat, retries=5, error_break=0.002, pattern_select_func=base.select_sample)
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
@@ -136,7 +136,7 @@ def test_dropout_mlp_classifier_convergence():
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
-    nn.train(pat, error_break=0.002)
+    nn.train(pat, retries=5, error_break=0.002)
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
@@ -158,10 +158,10 @@ pytest.mark.slowtest()
 def test_rbf_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = rbf.RBF(2, 4, 2, scale_by_similarity=True)
+    nn = rbf.RBF(2, 4, 2, learn_rate=0.75, scale_by_similarity=True)
     pat = datasets.get_xor()
 
-    nn.train(pat, error_break=0.002)
+    nn.train(pat, retries=5, error_break=0.002)
     assert nn.avg_mse(pat) <= 0.02
 
 
