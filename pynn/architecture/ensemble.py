@@ -1,8 +1,8 @@
 import numpy
 
-from pynn import network
+from pynn import Model
 
-class Ensemble(network.Model):
+class Ensemble(Model):
     def __init__(self, networks):
         super(Ensemble, self).__init__()
 

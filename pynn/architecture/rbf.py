@@ -1,12 +1,12 @@
 """Radial Basis Function network."""
 import numpy
 
-from pynn import network
-from pynn.architecture.som import SOM
+from pynn import Model
+from pynn import SOM
 from pynn.architecture import mlp
 from pynn.architecture import transfer
 
-class RBF(network.Model):
+class RBF(Model):
     """Radial Basis Function network."""
     def __init__(self, attributes, num_clusters, num_outputs,
                  learn_rate=1.0, variance=None, scale_by_similarity=True,

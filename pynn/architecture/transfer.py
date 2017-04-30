@@ -3,8 +3,6 @@
 import numpy
 import math
 
-from pynn import network
-
 class Transfer(object):
     def update(self, *args):
         pass

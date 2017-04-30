@@ -1,6 +1,3 @@
-import numpy
-
-from pynn import network
 from pynn.architecture import som
 from pynn.data import datasets
 

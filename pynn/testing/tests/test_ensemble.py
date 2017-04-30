@@ -1,5 +1,4 @@
 from pynn.architecture import ensemble
-from pynn import network
 from pynn.testing import helpers
 
 def test_bagger():

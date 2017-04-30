@@ -4,7 +4,6 @@ import copy
 import numpy
 
 from pynn.architecture import mlp
-from pynn import network
 
 from pynn.testing import helpers
 

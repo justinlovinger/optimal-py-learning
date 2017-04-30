@@ -2,10 +2,10 @@ import copy
 
 import numpy
 
-from pynn import network
+from pynn import Model
 from pynn.architecture import pbnn
 
-class EmptyModel(network.Model):
+class EmptyModel(Model):
     def activate(self, inputs):
         pass
 
@@ -61,7 +61,7 @@ class SummationModel(EmptyModel):
     def activate(self, inputs):
         return numpy.sum(inputs, axis=1)
 
-class WeightedSumModel(network.Model):
+class WeightedSumModel(Model):
     """Model that returns stored targets weighted by inputs."""
     def __init__(self):
         super(WeightedSumModel, self).__init__()

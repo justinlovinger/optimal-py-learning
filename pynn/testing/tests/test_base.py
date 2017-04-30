@@ -5,7 +5,7 @@ import random
 import numpy
 
 from pynn import graph
-from pynn import network
+from pynn import base
 from pynn.data import datasets
 from pynn.architecture import mlp, rbf
 from pynn.testing import helpers
@@ -105,7 +105,7 @@ def test_dropout_mlp_convergence():
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
-    nn.train(pat, error_break=0.002, pattern_select_func=network.select_sample)
+    nn.train(pat, error_break=0.002, pattern_select_func=base.select_sample)
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
@@ -121,7 +121,7 @@ def test_dropout_mlp_classifier():
     _make_xor_one_hot(pat)
 
     error = nn.avg_mse(pat)
-    nn.train(pat, 10, pattern_select_func=network.select_sample)
+    nn.train(pat, 10, pattern_select_func=base.select_sample)
     assert nn.avg_mse(pat) < error
 
 
@@ -193,13 +193,13 @@ def seed_random(request):
 
 def test_select_sample(seed_random):
     pat = datasets.get_xor()
-    new_pat = network.select_sample(pat)
+    new_pat = base.select_sample(pat)
     assert len(new_pat) == len(pat)
     for p in pat: # all in
         assert p in new_pat
     assert new_pat != pat # order different
 
-    new_pat = network.select_random(pat, size=2)
+    new_pat = base.select_random(pat, size=2)
     assert len(new_pat) == 2
     # No duplicates
     count = 0
@@ -214,12 +214,12 @@ def test_select_random(monkeypatch):
     monkeypatch.setattr(random, 'randint', lambda x, y : 0) # randint always returns 0
 
     pat = datasets.get_xor()
-    new_pat = network.select_random(pat)
+    new_pat = base.select_random(pat)
     assert len(new_pat) == len(pat)
     for p in new_pat:
         assert p == pat[0] # due to monkeypatch
 
-    new_pat = network.select_random(pat, size=2)
+    new_pat = base.select_random(pat, size=2)
     assert len(new_pat) == 2
     for p in new_pat:
         assert p == pat[0]

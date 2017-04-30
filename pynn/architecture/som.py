@@ -2,11 +2,10 @@
 
 import numpy
 
-from pynn import network
+from pynn import Model
 from pynn.architecture import transfer
-from pynn import calculate
 
-class SOM(network.Model):
+class SOM(Model):
     def __init__(self, attributes, neurons, 
                  move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0,
                  initial_weights_range=1.0):

@@ -3,10 +3,10 @@ import copy
 
 import numpy
 
-from pynn import network
+from pynn import Model
 from pynn.architecture import transfer
 
-class MLP(network.Model):
+class MLP(Model):
     """MultiLayer Perceptron
 
     Args:

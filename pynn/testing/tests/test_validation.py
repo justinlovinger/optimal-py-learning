@@ -4,9 +4,7 @@ import time
 import numpy
 
 from pynn import validation
-from pynn import network
 from pynn.testing import helpers
-from pynn.architecture import pbnn
 
 def random_dataset():
     dataset = []
@@ -20,7 +18,7 @@ def random_dataset():
         target = []
         for j in range(targets):
             target.append(random.uniform(-1.0, 1.0))
-        
+
         # Each datapoint is an input, target pair
         dataset.append([input, target])
 
@@ -218,10 +216,10 @@ def test_compare(monkeypatch):
 
     # Make network that returns set output for
     patterns = [
-                ([0], [1]),
-                ([1], [1]),
-                ([2], [1])
-               ]
+        ([0], [1]),
+        ([1], [1]),
+        ([2], [1])
+    ]
     nn = helpers.SetOutputModel([1])
     nn2 = helpers.SetOutputModel([1])
 
