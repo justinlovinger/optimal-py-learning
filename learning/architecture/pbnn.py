@@ -1,5 +1,6 @@
 import numpy
 
+from learning import calculate
 from learning import Model
 from learning.architecture import transfer
 
@@ -39,7 +40,8 @@ class PBNN(Model):
         if self._scale_by_class:
             # Scale output by number of classes (sum of targets)
             # This minimizes the effect of unbalanced classes
-            output_vec /= self._target_totals
+            # Return 0 when target total is 0
+            output_vec[:] = calculate.protvecdiv(output_vec, self._target_totals)
 
         # Convert output to probabilities, and return
         output_vec /= sum(output_vec)

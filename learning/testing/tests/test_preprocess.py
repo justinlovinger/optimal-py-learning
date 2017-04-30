@@ -63,8 +63,8 @@ def test_count_classes():
     class_counts = preprocess._count_classes(dataset)
 
     assert len(class_counts) == 2
-    assert class_counts[(0,)] == 2
-    assert class_counts[(1,)] == 2
+    assert class_counts[(0, 1)] == 2
+    assert class_counts[(1, 0)] == 2
 
     dataset = [
          ([0], ['foo']),
