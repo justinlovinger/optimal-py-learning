@@ -32,138 +32,6 @@ def test_post_pattern_callback():
     nn.train(pat, iterations=1, post_pattern_callback=callback)
     assert pat == history
 
-##########################
-# Full architecture tests
-##########################
-# TODO: use validation methods to more robustly test
-def test_mlp():
-    # Run for a couple of iterations
-    # assert that new error is less than original
-    nn = mlp.MLP((2, 2, 2))
-    pat = datasets.get_xor()
-
-    error = nn.avg_mse(pat)
-    nn.train(pat, 10)
-    assert nn.avg_mse(pat) < error
-
-
-pytest.mark.slowtest()
-def test_mlp_convergence():
-    # Run until convergence
-    # assert that network can converge
-    nn = mlp.MLP((2, 4, 2), learn_rate=0.05, momentum_rate=0.025)
-    pat = datasets.get_xor()
-
-    nn.train(pat, retries=5, error_break=0.002)
-    assert nn.avg_mse(pat) <= 0.02
-
-
-def test_mlp_classifier():
-    # Run for a couple of iterations
-    # assert that new error is less than original
-    nn = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransferPerceptron())
-    pat = datasets.get_xor()
-
-    error = nn.avg_mse(pat)
-    nn.train(pat, 10)
-    assert nn.avg_mse(pat) < error
-
-
-pytest.mark.slowtest()
-def test_mlp_classifier_convergence():
-    # Run until convergence
-    # assert that network can converge
-    nn = mlp.MLP((2, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
-                 learn_rate=0.05, momentum_rate=0.025)
-    pat = datasets.get_and()
-
-    nn.train(pat, retries=5, error_break=0.002)
-    assert nn.avg_mse(pat) <= 0.02
-
-
-def test_dropout_mlp():
-    # Run for a couple of iterations
-    # assert that new error is less than original
-    nn = mlp.DropoutMLP((2, 2, 2))
-    pat = datasets.get_xor()
-
-    error = nn.avg_mse(pat)
-    nn.train(pat, 10)
-    assert nn.avg_mse(pat) < error
-
-
-pytest.mark.slowtest()
-def test_dropout_mlp_convergence():
-    # Run until convergence
-    # assert that network can converge
-    # Since XOR does not really need dropout, we use high probabilities
-    nn = mlp.DropoutMLP((2, 6, 3, 2), learn_rate=0.1, momentum_rate=0.05,
-                        input_active_probability=1.0,
-                        hidden_active_probability=0.9)
-    pat = datasets.get_and() # Easier and dataset for lienar output
-
-    # Error break lower than cutoff, since dropout may have different error
-    # after training
-    nn.train(pat, retries=5, error_break=0.002, pattern_select_func=base.select_sample)
-
-    # Dropout sacrifices training accuracy for better generalization
-    # so we don't worry as much about convergence
-    assert nn.avg_mse(pat) <= 0.1
-
-
-def test_dropout_mlp_classifier():
-    # Run for a couple of iterations
-    # assert that new error is less than original
-    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
-                        learn_rate=0.2, momentum_rate=0.1)
-    pat = datasets.get_and()
-
-    error = nn.avg_mse(pat)
-    nn.train(pat, 10, pattern_select_func=base.select_sample)
-    assert nn.avg_mse(pat) < error
-
-
-pytest.mark.slowtest()
-def test_dropout_mlp_classifier_convergence():
-    # Run until convergence
-    # assert that network can converge
-    # Since XOR does not really need dropout, we use high probabilities
-    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
-                        learn_rate=0.2, momentum_rate=0.1,
-                        input_active_probability=1.0,
-                        hidden_active_probability=0.9)
-    pat = datasets.get_and()
-
-    # Error break lower than cutoff, since dropout may have different error
-    # after training
-    nn.train(pat, retries=5, error_break=0.002)
-
-    # Dropout sacrifices training accuracy for better generalization
-    # so we don't worry as much about convergence
-    assert nn.avg_mse(pat) <= 0.1
-
-
-def test_rbf():
-    # Run for a couple of iterations
-    # assert that new error is less than original
-    nn = rbf.RBF(2, 4, 2, scale_by_similarity=True)
-    pat = datasets.get_xor()
-
-    error = nn.avg_mse(pat)
-    nn.train(pat, 10)
-    assert nn.avg_mse(pat) < error
-
-
-pytest.mark.slowtest()
-def test_rbf_convergence():
-    # Run until convergence
-    # assert that network can converge
-    nn = rbf.RBF(2, 4, 2, learn_rate=0.75, scale_by_similarity=True)
-    pat = datasets.get_xor()
-
-    nn.train(pat, retries=5, error_break=0.002)
-    assert nn.avg_mse(pat) <= 0.02
-
 
 ################################
 # Datapoint selection functions
@@ -270,3 +138,9 @@ def test_break_on_stagnation_dont_break_if_wrapped_around():
     # Should pass wrap around to [1.0], and stop after consecutive [1.0]s
     nn.train([([0.0], [0.0])], error_stagnant_distance=4, error_stagnant_threshold=0.01)
     assert nn.iteration == 9
+
+@pytest.mark.skip(reason='Hard to test, but not hard to implement')
+def test_model_train_retry():
+    # Model should reset and retry if it doesn't converge
+    # Train should not calculate avg_mse if it is out of retries
+    assert 0
