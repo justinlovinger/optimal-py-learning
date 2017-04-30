@@ -10,7 +10,7 @@ def protvecdiv(vec_a, vec_b):
 
     When vec_b_i == 0, return 0 for component i.
     """
-    with numpy.errstate(divide='raise'):
+    with numpy.errstate(divide='raise', invalid='raise'):
         try:
             # Try to quickly divide vectors
             return vec_a / vec_b
