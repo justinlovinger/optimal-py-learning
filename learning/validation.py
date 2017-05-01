@@ -2,6 +2,7 @@ import math
 import time
 import numbers
 import copy
+import logging
 
 import numpy
 
@@ -9,7 +10,11 @@ def _validate_network(model_, training_set, testing_set, _classification=True,
                       **kwargs):
     """Test the given network on a partitular trainign and testing set."""
     # Train network on training set
-    model_ = copy.deepcopy(model_) # No side effects
+    try:
+        model_ = copy.deepcopy(model_) # No side effects
+    except TypeError:
+        logging.warning('Cannot pickle %s model.' \
+                        'Cross validation may have side effects', type(model_))
     model_.reset()
 
     start = time.clock()
