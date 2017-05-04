@@ -6,9 +6,8 @@ import logging
 
 import numpy
 
-def _validate_network(model_, training_set, testing_set, _classification=True,
-                      **kwargs):
-    """Test the given network on a partitular trainign and testing set."""
+def _validate_model(model_, training_set, testing_set, _classification=True, **kwargs):
+    """Test the given network on a partitular training and testing set."""
     # Train network on training set
     try:
         model_ = copy.deepcopy(model_) # No side effects
@@ -18,7 +17,7 @@ def _validate_network(model_, training_set, testing_set, _classification=True,
     model_.reset()
 
     start = time.clock()
-    model_.train(training_set, **kwargs) # Train
+    model_.train(*training_set, **kwargs) # Train
     elapsed = time.clock() - start
 
     # Collect stats
@@ -27,36 +26,34 @@ def _validate_network(model_, training_set, testing_set, _classification=True,
     stats['epochs'] = model_.iteration
 
     # Get error for training and testing set
-    stats['training_error'] = model_.avg_mse(training_set)
-    stats['testing_error'] = model_.avg_mse(testing_set)
+    stats['training_error'] = model_.avg_mse(*training_set)
+    stats['testing_error'] = model_.avg_mse(*testing_set)
 
     if _classification:
-        # Get accuracy and confustion matrix for training set
-        all_actual_training = _get_classses(
-            numpy.array([model_.activate(point[0]) for point in training_set]))
-        all_expected_training= _get_classses(
-            numpy.array([point[1] for point in training_set]))
+        # Get accuracy and confusion matrix for training set
+        all_actual_training = _get_classes(
+            numpy.array([model_.activate(inp_vec) for inp_vec in training_set[0]]))
+        all_expected_training = _get_classes(training_set[1])
 
         stats['training_accuracy'] = _get_accuracy(
             all_actual_training, all_expected_training)
         stats['training_confusion_matrix'] = _get_confusion_matrix(
-            all_actual_training, all_expected_training, len(training_set[0][1]))
+            all_actual_training, all_expected_training, training_set[0].shape[1])
 
-        # Get accuracy and confustion matrix for testing set
-        all_actual_testing = _get_classses(
-            numpy.array([model_.activate(point[0]) for point in testing_set]))
-        all_expected_testing = _get_classses(
-            numpy.array([point[1] for point in testing_set]))
+        # Get accuracy and confusion matrix for testing set
+        all_actual_testing = _get_classes(
+            numpy.array([model_.activate(inp_vec) for inp_vec in testing_set[0]]))
+        all_expected_testing = _get_classes(testing_set[1])
 
         stats['testing_accuracy'] = _get_accuracy(
             all_actual_testing, all_expected_testing)
         stats['testing_confusion_matrix'] = _get_confusion_matrix(
-            all_actual_testing, all_expected_testing, len(testing_set[0][1]))
+            all_actual_testing, all_expected_testing, testing_set[0].shape[1])
 
     return stats
 
 
-def _get_classses(all_outputs):
+def _get_classes(all_outputs):
     """Return a list of classes given a matrix of outputs.
 
     We assume the class is the index of the highest output value for each output.
@@ -92,35 +89,43 @@ def _get_confusion_matrix(all_actual, all_expected, num_classes):
             classes, and cells with counts.
     """
     return numpy.bincount(num_classes * (all_expected) + (all_actual),
-                       minlength=num_classes*num_classes).reshape(num_classes, num_classes)
+                          minlength=num_classes*num_classes).reshape(num_classes, num_classes)
 
 ############################
 # Setup for Cross Validation
 ############################
-def _split_dataset(patterns, num_sets):
+def make_validation_sets(input_matrix, target_matrix, num_folds=3):
+    return _create_train_test_sets(_split_dataset(input_matrix, target_matrix, num_folds))
+
+def _split_dataset(input_matrix, target_matrix, num_sets):
     """Split patterns into num_sets disjoint sets."""
+    # Zip for easier splitting
+    patterns = zip(input_matrix, target_matrix)
 
     sets = []
     start_pos = 0
-    set_size = len(patterns)/num_sets # rounded down
+    set_size = len(patterns) / num_sets # rounded down
     for i in range(num_sets):
         # For the last set, add all remaining items (in case sets don't split evenly)
         if i == num_sets-1:
             new_set = patterns[start_pos:]
         else:
             new_set = patterns[start_pos:start_pos+set_size]
-        sets.append(new_set)
-        start_pos += set_size
-    return sets
 
+        # Transpose back into (input_matrix, target_matrix)
+        set_input_matrix, set_target_matrix = zip(*new_set)
+        sets.append((numpy.array(set_input_matrix), numpy.array(set_target_matrix)))
+
+        start_pos += set_size
+
+    return sets
 
 def _create_train_test_sets(sets):
     """Organize sets into training and testing groups.
 
     Each group has one test set, and all others are training.
-    Each group has all patterns between the train and test set.
+    Each group has all (input_matrix, target_matrix) between the train and test set.
     """
-
     train_test_sets = []
     num_folds = len(sets)
 
@@ -128,13 +133,16 @@ def _create_train_test_sets(sets):
         test_set = sets[i]
 
         # Train set is all other sets
-        train_set = []
+        train_set = [[], []]
         for j in range(num_folds):
             if i != j:
-                train_set.extend(sets[j])
+                train_set[0].extend(list(sets[j][0]))
+                train_set[1].extend(list(sets[j][1]))
 
         # Train, test tuples
-        train_test_sets.append((train_set, test_set))
+        train_set[0] = numpy.array(train_set[0])
+        train_set[1] = numpy.array(train_set[1])
+        train_test_sets.append((tuple(train_set), test_set))
 
     return train_test_sets
 
@@ -192,12 +200,11 @@ def _add_mean_sd_to_stats(stats, key='folds'):
     stats['sd'] = sd
 
 
-def cross_validate(model_, patterns, num_folds=3, **kwargs):
+def cross_validate(model_, dataset, num_folds=3, **kwargs):
     """Split the patterns, then train and test network on each fold."""
 
     # Get our sets, for use in cross validation
-    sets = _split_dataset(patterns, num_folds)
-    train_test_sets = _create_train_test_sets(sets)
+    train_test_sets = make_validation_sets(*dataset, num_folds=num_folds)
 
     # Get the stats on each set
     folds = []
@@ -205,8 +212,8 @@ def cross_validate(model_, patterns, num_folds=3, **kwargs):
         if model_.logging:
             print 'Fold {}:'.format(i)
 
-        folds.append(_validate_network(model_, train_set, test_set, **kwargs))
-    
+        folds.append(_validate_model(model_, train_set, test_set, **kwargs))
+
         if model_.logging:
             print
 
@@ -217,12 +224,12 @@ def cross_validate(model_, patterns, num_folds=3, **kwargs):
 
     return stats
 
-def benchmark(model_, patterns, num_folds=3, num_runs=30, **kwargs):
+def benchmark(model_, dataset, num_folds=3, num_runs=30, **kwargs):
     # TODO: maybe just take a function, and aggregate stats for that function
 
     runs = []
-    for i in range(num_runs):
-        runs.append(cross_validate(model_, patterns, num_folds, **kwargs))
+    for _ in range(num_runs):
+        runs.append(cross_validate(model_, dataset, num_folds, **kwargs))
     stats = {'runs': runs}
 
     # Calculate meta stats
@@ -234,18 +241,18 @@ def benchmark(model_, patterns, num_folds=3, num_runs=30, **kwargs):
 
     return stats
 
-def compare(name_networks_patterns_kwargs, num_folds=3, num_runs=30):
+def compare(names_models_datasets_kwargs, num_folds=3, num_runs=30):
     """Compare a set of algorithms on a set of patterns.
 
     Args:
-        name_networks_patterns_kwargs: list : tuple;
-            list of (name, network, patterns, kwargs) tuples.
+        names_models_datasets_kwargs: list : tuple;
+            list of (name, model, (input_matrix, target_matrix), kwargs) tuples.
         num_folds: int; number of folds for each cross validation test.
         num_runs: int; number of runs for each benchmark.
     """
 
     stats = {}
-    for (name, model_, patterns, kwargs) in name_networks_patterns_kwargs:
+    for (name, model_, patterns, kwargs) in names_models_datasets_kwargs:
         stats[name] = benchmark(model_, patterns, num_folds, num_runs, **kwargs)
 
     # Calculate meta stats

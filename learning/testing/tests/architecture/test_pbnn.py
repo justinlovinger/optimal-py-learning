@@ -7,5 +7,5 @@ def test_pbnn_convergence():
     model = PBNN()
     pat = datasets.get_xor()
 
-    model.train(pat)
-    assert model.avg_mse(pat) <= 0.02
+    model.train(*pat)
+    assert model.avg_mse(*pat) <= 0.02

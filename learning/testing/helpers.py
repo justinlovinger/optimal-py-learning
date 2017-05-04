@@ -50,9 +50,9 @@ class RememberPatternsModel(EmptyModel):
     def reset(self):
         self._inputs_output_dict = {}
 
-    def train(self, patterns, *args, **kwargs):
-        for (inputs, targets) in patterns:
-            self._inputs_output_dict[tuple(inputs)] = numpy.array(targets)
+    def train(self, input_matrix, target_matrix, *args, **kwargs):
+        for input_vec, target_vec in zip(input_matrix, target_matrix):
+            self._inputs_output_dict[tuple(input_vec)] = numpy.array(target_vec)
 
     def activate(self, inputs):
         return numpy.array(self._inputs_output_dict[tuple(inputs)])
@@ -73,8 +73,8 @@ class WeightedSumModel(Model):
     def activate(self, inputs):
         return pbnn._weighted_sum_rows(self._stored_targets, numpy.array(inputs))
 
-    def train(self, patterns, *args, **kwargs):
-        self._stored_targets = numpy.array([p[1] for p in patterns])
+    def train(self, input_matrix, target_matrix, *args, **kwargs):
+        self._stored_targets = numpy.copy(target_matrix)
 
 def approx_equal(a, b, tol=0.001):
     """Check if two numbers or lists are about the same.

@@ -1,48 +1,8 @@
 import re
 
-def normalize_value(value, min, max):
-    """Scale value from min to max, to -1.0 to 1.0."""
-    return ((value-min)/(max-min))*2-1
-        
-def unnormalize_value(value, min, max):
-    """Return normalized value to original value."""
-    return ((value+1)/2.0)*(max-min)+min
+import numpy
 
-def normalize_all_values(all_values):
-    """Normalize all values in a 2d matrix.
-
-    all_values = [
-                  [0, 1, 2],
-                  [3, 4, 5],
-                  etc.
-                 ]
-    """
-    mins = [min(col) for col in zip(*all_values)]
-    maxes = [max(col) for col in zip(*all_values)]
-
-    for values in all_values:
-        for i in range(len(values)):
-            values[i] = normalize_value(values[i], mins[i], maxes[i])
-
-def normalize_inputs(patterns):
-    """Normalize all inputs in patterns.
-
-    patterns should be list of (inputs, outputs) tuples.
-    """
-    attributes = [pattern[0] for pattern in patterns]
-    normalize_all_values(attributes)
-
-def normalize_targets(patterns):
-    """Normalize all targets in patterns.
-
-    patterns should be list of (inputs, outputs) tuples.
-    """
-    targets = [pattern[1] for pattern in patterns]
-    normalize_all_values(targets)
-
-def get_attributes(line):
-    line_processed = re.sub(r' +', ',', line.strip())
-    return line_processed.split(',')
+from learning import preprocess
 
 def get_data(file_name, attr_start_pos, attr_end_pos=-1, target_pos=-1, classification=True):
     if classification:
@@ -51,7 +11,7 @@ def get_data(file_name, attr_start_pos, attr_end_pos=-1, target_pos=-1, classifi
         # Determine the classes
         classes = set()
         for line in data_file:
-            attributes = get_attributes(line)
+            attributes = _get_attributes(line)
             class_ = attributes[target_pos].strip()
             classes.add(class_)
         class_dict = {}
@@ -59,16 +19,18 @@ def get_data(file_name, attr_start_pos, attr_end_pos=-1, target_pos=-1, classifi
             class_dict[class_] = i
 
     # Obtain a data point from each line of the file
-    patterns = []
+    input_matrix = []
+    target_matrix = []
+
     data_file = open(file_name)
     for line in data_file:
-        attributes = get_attributes(line)
+        attributes = _get_attributes(line)
 
         try:
             input = [float(value) for value in attributes[attr_start_pos:attr_end_pos]]
         except ValueError:
             continue
-        
+
         if classification:
             class_ = attributes[target_pos].strip()
             output = [0.0]*len(classes)
@@ -78,9 +40,21 @@ def get_data(file_name, attr_start_pos, attr_end_pos=-1, target_pos=-1, classifi
         else:
             output = [float(attributes[target_pos].strip())]
 
-        patterns.append((input, output))
+        input_matrix.append(input)
+        target_matrix.append(output)
 
-    #scale inputs data from -1.0 to 1.0
-    normalize_inputs(patterns)
+    # Make numpy arrays
+    input_matrix = numpy.array(input_matrix)
+    target_matrix = numpy.array(target_matrix)
 
-    return patterns
+    # Re-scale input matrix to [-1, 1]
+    input_matrix = preprocess.rescale(input_matrix)
+    # Same for target if it is regression
+    if classification is False:
+        target_matrix = preprocess.rescale(target_matrix)
+
+    return input_matrix, target_matrix
+
+def _get_attributes(line):
+    line_processed = re.sub(r' +', ',', line.strip())
+    return line_processed.split(',')

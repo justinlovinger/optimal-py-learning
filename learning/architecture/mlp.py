@@ -158,23 +158,23 @@ class DropoutMLP(MLP):
         # Post training callbacks
         for layer in self._layers:
             try:
-                layer.post_training(None)
+                layer.post_training(None, None)
             except AttributeError: # Not dropout layer
                 # Ignore transfer layers
                 pass
 
-    def pre_iteration(self, patterns):
+    def pre_iteration(self, input_matrix, target_matrix):
         for layer in self._layers:
             try:
-                layer.pre_iteration(patterns)
+                layer.pre_iteration(input_matrix, target_matrix)
             except AttributeError: # Not dropout layer
                 # Ignore transfer layers
                 pass
 
-    def post_iteration(self, patterns):
+    def post_iteration(self, input_matrix, target_matrix):
         for layer in self._layers:
             try:
-                layer.post_iteration(patterns)
+                layer.post_iteration(input_matrix, target_matrix)
             except AttributeError: # Not dropout layer
                 # Ignore transfer layers
                 pass
@@ -220,25 +220,25 @@ class Layer(object):
     def update(self, all_inputs, outputs, all_errors):
         raise NotImplementedError()
 
-    def pre_training(self, patterns):
+    def pre_training(self, input_matrix, target_matrix):
         """Called before each training run.
 
         Optional.
         """
 
-    def post_training(self, patterns):
+    def post_training(self, input_matrix, target_matrix):
         """Called after each training run.
 
         Optional.
         """
 
-    def pre_iteration(self, patterns):
+    def pre_iteration(self, input_matrix, target_matrix):
         """Called before each training iteration.
 
         Optional.
         """
 
-    def post_iteration(self, patterns):
+    def post_iteration(self, input_matrix, target_matrix):
         """Called after each training iteration.
 
         Optional.
@@ -328,7 +328,7 @@ class DropoutPerceptron(Perceptron):
         self._active_neurons = range(self._size[1])
         self._full_weights = copy.deepcopy(self._weights)
 
-    def pre_iteration(self, patterns):
+    def pre_iteration(self, input_matrix, target_matrix):
         # Disable active neurons based on probability
         self._active_neurons = _random_indexes(self._size[1],
                                                self._active_probability)
@@ -348,7 +348,7 @@ class DropoutPerceptron(Perceptron):
         # Invalidate previous momentums, since weight matrix changed
         self._momentums = None
 
-    def post_iteration(self, patterns):
+    def post_iteration(self, input_matrix, target_matrix):
         # Combine newly trained weights with full weight matrix
         # Override old weights with new weights for neurons
         incoming_active_neurons = self._get_incoming_active_neurons()
@@ -363,9 +363,9 @@ class DropoutPerceptron(Perceptron):
         """Return list of active neurons in a preceeding dropout layer."""
         return self._incoming_layer._active_neurons
 
-    def post_training(self, patterns):
+    def post_training(self, input_matrix, target_matrix):
         # Active all neurons
-        # Scale weights by dropout probability, as a form of 
+        # Scale weights by dropout probability, as a form of
         # normalization by "expected" weight.
 
         # NOTE: future training iterations will continue with unscaled weights
@@ -406,7 +406,7 @@ class DropoutInputs(Layer):
     def update(self, all_inputs, outputs, all_errors):
         pass
 
-    def pre_iteration(self, patterns):
+    def pre_iteration(self, input_matrix, target_matrix):
         # Disable random selection of inputs
         self._active_neurons = _random_indexes(self._num_inputs,
                                                self._active_probability)
@@ -414,7 +414,7 @@ class DropoutInputs(Layer):
         # Bias is always active
         self._active_neurons.append(self._num_inputs)
 
-    def post_training(self, patterns):
+    def post_training(self, input_matrix, target_matrix):
         # All active when not training
         self._active_neurons = range(self._num_inputs)
 

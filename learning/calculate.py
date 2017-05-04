@@ -17,6 +17,8 @@ def protvecdiv(vec_a, vec_b):
         except FloatingPointError:
             # Fallback to dividing component at a time
             # Slower, but lets us handle divide by 0
+            # TODO: Use procedure in preprocess.normalzie instead
+            #   Divide, then np_matrix[~ numpy.isfinite(np_matrix)] = 0.0
             result_vec = numpy.zeros(vec_a.shape)
             for i in range(vec_a.shape[0]):
                 try:

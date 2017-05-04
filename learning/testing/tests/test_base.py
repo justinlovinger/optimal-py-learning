@@ -14,23 +14,28 @@ from learning.testing import helpers
 def test_mse():
     # This network will always output 0 for input 0
     nn = helpers.SetOutputModel(0)
-    assert nn.mse([[0], [1]]) == 1.0
-    assert nn.mse([[0], [0.5]]) == 0.25
+    assert nn.mse([0], [1]) == 1.0
+    assert nn.mse([0], [0.5]) == 0.25
 
     nn = helpers.SetOutputModel([0, 0])
-    assert nn.mse([[0], [1, 1]]) == 1.0
+    assert nn.mse([0], [1, 1]) == 1.0
 
 
 def test_post_pattern_callback():
-    pat = datasets.get_xor()
-    nn = helpers.EmptyModel()
+    dataset = datasets.get_xor()
+    model = helpers.EmptyModel()
 
-    history = []
-    def callback(nn, input_vec, target_vec):
-        history.append([list(input_vec), list(target_vec)])
+    inp_history = []
+    tar_history = []
+    def callback(model, input_vec, target_vec):
+        inp_history.append(input_vec)
+        tar_history.append(target_vec)
 
-    nn.train(pat, iterations=1, post_pattern_callback=callback)
-    assert pat == history
+    model.train(*dataset, iterations=1, post_pattern_callback=callback)
+    inp_history = numpy.array(inp_history)
+    tar_history = numpy.array(tar_history)
+    assert (dataset[0] == inp_history).all()
+    assert (dataset[1] == tar_history).all()
 
 
 ################################
@@ -46,38 +51,73 @@ def seed_random(request):
     request.addfinalizer(fin)
 
 
-def test_select_sample(seed_random):
-    pat = datasets.get_xor()
-    new_pat = base.select_sample(pat)
-    assert len(new_pat) == len(pat)
-    for p in pat: # all in
-        assert p in new_pat
-    assert new_pat != pat # order different
+def test_select_sample_size_none(seed_random):
+    input_matrix, target_matrix = datasets.get_xor()
 
-    new_pat = base.select_random(pat, size=2)
-    assert len(new_pat) == 2
+    new_inp_matrix, new_tar_matrix = base.select_sample(input_matrix, target_matrix)
+    assert new_inp_matrix.shape == input_matrix.shape
+    assert new_tar_matrix.shape == target_matrix.shape
+
+    for inp_vec in input_matrix: # all in
+        assert inp_vec in new_inp_matrix
+    for tar_vec in target_matrix: # all in
+        assert tar_vec in new_tar_matrix
+
+    assert not (new_inp_matrix == input_matrix).all() # order different
+    assert not (new_tar_matrix == target_matrix).all() # order different
+
+def test_select_sample(seed_random):
+    input_matrix, target_matrix = datasets.get_xor()
+
+    # Test size param
+    new_inp_matrix, new_tar_matrix = base.select_sample(input_matrix, target_matrix, size=2)
+    assert new_inp_matrix.shape[0] == 2
+    assert new_tar_matrix.shape[0] == 2
+
     # No duplicates
     count = 0
-    for p in pat:
-        if p in new_pat:
+    for inp_vec in new_inp_matrix:
+        if inp_vec in input_matrix:
             count += 1
     assert count == 2
 
+    count = 0
+    for tar_vec in new_tar_matrix:
+        if tar_vec in target_matrix:
+            count += 1
+    assert count == 2
+
+
+def test_select_random_size_none(monkeypatch):
+    # Monkeypatch so we know that random returns
+    monkeypatch.setattr(random, 'randint', lambda x, y : 0) # randint always returns 0
+
+    input_matrix, target_matrix = datasets.get_xor()
+    new_inp_matrix, new_tar_matrix = base.select_random(input_matrix, target_matrix)
+    assert new_inp_matrix.shape == input_matrix.shape
+    assert new_tar_matrix.shape == target_matrix.shape
+
+    for inp_vec in new_inp_matrix:
+        assert (inp_vec == input_matrix[0]).all() # due to monkeypatch
+    for tar_vec in new_tar_matrix:
+        assert (tar_vec == target_matrix[0]).all() # due to monkeypatch
 
 def test_select_random(monkeypatch):
     # Monkeypatch so we know that random returns
     monkeypatch.setattr(random, 'randint', lambda x, y : 0) # randint always returns 0
 
-    pat = datasets.get_xor()
-    new_pat = base.select_random(pat)
-    assert len(new_pat) == len(pat)
-    for p in new_pat:
-        assert p == pat[0] # due to monkeypatch
+    input_matrix, target_matrix = datasets.get_xor()
 
-    new_pat = base.select_random(pat, size=2)
-    assert len(new_pat) == 2
-    for p in new_pat:
-        assert p == pat[0]
+    # Test size param
+    new_inp_matrix, new_tar_matrix = base.select_random(input_matrix, target_matrix, size=2)
+
+    assert new_inp_matrix.shape[0] == 2
+    assert new_tar_matrix.shape[0] == 2
+
+    for inp_vec in new_inp_matrix:
+        assert (inp_vec == input_matrix[0]).all() # due to monkeypatch
+    for tar_vec in new_tar_matrix:
+        assert (tar_vec == target_matrix[0]).all() # due to monkeypatch
 
 #########################
 # Pre and post hooks
@@ -91,12 +131,12 @@ class CountMLP(mlp.MLP):
 def test_pre_iteration():
     # Setup pre_iteration function
     class TestMLP(CountMLP):
-        def pre_iteration(self, patterns):
+        def pre_iteration(self, input_matrix, target_matrix):
             self.count += 1
 
     # Train for a few iterations
     nn = TestMLP((1, 1))
-    nn.train([[[1], [1]]], iterations=10, error_break=None)
+    nn.train([1], [1], iterations=10, error_break=None)
 
     # Count incremented for each iteration
     assert nn.count == 10
@@ -105,12 +145,12 @@ def test_pre_iteration():
 def test_post_iteration():
     # Setup post_iteration function
     class TestMLP(CountMLP):
-        def post_iteration(self, patterns):
+        def post_iteration(self, input_matrix, target_matrix):
             self.count += 1
 
     # Train for a few iterations
     nn = TestMLP((1, 1))
-    nn.train([[[1], [1]]], iterations=10, error_break=None)
+    nn.train([[1]], [[1]], iterations=10, error_break=None)
 
     # Count incremented for each iteration
     assert nn.count == 10
@@ -126,7 +166,7 @@ def test_break_on_stagnation_completely_stagnant():
 
     # Stop training if error does not change by more than threshold after
     # distance iterations
-    nn.train([([0.0], [0.0])], error_stagnant_distance=5, error_stagnant_threshold=0.01)
+    nn.train([[0.0]], [[0.0]], error_stagnant_distance=5, error_stagnant_threshold=0.01)
     assert nn.iteration == 6 # The 6th is 5 away from the first
 
 def test_break_on_stagnation_dont_break_if_wrapped_around():
@@ -136,7 +176,7 @@ def test_break_on_stagnation_dont_break_if_wrapped_around():
     nn = helpers.ManySetOutputsModel([[1.0], [0.9], [0.8], [0.7], [1.0], [1.0], [1.0], [1.0], [1.0]])
 
     # Should pass wrap around to [1.0], and stop after consecutive [1.0]s
-    nn.train([([0.0], [0.0])], error_stagnant_distance=4, error_stagnant_threshold=0.01)
+    nn.train([[0.0]], [[0.0]], error_stagnant_distance=4, error_stagnant_threshold=0.01)
     assert nn.iteration == 9
 
 @pytest.mark.skip(reason='Hard to test, but not hard to implement')

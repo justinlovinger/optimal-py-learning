@@ -4,31 +4,15 @@ import time
 import numpy
 
 from learning import validation
+from learning.data import datasets
 
 from learning.testing import helpers
 
-def random_dataset():
-    dataset = []
-    inputs = random.randint(2, 5)
-    targets = random.randint(1, 3)
-    # Dataset of size between 100 - 150
-    for i in range(random.randint(100, 150)):
-        input = []
-        for j in range(inputs):
-            input.append(random.uniform(-1.0, 1.0))
-        target = []
-        for j in range(targets):
-            target.append(random.uniform(-1.0, 1.0))
-
-        # Each datapoint is an input, target pair
-        dataset.append([input, target])
-
-    return dataset
-
 def test_split_dataset():
-    dataset = random_dataset()
+    input_matrix, target_matrix = datasets.get_random_regression(
+        random.randint(100, 150), random.randint(2, 5), random.randint(1, 3))
     num_sets = random.randint(2, 5)
-    sets = validation._split_dataset(dataset, num_sets)
+    sets = validation._split_dataset(input_matrix, target_matrix, num_sets)
 
     # The right number of sets is created
     assert len(sets) == num_sets
@@ -38,10 +22,14 @@ def test_split_dataset():
             # Check that each set is about equal in size
             assert len(sets[i]) >= len(sets[j])-5 and len(sets[i]) <= len(sets[j])+5
 
-            # Check that each set has unique datapoints
-            for point1 in sets[i]:
-                for point2 in sets[j]:
-                    assert point1 != point2
+            # Check that each set has unique patterns
+            patterns = zip(*sets[i])
+            other_patterns = zip(*sets[j])
+
+            for pattern in patterns:
+                for other_pattern in other_patterns:
+                    assert not ((pattern[0] == other_pattern[0]).all()
+                                and (pattern[1] == other_pattern[1]).all())
 
 def test_mean_of_dicts():
     folds = [{'test': 0.0, 'test2': 1.0},
@@ -60,14 +48,14 @@ def test_sd_of_dicts():
 #################
 def test_validate_network(monkeypatch):
     # Patch time.clock so time attribute is deterministic
-    monkeypatch.setattr(time, 'clock', lambda : 0.0)
+    monkeypatch.setattr(time, 'clock', lambda: 0.0)
 
     # This lets us test training error, but is kinda complicated
     nn = helpers.WeightedSumModel()
 
-    assert (validation._validate_network(nn, [([1], [0]), ([1], [1])],
-                                         [([1], [2])],
-                                         iterations=0)
+    assert (validation._validate_model(nn, (numpy.array([[1], [1]]), numpy.array([[0], [1]])),
+                                       (numpy.array([[1]]), numpy.array([[2]])),
+                                       iterations=0)
             == {'time': 0.0, 'epochs': 0,
                 'training_error': 0.5,
                 'testing_error': 1.0,
@@ -79,9 +67,9 @@ def test_validate_network(monkeypatch):
     # Make network that returns set output for a given input
     # Simpler, always 0 training error
     nn = helpers.RememberPatternsModel()
-    assert (validation._validate_network(nn, [([1], [1])],
-                                         [([1], [1.5])],
-                                         iterations=0)
+    assert (validation._validate_model(nn, (numpy.array([[1]]), numpy.array([[1]])),
+                                       (numpy.array([[1]]), numpy.array([[1.5]])),
+                                       iterations=0)
             == {'time': 0.0, 'epochs': 0,
                 'training_error': 0.0,
                 'testing_error': 0.25,
@@ -89,9 +77,9 @@ def test_validate_network(monkeypatch):
                 'training_confusion_matrix': numpy.array([[1]]),
                 'testing_accuracy': 1.0,
                 'testing_confusion_matrix': numpy.array([[1]])})
-    assert (validation._validate_network(nn, [([0], [0])],
-                                         [([0], [2.0])],
-                                         iterations=0)
+    assert (validation._validate_model(nn, (numpy.array([[0]]), numpy.array([[0]])),
+                                       (numpy.array([[0]]), numpy.array([[2.0]])),
+                                       iterations=0)
             == {'time': 0.0, 'epochs': 0,
                 'training_error': 0.0,
                 'testing_error': 4.0,
@@ -106,10 +94,10 @@ def test_cross_validate(monkeypatch):
 
     # Make network that returns set output for
     patterns = [
-                ([0], [1]),
-                ([1], [1]),
-                ([2], [1])
-               ]
+        ([0], [1]),
+        ([1], [1]),
+        ([2], [1])
+    ]
     nn = helpers.SetOutputModel([1])
 
     # Track patterns for training
@@ -118,7 +106,7 @@ def test_cross_validate(monkeypatch):
         training_patterns.append((list(input_vec), list(target_vec)))
 
     # Cross validate with deterministic network, and check output
-    stats = validation.cross_validate(nn, patterns, num_folds=3,
+    stats = validation.cross_validate(nn, zip(*patterns), num_folds=3,
                                       iterations=1,
                                       post_pattern_callback=post_pattern_callback)
 
@@ -132,10 +120,10 @@ def test_cross_validate(monkeypatch):
 # Stat functions
 ################
 def test_get_classes():
-    assert (validation._get_classses(
+    assert (validation._get_classes(
         numpy.array([[1.0, 0.75, 0.25, 0.0],
                      [-1.0, -0.75, -0.25, 0.0]]))
-        == numpy.array([0, 3])).all()
+            == numpy.array([0, 3])).all()
 
 def test_get_accuracy():
     assert validation._get_accuracy(
@@ -183,10 +171,10 @@ def test_benchmark(monkeypatch):
 
     # Make network that returns set output for
     patterns = [
-                ([0], [1]),
-                ([1], [1]),
-                ([2], [1])
-               ]
+        ([0], [1]),
+        ([1], [1]),
+        ([2], [1])
+    ]
     nn = helpers.SetOutputModel([1])
 
     # Track patterns for training
@@ -195,7 +183,7 @@ def test_benchmark(monkeypatch):
         training_patterns.append((list(input_vec), list(target_vec)))
 
     # Cross validate with deterministic network, and check output
-    stats = validation.benchmark(nn, patterns, num_folds=3, num_runs=2,
+    stats = validation.benchmark(nn, zip(*patterns), num_folds=3, num_runs=2,
                                  iterations=1,
                                  post_pattern_callback=post_pattern_callback)
 
@@ -225,8 +213,8 @@ def test_compare(monkeypatch):
     nn2 = helpers.SetOutputModel([1])
 
     # Cross validate with deterministic network, and check output
-    stats = validation.compare([('nn', nn, patterns, {'iterations':1}),
-                                ('nn2', nn2, patterns, {'iterations':1})],
+    stats = validation.compare([('nn', nn, zip(*patterns), {'iterations':1}),
+                                ('nn2', nn2, zip(*patterns), {'iterations':1})],
                                num_folds=3, num_runs=2)
 
     # Check

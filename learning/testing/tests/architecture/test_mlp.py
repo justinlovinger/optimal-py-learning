@@ -20,9 +20,9 @@ def test_mlp():
     nn = mlp.MLP((2, 2, 2))
     pat = datasets.get_xor()
 
-    error = nn.avg_mse(pat)
-    nn.train(pat, 10)
-    assert nn.avg_mse(pat) < error
+    error = nn.avg_mse(*pat)
+    nn.train(*pat, iterations=10)
+    assert nn.avg_mse(*pat) < error
 
 
 pytest.mark.slowtest()
@@ -32,8 +32,8 @@ def test_mlp_convergence():
     nn = mlp.MLP((2, 4, 2), learn_rate=0.05, momentum_rate=0.025)
     pat = datasets.get_xor()
 
-    nn.train(pat, retries=5, error_break=0.002)
-    assert nn.avg_mse(pat) <= 0.02
+    nn.train(*pat, retries=5, error_break=0.002)
+    assert nn.avg_mse(*pat) <= 0.02
 
 
 def test_mlp_classifier():
@@ -42,9 +42,9 @@ def test_mlp_classifier():
     nn = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransferPerceptron())
     pat = datasets.get_xor()
 
-    error = nn.avg_mse(pat)
-    nn.train(pat, 10)
-    assert nn.avg_mse(pat) < error
+    error = nn.avg_mse(*pat)
+    nn.train(*pat, iterations=10)
+    assert nn.avg_mse(*pat) < error
 
 
 pytest.mark.slowtest()
@@ -55,8 +55,8 @@ def test_mlp_classifier_convergence():
                  learn_rate=0.05, momentum_rate=0.025)
     pat = datasets.get_and()
 
-    nn.train(pat, retries=5, error_break=0.002)
-    assert nn.avg_mse(pat) <= 0.02
+    nn.train(*pat, retries=5, error_break=0.002)
+    assert nn.avg_mse(*pat) <= 0.02
 
 
 def test_dropout_mlp():
@@ -65,9 +65,9 @@ def test_dropout_mlp():
     nn = mlp.DropoutMLP((2, 2, 2))
     pat = datasets.get_xor()
 
-    error = nn.avg_mse(pat)
-    nn.train(pat, 10)
-    assert nn.avg_mse(pat) < error
+    error = nn.avg_mse(*pat)
+    nn.train(*pat, iterations=10)
+    assert nn.avg_mse(*pat) < error
 
 
 pytest.mark.slowtest()
@@ -82,11 +82,11 @@ def test_dropout_mlp_convergence():
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
-    nn.train(pat, retries=5, error_break=0.002, pattern_select_func=base.select_sample)
+    nn.train(*pat, retries=5, error_break=0.002, pattern_select_func=base.select_sample)
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
-    assert nn.avg_mse(pat) <= 0.1
+    assert nn.avg_mse(*pat) <= 0.1
 
 
 def test_dropout_mlp_classifier():
@@ -96,9 +96,9 @@ def test_dropout_mlp_classifier():
                         learn_rate=0.2, momentum_rate=0.1)
     pat = datasets.get_and()
 
-    error = nn.avg_mse(pat)
-    nn.train(pat, 10, pattern_select_func=base.select_sample)
-    assert nn.avg_mse(pat) < error
+    error = nn.avg_mse(*pat)
+    nn.train(*pat, iterations=10, pattern_select_func=base.select_sample)
+    assert nn.avg_mse(*pat) < error
 
 
 pytest.mark.slowtest()
@@ -114,11 +114,11 @@ def test_dropout_mlp_classifier_convergence():
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
-    nn.train(pat, retries=5, error_break=0.002)
+    nn.train(*pat, retries=5, error_break=0.002)
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
-    assert nn.avg_mse(pat) <= 0.1
+    assert nn.avg_mse(*pat) <= 0.1
 
 ############################
 # Perceptron
@@ -164,7 +164,7 @@ def test_dropout_perceptron_pre_iteration_reduce_outgoing(monkeypatch):
 
     # pre_iteration hook should reduce weight matrix for outgoing weights
     monkeypatch.setattr(mlp, '_random_indexes', lambda a, b : [0])
-    layer.pre_iteration([])
+    layer.pre_iteration([], [])
 
     assert (helpers.sane_equality_array(layer._weights) ==
             helpers.sane_equality_array(numpy.array([[0.0],
@@ -172,7 +172,7 @@ def test_dropout_perceptron_pre_iteration_reduce_outgoing(monkeypatch):
 
     # Test for second column
     monkeypatch.setattr(mlp, '_random_indexes', lambda a, b : [1])
-    layer.pre_iteration([])
+    layer.pre_iteration([], [])
 
     assert (helpers.sane_equality_array(layer._weights) ==
             helpers.sane_equality_array(numpy.array([[1.0],
@@ -195,14 +195,14 @@ def test_dropout_perceptron_pre_iteration_reduce_incoming(monkeypatch):
     # pre_iteration hook should reduce incoming component of weight matrix
     # based on incoming dropout perceptrons
     prev_layer._active_neurons = [0]
-    layer.pre_iteration([])
+    layer.pre_iteration([], [])
 
     assert (helpers.sane_equality_array(layer._weights) ==
             helpers.sane_equality_array(numpy.array([[0.0, 1.0]])))
 
     # Test for second row
     prev_layer._active_neurons = [1]
-    layer.pre_iteration([])
+    layer.pre_iteration([], [])
 
     assert (helpers.sane_equality_array(layer._weights) ==
             helpers.sane_equality_array(numpy.array([[2.0, 3.0]])))
@@ -229,7 +229,7 @@ def test_dropout_perceptron_pre_iteration_correct_order(monkeypatch):
     # prev_layer should set active neurons first, such that will adjust
     # based on incoming active neurons
     monkeypatch.setattr(mlp, '_random_indexes', lambda *args : [0])
-    nn.train([([0.0], [0.0])], 1)
+    nn.train([[0.0]], [[0.0]], 1)
 
     assert (helpers.sane_equality_array(layer._weights) ==
             helpers.sane_equality_array(numpy.array([[0.0]])))
@@ -253,7 +253,7 @@ def test_dropout_perceptron_post_iteration(monkeypatch):
 
     # post_iteration callback should update full_weights, but only those
     # for active neurons
-    layer.post_iteration([])
+    layer.post_iteration([], [])
     assert (helpers.sane_equality_array(layer._full_weights) ==
             helpers.sane_equality_array(numpy.array([[1.0, -2.0],
                                                      [-3.0, -4.0]])))
@@ -265,7 +265,7 @@ def test_dropout_perceptron_post_iteration(monkeypatch):
     layer._weights = numpy.array([[2.0],
                                   [4.0]])
 
-    layer.post_iteration([])
+    layer.post_iteration([], [])
     assert (helpers.sane_equality_array(layer._full_weights) ==
             helpers.sane_equality_array(numpy.array([[1.0, 2.0],
                                                      [-3.0, 4.0]])))
@@ -277,7 +277,7 @@ def test_dropout_perceptron_post_iteration(monkeypatch):
     layer._weights = numpy.array([[5.0, 6.0],
                                   [7.0, 8.0]])
 
-    layer.post_iteration([])
+    layer.post_iteration([], [])
     assert (helpers.sane_equality_array(layer._full_weights) ==
             helpers.sane_equality_array(numpy.array([[5.0, 6.0],
                                                      [7.0, 8.0]])))
@@ -291,7 +291,7 @@ def test_dropout_perceptron_post_training():
 
     # post_training hook activates all neurons, and
     # scales weights them based on active_probability
-    layer.post_training([])
+    layer.post_training([], [])
 
     assert layer._active_neurons == [0, 1]
     assert (helpers.sane_equality_array(layer._weights) ==
@@ -322,18 +322,18 @@ def test_dropout_inputs_pre_training_disables_inputs_not_bias(monkeypatch):
     layer = mlp.DropoutInputs(2)
 
     monkeypatch.setattr(mlp, '_random_indexes', lambda *args : [0])
-    layer.pre_iteration([])
+    layer.pre_iteration([], [])
     assert layer._active_neurons == [0, 2]
 
     monkeypatch.setattr(mlp, '_random_indexes', lambda *args : [1])
-    layer.pre_iteration([])
+    layer.pre_iteration([], [])
     assert layer._active_neurons == [1, 2]
 
 def test_dropout_inputs_post_training_all_active():
     layer = mlp.DropoutInputs(2)
     layer._active_neurons = [0, 2]
 
-    layer.post_training([])
+    layer.post_training([], [])
     assert layer._active_neurons == [0, 1, 2]
 
 ####################

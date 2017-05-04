@@ -47,16 +47,12 @@ class PBNN(Model):
         output_vec /= sum(output_vec)
         return output_vec
 
-    def train(self, patterns, *args, **kwargs):
-        # Extract inputs from patterns
-        # And store them to recall later
-        inputs = [p[0] for p in patterns]
-        self._input_matrix = numpy.array(inputs)
+    def train(self, input_matrix, target_matrix, *args, **kwargs):
+        # Store inputs to recall later
+        self._input_matrix = numpy.copy(input_matrix)
 
-        # Extract targets from patterns
-        # And store them to recall later
-        targets = [p[1] for p in patterns]
-        self._target_matrix = numpy.array(targets)
+        # Store targets to recall later
+        self._target_matrix = numpy.copy(target_matrix)
 
         # Calculate target sum now, for efficiency
         self._target_totals = numpy.sum(self._target_matrix, axis=0)
