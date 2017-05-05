@@ -1,8 +1,20 @@
 import copy
+import random
 
 import numpy
 
 from learning.architecture import knn
+
+def shuffle(dataset):
+    """Return shuffled (input_matrix, target_matrix) dataset.
+
+    Only supports numpy matrices.
+    For python matrices: zip, shuffle, unzip.
+    """
+    # Shuffle indices, and use shuffled indices to slice both matrices
+    indices = range(len(dataset[0]))
+    random.shuffle(indices)
+    return dataset[0][indices], dataset[1][indices]
 
 ########################
 # Normalization

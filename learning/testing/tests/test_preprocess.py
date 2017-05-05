@@ -9,6 +9,56 @@ from learning.data import datasets
 
 from learning.testing import helpers
 
+def test_shuffle_dataset_does_shuffle():
+    dataset = (
+        numpy.array(
+            [['s1i1', 's1i2'],
+             ['s2i1', 's2i2'],
+             ['s3i1', 's3i2']]
+        ),
+        numpy.array(
+            [['s1t1'],
+             ['s2t1'],
+             ['s3t1']]
+        )
+    )
+
+    # Assert that not all shuffled sets match
+    def _eq_dataset(dataset_a, dataset_b):
+        return (dataset_a[0] == dataset_b[0]).all() and (dataset_a[1] == dataset_b[1]).all()
+    shuffled_dataset = preprocess.shuffle(dataset)
+    for i in range(20):
+        if not _eq_dataset(shuffled_dataset, preprocess.shuffle(dataset)):
+            return # They don't all match
+    assert False, 'Add shuffled sets match'
+
+def test_shuffle_dataset_correct_patterns():
+    dataset = (
+        numpy.array(
+            [['s1i1', 's1i2'],
+             ['s2i1', 's2i2'],
+             ['s3i1', 's3i2']]
+        ),
+        numpy.array(
+            [['s1t1'],
+             ['s2t1'],
+             ['s3t1']]
+        )
+    )
+
+    shuffled_dataset = preprocess.shuffle(dataset)
+
+    # Make mapping for testing shuffled set testing
+    target_mapping = {tuple(inp_vec): tar_vec for inp_vec, tar_vec in zip(*dataset)}
+    for inp_vec, tar_vec in zip(*shuffled_dataset):
+        assert (target_mapping[tuple(inp_vec)] == tar_vec).all()
+        target_mapping.pop(tuple(inp_vec))
+    assert target_mapping == {} # Each original pattern is in shuffle dataset
+
+
+#################
+# Normalization
+#################
 def test_rescale():
     assert (preprocess.rescale(
         numpy.array([
