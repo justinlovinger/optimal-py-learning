@@ -16,6 +16,50 @@ def shuffle(dataset):
     random.shuffle(indices)
     return dataset[0][indices], dataset[1][indices]
 
+def make_onehot(vector):
+    """Return a matrix of one-hot vectors from a vector of values.
+
+    Use to convet a vector of class labels into a target_matrix.
+    Each one-hot vector has a single 1.0, and many 0.0s.
+    """
+    # Find classes, and corresponding onehot vectors
+    class_onehots = _class_indices_to_onehots(_class_indices(vector))
+
+    # Add onehot vector to matrix for each value (class) in vector
+    matrix = []
+    for val in vector:
+        # Append a copy of the onehot vector corresponding to this class
+        matrix.append(class_onehots[str(val)].copy())
+
+    return numpy.array(matrix)
+
+def _class_indices(vector):
+    """Return dict mapping class -> index.
+
+    Classes get index in order of first appearance.
+    """
+    # Find all classes
+    # Each unique row is considered a class, whether matrix is 1d, 2d, etc.
+    # This alllows it to work with col vectors, or 1d vectors
+    class_indices = {}
+    index = 0
+    for val in vector:
+        key = str(val)
+        if key not in class_indices:
+            class_indices[key] = index
+            index += 1
+    return class_indices
+
+def _class_indices_to_onehots(class_indices):
+    """Return dict mapping class -> onehot_vec."""
+    num_classes = len(class_indices)
+    class_onehots = {}
+    for class_, index in class_indices.iteritems():
+        onehot = numpy.zeros(num_classes)
+        onehot[index] = 1.0
+        class_onehots[class_] = onehot
+    return class_onehots
+
 ########################
 # Normalization
 ########################

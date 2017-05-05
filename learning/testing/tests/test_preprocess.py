@@ -56,6 +56,22 @@ def test_shuffle_dataset_correct_patterns():
     assert target_mapping == {} # Each original pattern is in shuffle dataset
 
 
+def test_make_onehot_1d():
+    assert (preprocess.make_onehot([1, 2, 1])
+            == numpy.array([[1, 0], [0, 1], [1, 0]])).all()
+
+    assert (preprocess.make_onehot([1, 2, 3, 1])
+            == numpy.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 0]])).all()
+
+def test_make_onehot_2d():
+    labels = [
+        [1, 2, 3],
+        [2, 3, 4],
+        [1, 2, 3]
+    ]
+    assert (preprocess.make_onehot(labels)
+            == numpy.array([[1, 0], [0, 1], [1, 0]])).all()
+
 #################
 # Normalization
 #################
