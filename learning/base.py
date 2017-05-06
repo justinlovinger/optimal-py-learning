@@ -118,7 +118,8 @@ class Model(object):
             # TODO: Should we use use defined error function?
             # Check if we are out of retires, so we don't waste time calculating
             # avg_mse
-            if attempt >= retries or self.avg_mse(input_matrix, target_matrix) <= error_break:
+            if attempt >= retries or (error is not None
+                                      and self.avg_mse(input_matrix, target_matrix) <= error_break):
                 break
             self.reset()
 

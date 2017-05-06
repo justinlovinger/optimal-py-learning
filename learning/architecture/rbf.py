@@ -10,10 +10,12 @@ class RBF(Model):
     """Radial Basis Function network."""
     def __init__(self, attributes, num_clusters, num_outputs,
                  learn_rate=1.0, variance=None, scale_by_similarity=True,
+                 pre_train_clusters=False,
                  move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
         super(RBF, self).__init__()
 
         # Clustering algorithm
+        self._pre_train_clusters = pre_train_clusters
         self._som = SOM(
             attributes, num_clusters,
             move_rate=move_rate, neighborhood=neighborhood, neighbor_move_rate=neighbor_move_rate)
@@ -54,6 +56,28 @@ class RBF(Model):
             output /= self._total_similarity
 
         return output
+
+    def train(self, *args, **kwargs):
+        """Train model to converge on a dataset.
+
+        Note: Override this method for batch learning models.
+
+        Args:
+            input_matrix: A matrix with samples in rows and attributes in columns.
+            target_matrix: A matrix with samples in rows and target values in columns.
+            iterations: Max iterations to train model.
+            retries: Number of times to reset model and retries if it does not converge.
+                Convergence is defined as reaching error_break.
+            error_break: Training will end once error is less than this.
+            pattern_select_func: Function that takes (input_matrix, target_matrix),
+                and returns a selection of rows. Use partial function to embed arguments.
+        """
+        if self._pre_train_clusters:
+            # Train SOM first
+            self._som.train(*args, **kwargs)
+
+        super(type(self), self).train(*args, **kwargs)
+
 
     def train_step(self, input_matrix, target_matrix):
         """Adjust the model towards the targets for given inputs.
