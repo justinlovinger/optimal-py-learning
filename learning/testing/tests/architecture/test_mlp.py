@@ -29,7 +29,7 @@ pytest.mark.slowtest()
 def test_mlp_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = mlp.MLP((2, 4, 2), learn_rate=0.05, momentum_rate=0.025)
+    nn = mlp.MLP((2, 4, 2), learn_rate=0.05, momentum_rate=0.5)
     pat = datasets.get_xor()
 
     nn.train(*pat, retries=5, error_break=0.002)
@@ -52,7 +52,7 @@ def test_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
     nn = mlp.MLP((2, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
-                 learn_rate=0.05, momentum_rate=0.025)
+                 learn_rate=0.05, momentum_rate=0.5)
     pat = datasets.get_and()
 
     nn.train(*pat, retries=5, error_break=0.002)
@@ -75,7 +75,7 @@ def test_dropout_mlp_convergence():
     # Run until convergence
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
-    nn = mlp.DropoutMLP((2, 6, 3, 2), learn_rate=0.1, momentum_rate=0.05,
+    nn = mlp.DropoutMLP((2, 6, 3, 2), learn_rate=0.1, momentum_rate=0.5,
                         input_active_probability=1.0,
                         hidden_active_probability=0.9)
     pat = datasets.get_and() # Easier and dataset for lienar output
@@ -93,7 +93,7 @@ def test_dropout_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
     nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
-                        learn_rate=0.2, momentum_rate=0.1)
+                        learn_rate=0.2, momentum_rate=0.5)
     pat = datasets.get_and()
 
     error = nn.avg_mse(*pat)
@@ -107,7 +107,7 @@ def test_dropout_mlp_classifier_convergence():
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
     nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
-                        learn_rate=0.2, momentum_rate=0.1,
+                        learn_rate=0.2, momentum_rate=0.5,
                         input_active_probability=1.0,
                         hidden_active_probability=0.9)
     pat = datasets.get_and()

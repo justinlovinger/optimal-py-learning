@@ -16,9 +16,9 @@ class MLP(Model):
             Can be given as a single transfer layer to easily define output transfer.
             Defaults to ReLU hidden followed by linear output.
         learn_rate: Learning rate for backpropogation.
-        momentum_rate: Momentum rate for backpropagation.
+        momentum_rate: Momentum rate for backpropagation, value is relative to learn_rate.
     """
-    def __init__(self, shape, transfers=None, learn_rate=0.5, momentum_rate=0.1):
+    def __init__(self, shape, transfers=None, learn_rate=0.5, momentum_rate=0.2):
         super(MLP, self).__init__()
 
         if transfers is None:
@@ -31,7 +31,7 @@ class MLP(Model):
             raise ValueError(
                 'Must have exactly 1 transfer between each pair of layers, and after the output')
 
-        self._layers = self._make_layers(shape, transfers, learn_rate, momentum_rate)
+        self._layers = self._make_layers(shape, transfers, learn_rate, learn_rate*momentum_rate)
 
         # Setup activation vectors
         # 1 for input, then 2 for each hidden and output (1 perceptron, 1 transfer)
