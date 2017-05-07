@@ -72,6 +72,15 @@ def test_make_onehot_2d():
     assert (preprocess.make_onehot(labels)
             == numpy.array([[1, 0], [0, 1], [1, 0]])).all()
 
+def make_labels():
+    onehot = numpy.array([
+        [1, 0],
+        [0, 1],
+        [1, 0]
+    ])
+    assert (preprocess.make_labels(onehot)
+            == numpy.array([[0], [1], [0]])).all()
+
 #################
 # Normalization
 #################

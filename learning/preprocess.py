@@ -33,6 +33,20 @@ def make_onehot(vector):
 
     return numpy.array(matrix)
 
+def make_labels(matrix):
+    """Return a column vector of unique indices.
+
+    Use to convert onehot matrix into class labels.
+    """
+    class_indices = _class_indices(matrix)
+
+    # Make column vector
+    vector = []
+    for row in matrix:
+        vector.append([class_indices[str(row)]])
+
+    return numpy.array(vector)
+
 def _class_indices(vector):
     """Return dict mapping class -> index.
 
