@@ -91,40 +91,34 @@ def test_validate_network(monkeypatch):
     # This lets us test training error, but is kinda complicated
     nn = helpers.WeightedSumModel()
 
-    assert (validation._validate_model(nn, (numpy.array([[1], [1]]), numpy.array([[0], [1]])),
-                                       (numpy.array([[1]]), numpy.array([[2]])),
-                                       iterations=0)
-            == {'time': 0.0, 'epochs': 0,
-                'training_error': 0.5,
-                'testing_error': 1.0,
-                'training_accuracy': 1.0,
-                'training_confusion_matrix': numpy.array([[2]]),
-                'testing_accuracy': 1.0,
-                'testing_confusion_matrix': numpy.array([[1]])})
+    assert (helpers.fix_numpy_array_equality(
+        validation._validate_model(nn, (numpy.array([[1], [1]]), numpy.array([[0], [1]])),
+                                   (numpy.array([[1]]), numpy.array([[2]])),
+                                   iterations=0, _classification=True))
+            == helpers.fix_numpy_array_equality(
+                {'time': 0.0, 'epochs': 0,
+                 'training_error': 0.5,
+                 'testing_error': 1.0,
+                 'training_accuracy': 0.5,
+                 'training_confusion_matrix': numpy.array([[0, 1, 0], [0, 1, 0], [0, 0, 0]]),
+                 'testing_accuracy': 0.0,
+                 'testing_confusion_matrix': numpy.array([[0, 0, 0], [0, 0, 0], [0, 1, 0]])}))
 
     # Make network that returns set output for a given input
     # Simpler, always 0 training error
     nn = helpers.RememberPatternsModel()
     assert (validation._validate_model(nn, (numpy.array([[1]]), numpy.array([[1]])),
                                        (numpy.array([[1]]), numpy.array([[1.5]])),
-                                       iterations=0)
+                                       iterations=0, _classification=False)
             == {'time': 0.0, 'epochs': 0,
                 'training_error': 0.0,
-                'testing_error': 0.25,
-                'training_accuracy': 1.0,
-                'training_confusion_matrix': numpy.array([[1]]),
-                'testing_accuracy': 1.0,
-                'testing_confusion_matrix': numpy.array([[1]])})
+                'testing_error': 0.25})
     assert (validation._validate_model(nn, (numpy.array([[0]]), numpy.array([[0]])),
                                        (numpy.array([[0]]), numpy.array([[2.0]])),
-                                       iterations=0)
+                                       iterations=0, _classification=False)
             == {'time': 0.0, 'epochs': 0,
                 'training_error': 0.0,
-                'testing_error': 4.0,
-                'training_accuracy': 1.0,
-                'training_confusion_matrix': numpy.array([[1]]),
-                'testing_accuracy': 1.0,
-                'testing_confusion_matrix': numpy.array([[1]])})
+                'testing_error': 4.0})
 
 def test_cross_validate(monkeypatch):
     # Patch time.clock so time attribute is deterministic
@@ -149,7 +143,8 @@ def test_cross_validate(monkeypatch):
                                       post_pattern_callback=post_pattern_callback)
 
     # Check
-    assert stats == _CROSS_VALIDATION_STATS
+    assert (helpers.fix_numpy_array_equality(stats)
+            == helpers.fix_numpy_array_equality(_CROSS_VALIDATION_STATS))
     assert training_patterns == [([1], [1]), ([2], [1]), # First fold
                                  ([0], [1]), ([2], [1]), # Second fold
                                  ([0], [1]), ([1], [1])] # Third fold
@@ -226,7 +221,8 @@ def test_benchmark(monkeypatch):
                                  post_pattern_callback=post_pattern_callback)
 
     # Check
-    assert stats == _BENCHMARK_STATS
+    assert (helpers.fix_numpy_array_equality(stats)
+            == helpers.fix_numpy_array_equality(_BENCHMARK_STATS))
     assert training_patterns == [([1], [1]), ([2], [1]), # First fold
                                  ([0], [1]), ([2], [1]), # Second fold
                                  ([0], [1]), ([1], [1]), # Third fold
@@ -256,56 +252,81 @@ def test_compare(monkeypatch):
                                num_folds=3, num_runs=2)
 
     # Check
-    assert stats == {'nn': _BENCHMARK_STATS,
-                     'nn2':_BENCHMARK_STATS,
-                     'mean_of_means': {'time': 0.0, 'epochs': 1,
-                                       'training_error': 0.0, 'testing_error': 0.0,
-                                       'training_accuracy': 1.0,
-                                       'training_confusion_matrix': numpy.array([[2]]),
-                                       'testing_accuracy': 1.0,
-                                       'testing_confusion_matrix': numpy.array([[1]])},
-                     'sd_of_means': {'time': 0.0, 'epochs': 0.0,
-                                     'training_error': 0.0, 'testing_error': 0.0,
-                                     'training_accuracy': 0.0,
-                                     'training_confusion_matrix': numpy.array([[0]]),
-                                     'testing_accuracy': 0.0,
-                                     'testing_confusion_matrix': numpy.array([[0]])}
-                    }
+    assert (helpers.fix_numpy_array_equality(stats)
+            == helpers.fix_numpy_array_equality(_COMPARE_STATS))
 
 
 _VALIDATION_STATS = {'time': 0.0, 'epochs': 1,
                      'training_error': 0.0, 'testing_error': 0.0,
                      'training_accuracy': 1.0,
-                     'training_confusion_matrix': numpy.array([[2]]),
+                     'training_confusion_matrix': numpy.array([[0, 0], [0, 2]]),
                      'testing_accuracy': 1.0,
-                     'testing_confusion_matrix': numpy.array([[1]])}
+                     'testing_confusion_matrix': numpy.array([[0, 0], [0, 1]])}
 
 _CROSS_VALIDATION_STATS = {'folds': [_VALIDATION_STATS, _VALIDATION_STATS,
                                      _VALIDATION_STATS],
                            'mean': {'time': 0.0, 'epochs': 1,
                                     'training_error': 0.0, 'testing_error': 0.0,
                                     'training_accuracy': 1.0,
-                                    'training_confusion_matrix': numpy.array([[2]]),
+                                    'training_confusion_matrix': numpy.array([[0, 0], [0, 2]]),
                                     'testing_accuracy': 1.0,
-                                    'testing_confusion_matrix': numpy.array([[1]])},
+                                    'testing_confusion_matrix': numpy.array([[0, 0], [0, 1]])},
                            'sd': {'time': 0.0, 'epochs': 0.0,
                                   'training_error': 0.0, 'testing_error': 0.0,
                                   'training_accuracy': 0.0,
-                                  'training_confusion_matrix': numpy.array([[0]]),
+                                  'training_confusion_matrix': numpy.array([[0, 0], [0, 0]]),
                                   'testing_accuracy': 0.0,
-                                  'testing_confusion_matrix': numpy.array([[0]])}}
+                                  'testing_confusion_matrix': numpy.array([[0, 0], [0, 0]])}}
 
 _BENCHMARK_STATS = {'runs': [_CROSS_VALIDATION_STATS, _CROSS_VALIDATION_STATS],
                     'mean_of_means': {'time': 0.0, 'epochs': 1,
                                       'training_error': 0.0, 'testing_error': 0.0,
                                       'training_accuracy': 1.0,
-                                      'training_confusion_matrix': numpy.array([[2]]),
+                                      'training_confusion_matrix': numpy.array([[0, 0], [0, 2]]),
                                       'testing_accuracy': 1.0,
-                                      'testing_confusion_matrix': numpy.array([[1]])},
+                                      'testing_confusion_matrix': numpy.array([[0, 0], [0, 1]])},
                     'sd_of_means': {'time': 0.0, 'epochs': 0.0,
                                     'training_error': 0.0, 'testing_error': 0.0,
                                     'training_accuracy': 0.0,
-                                    'training_confusion_matrix': numpy.array([[0]]),
+                                    'training_confusion_matrix': numpy.array([[0, 0], [0, 0]]),
                                     'testing_accuracy': 0.0,
-                                    'testing_confusion_matrix': numpy.array([[0]])}
+                                    'testing_confusion_matrix': numpy.array([[0, 0], [0, 0]])}
                    }
+
+_COMPARE_STATS = {'nn': _BENCHMARK_STATS,
+                  'nn2':_BENCHMARK_STATS,
+                  'mean_of_means': {'time': 0.0, 'epochs': 1,
+                                    'training_error': 0.0, 'testing_error': 0.0,
+                                    'training_accuracy': 1.0,
+                                    'training_confusion_matrix': numpy.array([[0, 0], [0, 2]]),
+                                    'testing_accuracy': 1.0,
+                                    'testing_confusion_matrix': numpy.array([[0, 0], [0, 1]])},
+                  'sd_of_means': {'time': 0.0, 'epochs': 0.0,
+                                  'training_error': 0.0, 'testing_error': 0.0,
+                                  'training_accuracy': 0.0,
+                                  'training_confusion_matrix': numpy.array([[0, 0], [0, 0]]),
+                                  'testing_accuracy': 0.0,
+                                  'testing_confusion_matrix': numpy.array([[0, 0], [0, 0]])}
+                 }
+
+####################
+# Confusion Matrix
+####################
+def test_get_confusion_matrix():
+    actual = numpy.array([0, 0, 1, 1])
+    expected = numpy.array([0, 1, 0, 1])
+    assert (validation._get_confusion_matrix(actual, expected, 2) 
+            == numpy.array([[1, 1],
+                            [1, 1]])).all()
+
+    actual = numpy.array(  [0, 0, 1, 1, 0, 1, 1, 0])
+    expected = numpy.array([0, 1, 0, 1, 0, 0, 0, 1])
+    assert (validation._get_confusion_matrix(actual, expected, 2) 
+            == numpy.array([[2, 3],
+                            [2, 1]])).all()
+
+def test_get_confusion_matrix_1_class():
+    actual = numpy.array([0, 0])
+    expected = numpy.array([0, 0])
+    assert (validation._get_confusion_matrix(actual, expected, 1) 
+            == numpy.array([[2]])).all()

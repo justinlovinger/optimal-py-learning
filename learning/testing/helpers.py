@@ -1,4 +1,5 @@
 import copy
+import collections
 
 import numpy
 
@@ -81,13 +82,18 @@ def approx_equal(a, b, tol=0.001):
 
     Useful to correct for floating point errors.
     """
+    if isinstance(a, numpy.ndarray):
+        a = list(a)
+    if isinstance(b, numpy.ndarray):
+        b = list(b)
+
     if isinstance(a, (list, tuple)):
         # Check that each element is approx equal
         if len(a) != len(b):
             return False
 
         for a_, b_ in zip(a, b):
-            if not _approx_equal(a_, b_, tol):
+            if not approx_equal(a_, b_, tol):
                 return False
 
         return True
@@ -101,12 +107,38 @@ def _approx_equal(a, b, tol=0.001):
     """
     return abs(a - b) < tol
 
-
 class SaneEqualityArray(numpy.ndarray):
     """Numpy array with working == operator."""
     def __eq__(self, other):
-        return (isinstance(other, numpy.ndarray) and self.shape == other.shape and 
-            numpy.array_equal(self, other))
+        return (isinstance(other, numpy.ndarray) and self.shape == other.shape and
+                numpy.array_equal(self, other))
+
+def fix_numpy_array_equality(iterable):
+    if isinstance(iterable, numpy.ndarray):
+        return sane_equality_array(iterable)
+
+    if isinstance(iterable, str) or not isinstance(iterable, collections.Iterable):
+        # Not iterable
+        return iterable
+
+    new_iterable = copy.deepcopy(iterable)
+
+    for i, item in enumerate(new_iterable):
+        if isinstance(new_iterable, dict):
+            key = item
+            item = new_iterable[key]
+
+        # Recurse
+        if isinstance(new_iterable, tuple):
+            # Tuples do not directly support assignment
+            new_iterable = _change_tuple(new_iterable, i,
+                                         fix_numpy_array_equality(item))
+        elif isinstance(new_iterable, dict):
+            new_iterable[key] = fix_numpy_array_equality(item)
+        else:
+            new_iterable[i] = fix_numpy_array_equality(item)
+
+    return new_iterable
 
 def sane_equality_array(object):
     array = numpy.array(object)
@@ -117,36 +149,15 @@ def _change_tuple(tuple_, i, new_item):
     list_[i] = new_item
     return tuple(list_)
 
-def fix_numpy_array_equality(iterable):
-    new_iterable = copy.deepcopy(iterable)
-
-    for i, item in enumerate(new_iterable):
-        if isinstance(item, numpy.ndarray):
-            if isinstance(new_iterable, tuple):
-                # Tuples do not directly support assignment
-                new_iterable = _change_tuple(new_iterable, i, sane_equality_array(item))
-            else:
-                new_iterable[i] = sane_equality_array(item)
-        # Recurse
-        elif hasattr(item, '__iter__'):
-            if isinstance(new_iterable, tuple):
-                # Tuples do not directly support assignment
-                new_iterable = _change_tuple(new_iterable, i,
-                                             fix_numpy_array_equality(item))
-            else:
-                new_iterable[i] = fix_numpy_array_equality(item)
-
-    return new_iterable
-
 def equal_ignore_order(a, b):
     """Check if two lists contain the same elements.
-    
+
     Note: Use only when elements are neither hashable nor sortable!
     """
     # Fix numpy arrays
     copy_a = fix_numpy_array_equality(a)
     copy_b = fix_numpy_array_equality(b)
-    
+
     # Check equality
     for element in copy_a:
         try:

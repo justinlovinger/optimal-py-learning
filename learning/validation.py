@@ -6,6 +6,8 @@ import logging
 
 import numpy
 
+from learning import preprocess
+
 def train_test_validate(model, dataset, train_per_class, **kwargs):
     """Validate a classification dataset by splitting into a train and test set.
 
@@ -80,6 +82,13 @@ def _validate_model(model_, training_set, testing_set, _classification=True, **k
     stats['testing_error'] = model_.avg_mse(*testing_set)
 
     if _classification:
+        if len(training_set[1][0]) == 1:
+            # Labels (assumed to start at 0)
+            # TODO: Optimize
+            num_classes = numpy.max(numpy.vstack([training_set[1], testing_set[1]]))+1
+        else:
+            num_classes = len(training_set[1][0])
+
         # Get accuracy and confusion matrix for training set
         all_actual_training = _get_classes(
             numpy.array([model_.activate(inp_vec) for inp_vec in training_set[0]]))
@@ -88,7 +97,7 @@ def _validate_model(model_, training_set, testing_set, _classification=True, **k
         stats['training_accuracy'] = _get_accuracy(
             all_actual_training, all_expected_training)
         stats['training_confusion_matrix'] = _get_confusion_matrix(
-            all_actual_training, all_expected_training, training_set[0].shape[1])
+            all_actual_training, all_expected_training, num_classes)
 
         # Get accuracy and confusion matrix for testing set
         all_actual_testing = _get_classes(
@@ -98,7 +107,7 @@ def _validate_model(model_, training_set, testing_set, _classification=True, **k
         stats['testing_accuracy'] = _get_accuracy(
             all_actual_testing, all_expected_testing)
         stats['testing_confusion_matrix'] = _get_confusion_matrix(
-            all_actual_testing, all_expected_testing, testing_set[0].shape[1])
+            all_actual_testing, all_expected_testing, num_classes)
 
     return stats
 
@@ -108,7 +117,13 @@ def _get_classes(all_outputs):
 
     We assume the class is the index of the highest output value for each output.
     """
-    return numpy.argmax(all_outputs, axis=1)
+    if all_outputs.shape[1] == 1:
+        # Labels
+        labels = all_outputs.ravel()
+        return labels
+    else:
+        # Onehot
+        return numpy.argmax(all_outputs, axis=1)
 
 
 def _get_accuracy(all_actual, all_expected):
