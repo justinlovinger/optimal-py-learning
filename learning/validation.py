@@ -6,6 +6,56 @@ import logging
 
 import numpy
 
+def train_test_validate(model, dataset, train_per_class, **kwargs):
+    """Validate a classification dataset by splitting into a train and test set.
+
+    Args:
+        model: The model to validate.
+        dataset: (input_matrix, label_matrix) tuple.
+        train_per_class: Number of samples for each class in training set.
+        **kwargs: Args passed to model.train
+    """
+    training_set, testing_set = _make_train_test_sets(*dataset, train_per_class=train_per_class)
+    return _validate_model(model, training_set, testing_set, _classification=True, **kwargs)
+
+def _make_train_test_sets(input_matrix, label_matrix, train_per_class):
+    """Return ((training_inputs, training_labels), (testing_inputs, testing_labels)).
+
+    Args:
+        input_matrix: attributes matrix. Each row is sample, each column is attribute.
+        label_matrix: labels matrix. Each row is sample, each column is label.
+        train_per_class: Number of samples for each class in training set.
+    """
+    training_inputs = []
+    training_labels = []
+    testing_inputs = []
+    testing_labels = []
+    label_counts = {}
+
+    # Add each row to training or testing set depending on count of labels
+    for input_, label in zip(input_matrix, label_matrix):
+        key = tuple(label)
+        try:
+            count = label_counts[key]
+        except KeyError:
+            # First time seeing label, count is 0
+            count = 0
+
+        if count < train_per_class:
+            # Still need more training samples for this label
+            training_inputs.append(input_)
+            training_labels.append(label)
+        else:
+            # We have enough training samples for this label,
+            # add to testing set instead
+            testing_inputs.append(input_)
+            testing_labels.append(label)
+
+        label_counts[key] = count + 1
+
+    return ((numpy.array(training_inputs), numpy.array(training_labels)),
+            (numpy.array(testing_inputs), numpy.array(testing_labels)))
+
 def _validate_model(model_, training_set, testing_set, _classification=True, **kwargs):
     """Test the given network on a partitular training and testing set."""
     # Train network on training set

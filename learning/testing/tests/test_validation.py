@@ -8,6 +8,44 @@ from learning.data import datasets
 
 from learning.testing import helpers
 
+def test_make_train_test_sets_1d_labels():
+    inputs = numpy.array([[0.0, 0.0],
+                          [1.0, 0.0],
+                          [0.0, 1.0],
+                          [1.0, 1.0],
+                          [0.0, 1.0],
+                          [1.0, 1.0]])
+    labels = numpy.array([[0],
+                          [1],
+                          [1],
+                          [0],
+                          [1],
+                          [0]])
+
+    assert (helpers.fix_numpy_array_equality(
+        validation._make_train_test_sets(inputs, labels, 1))
+            == helpers.fix_numpy_array_equality(
+                ((inputs[:2], labels[:2]), (inputs[2:], labels[2:]))))
+
+def test_make_train_test_sets_2d_labels():
+    inputs = numpy.array([[0.0, 0.0],
+                          [1.0, 0.0],
+                          [0.0, 1.0],
+                          [1.0, 1.0],
+                          [0.0, 1.0],
+                          [1.0, 1.0]])
+    labels = numpy.array([[0, 1],
+                          [1, 0],
+                          [1, 0],
+                          [0, 1],
+                          [1, 0],
+                          [0, 1]])
+
+    assert (helpers.fix_numpy_array_equality(
+        validation._make_train_test_sets(inputs, labels, 1))
+            == helpers.fix_numpy_array_equality(
+                ((inputs[:2], labels[:2]), (inputs[2:], labels[2:]))))
+
 def test_split_dataset():
     input_matrix, target_matrix = datasets.get_random_regression(
         random.randint(100, 150), random.randint(2, 5), random.randint(1, 3))
