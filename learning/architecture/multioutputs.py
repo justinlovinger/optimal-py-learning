@@ -62,7 +62,7 @@ class MultiOutputs(Model):
 
         Adjusts each AUTO unit towards its corresponding target vector.
         """
-        if target_matrix.shape[1] != self._num_outputs:
+        if len(target_matrix[0]) != self._num_outputs:
             raise ValueError('Target matrix column does not match expected number of outputs')
 
         # Each model learns a single component (column) of the target matrix
@@ -84,7 +84,7 @@ class MultiOutputs(Model):
 
     def train(self, input_matrix, target_matrix, *args, **kwargs):
         """Train model to converge on set of patterns."""
-        if target_matrix.shape[1] != self._num_outputs:
+        if len(target_matrix[0]) != self._num_outputs:
             raise ValueError('Target matrix column does not match expected number of outputs')
 
         # Train each stored model
@@ -124,6 +124,18 @@ def _get_reward(old_error, new_error):
 
 def _matrix_col(matrix, i):
     """Return the ith column of matrix."""
+    if isinstance(matrix, numpy.ndarray):
+        return _np_matrix_col(matrix, i)
+
+    # List of list
+    if isinstance(matrix[0], (list, tuple)):
+        return [row[i] for row in matrix]
+    else:
+        # Only 1d, take row
+        return matrix[i]
+
+def _np_matrix_col(matrix, i):
+    """Return the ith column of matrix."""
     if len(matrix.shape) == 1:
         # Only 1d, take row
         return matrix[i]
@@ -131,6 +143,21 @@ def _matrix_col(matrix, i):
     return matrix[:, i]
 
 def _transpose_rowcol(matrix):
+    """Return matrix with row and col swapped.
+
+    Other axis are left intact.
+    """
+    if isinstance(matrix, numpy.ndarray):
+        return _np_transpose_rowcol(matrix)
+
+    # List of list
+    if isinstance(matrix[0], (list, tuple)):
+        return zip(*matrix)
+    else:
+        # Only 1d, no change
+        return matrix
+
+def _np_transpose_rowcol(matrix):
     """Return matrix with row and col swapped.
 
     Other axis are left intact.
