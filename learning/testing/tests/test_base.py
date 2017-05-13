@@ -184,3 +184,22 @@ def test_model_train_retry():
     # Model should reset and retry if it doesn't converge
     # Train should not calculate avg_mse if it is out of retries
     assert 0
+
+######################
+# Serialization
+######################
+def test_serialize():
+    model = helpers.SetOutputModel(1.0)
+    assert isinstance(model.serialize(), str), 'Model.serialize should return string'
+
+def test_unserialize():
+    model = helpers.SetOutputModel(random.uniform(0, 1))
+    model_copy = helpers.SetOutputModel.unserialize(model.serialize())
+
+    assert model_copy.__dict__ == model.__dict__, 'Should have same content'
+    assert model_copy is not model, 'Should have different id'
+
+def test_unserialize_wrong_type():
+    """Model.unserialize should raise error if serialized model is of wrong type."""
+    with pytest.raises(ValueError):
+        base.Model.unserialize(helpers.SetOutputModel(1.0).serialize())

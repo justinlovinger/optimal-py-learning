@@ -1,5 +1,7 @@
-﻿import numpy
-import random
+﻿import random
+import pickle
+
+import numpy
 
 ##############################
 # Pattern selection functions
@@ -182,19 +184,27 @@ class Model(object):
     def serialize(self):
         """Convert model into string.
 
+        Optional: Override for custom serialization.
+        Defaults to pickle, protocol 2.
+
         Returns:
             string; A string representing this network.
         """
-        raise NotImplementedError()
+        return pickle.dumps(self, protocol=2)
 
     @classmethod
     def unserialize(cls, serialized_model):
         """Convert serialized model into Model.
 
+        Optional: Override for custom serialization.
+
         Returns:
             Model; A Model object.
         """
-        raise NotImplementedError()
+        model = pickle.loads(serialized_model)
+        if type(model) != cls:
+            raise ValueError('serialized_model does not match this class')
+        return model
 
     ##################
     # Helper methods
