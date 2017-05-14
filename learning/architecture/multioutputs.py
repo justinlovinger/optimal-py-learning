@@ -1,5 +1,6 @@
 import copy
 import types
+import pickle
 
 import numpy
 
@@ -110,6 +111,39 @@ class MultiOutputs(Model):
                     print
                 print 'Training Model %d:' % (i+1)
             model.train(input_matrix, targets, *args, **kwargs)
+
+    def serialize(self):
+        """Convert model into string.
+
+        Returns:
+            string; A string representing this network.
+        """
+        # Use serialize on each model, instead of pickle
+        serialized_models = [(type(model), model.serialize()) for model in self._models]
+
+        # Pickle all other attributes
+        attributes = copy.copy(self.__dict__)
+        del attributes['_models']
+
+        return pickle.dumps((serialized_models, attributes), protocol=2)
+
+    @classmethod
+    def unserialize(cls, serialized_model):
+        """Convert serialized model into Model.
+
+        Returns:
+            Model; A Model object.
+        """
+        serialized_models, attributes = pickle.loads(serialized_model)
+
+        # Make model, from serialized models and attributes
+        model = MultiOutputs.__new__(MultiOutputs)
+        model.__dict__ = attributes
+
+        # unserialize each model
+        model._models = [class_.unserialize(model_str) for class_, model_str in serialized_models]
+
+        return model
 
     def _update_one_output(self, input_matrix, target_matrix):
         """Update the model that most shows the ability to improve."""

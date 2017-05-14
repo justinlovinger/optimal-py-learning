@@ -1,7 +1,7 @@
 import numpy
 import pytest
 
-from learning import Model
+from learning import Model, MLP
 from learning.architecture import multioutputs
 
 from learning.testing import helpers
@@ -51,6 +51,17 @@ def test_nested_multioutputs_train():
 def test_get_reward():
     assert multioutputs._get_reward(1.0, 0.0) == 1.0
     assert multioutputs._get_reward(1.0, 0.5) == 0.6
+
+def test_serialize_unserialize():
+    dataset = (numpy.random.random((10, 10)), numpy.random.random((10, 2, 10)))
+
+    model = multioutputs.MultiOutputs(MLP((10, 2, 10)), 2)
+    unserialized_model = multioutputs.MultiOutputs.unserialize(model.serialize())
+
+    assert isinstance(unserialized_model, multioutputs.MultiOutputs)
+    assert (helpers.fix_numpy_array_equality([model.activate(inp_vec) for inp_vec in dataset[0]])
+            == helpers.fix_numpy_array_equality(
+                [unserialized_model.activate(inp_vec) for inp_vec in dataset[0]]))
 
 ####################
 # Col getting
