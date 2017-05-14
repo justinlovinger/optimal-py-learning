@@ -3,7 +3,6 @@ import math
 
 import pytest
 import numpy
-from scipy import optimize
 
 from learning.architecture import transfer
 

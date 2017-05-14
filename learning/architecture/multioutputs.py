@@ -19,26 +19,42 @@ class MultiOutputs(Model):
     New outputs are returned by concatenating all model outputs.
 
     Args:
+        models: list<Model> or Model; List of models,
+            or Model that is duplicated by num_outputs
         num_outputs: How many components in target vectors.
-        model: Model/func; Instance of Model,
-            or function that takes no arguments and returns an instance of Model.
     """
-    def __init__(self, num_outputs, model):
+    def __init__(self, models, num_outputs=None):
         super(MultiOutputs, self).__init__()
 
-        self._num_outputs = num_outputs
+        if isinstance(models, Model):
+            # Store copy of model for each output
+            if num_outputs is None:
+                raise ValueError('If Model is given, num_outputs must not be None')
+            self._models = [copy.deepcopy(models) for _ in range(num_outputs)]
+        else:
+            if not isinstance(models, (list, tuple)):
+                raise ValueError('models must be list or tuple, or Model')
+
+            # Validate that list contains Model's, and no duplicates
+            for i, model in enumerate(models):
+                if not isinstance(model, Model):
+                    raise ValueError('models must contain instances of Model')
+
+                # No duplicates
+                for other_model in models[i+1:]:
+                    if other_model is model:
+                        raise ValueError('models should not contain duplicate instances')
+
+            # Validation done, store it
+            self._models = models[:]
+
+        self._num_outputs = len(self._models)
 
         # Use reinforcement learning to select which output to update
         # We use different between new and old error as reward
         self._rl_agent = RLTable([None], range(self._num_outputs),
                                  initial_reward=1.0, update_rate=0.25, reward_growth=0.01)
         self._errors = [None]*self._num_outputs
-
-        # Store copy of model for each output
-        if isinstance(model, types.FunctionType):
-            self._models = [model() for _ in range(self._num_outputs)]
-        else:
-            self._models = [copy.deepcopy(model) for _ in range(self._num_outputs)]
 
     def reset(self):
         """Reset this model."""

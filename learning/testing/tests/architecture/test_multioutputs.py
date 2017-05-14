@@ -25,24 +25,24 @@ class LearnOutput(Model):
     def train_step(self, inputs, target):
         self._output += self.learn_rate*(target-self.activate(inputs))
 
-def test_multioutputs_model_constructor():
-    model = multioutputs.MultiOutputs(2, lambda: LearnOutput(1.0))
+def test_multioutputs_list_of_models():
+    model = multioutputs.MultiOutputs([LearnOutput(1.0), LearnOutput(1.0)])
     model.train([[None]], numpy.array([[-1, 1]]))
 
     assert model.activate([]) == [-1, 1]
 
 def test_multioutputs_activate():
-    model = multioutputs.MultiOutputs(2, helpers.SetOutputModel(1))
+    model = multioutputs.MultiOutputs(helpers.SetOutputModel(1), 2)
     assert model.activate([None]) == [1, 1]
 
 def test_multioutputs_train():
-    model = multioutputs.MultiOutputs(2, LearnOutput(1.0))
+    model = multioutputs.MultiOutputs(LearnOutput(1.0), 2)
     model.train([None], numpy.array([[-1, 1]]))
 
     assert model.activate([]) == [-1, 1]
 
 def test_nested_multioutputs_train():
-    model = multioutputs.MultiOutputs(2, multioutputs.MultiOutputs(2, LearnOutput(1.0)))
+    model = multioutputs.MultiOutputs(multioutputs.MultiOutputs(LearnOutput(1.0), 2), 2)
     model.train([None], numpy.array([[[1, 2], [3, 4]]]))
     model.logging = False
 
