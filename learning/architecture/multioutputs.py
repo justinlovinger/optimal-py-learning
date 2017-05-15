@@ -145,6 +145,11 @@ class MultiOutputs(Model):
 
         return model
 
+    def mse(self, input_vec, target_vec):
+        """Return the mean squared error (MSE) for a pattern."""
+        return numpy.mean([model.mse(input_vec, target)
+                           for model, target in zip(self._models, _transpose_rowcol(target_vec))])
+
     def _update_one_output(self, input_matrix, target_matrix):
         """Update the model that most shows the ability to improve."""
         # Use reinforcement learning to select output to update.

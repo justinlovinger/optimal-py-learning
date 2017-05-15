@@ -52,6 +52,9 @@ def test_get_reward():
     assert multioutputs._get_reward(1.0, 0.0) == 1.0
     assert multioutputs._get_reward(1.0, 0.5) == 0.6
 
+####################
+# Serialization
+####################
 def test_serialize_unserialize():
     dataset = (numpy.random.random((10, 10)), numpy.random.random((10, 2, 10)))
 
@@ -62,6 +65,14 @@ def test_serialize_unserialize():
     assert (helpers.fix_numpy_array_equality([model.activate(inp_vec) for inp_vec in dataset[0]])
             == helpers.fix_numpy_array_equality(
                 [unserialized_model.activate(inp_vec) for inp_vec in dataset[0]]))
+
+####################
+# MSE
+####################
+def test_mse():
+    model = multioutputs.MultiOutputs([helpers.SetOutputModel([1.0]), helpers.SetOutputModel([1.0, 1.0, 1.0])])
+    assert model.mse([], [[1.0], [1.0, 1.0, 1.0]]) == 0.0
+    assert model.mse([], [[1.0], [0.0, 0.0, 0.0]]) == 0.5
 
 ####################
 # Col getting
