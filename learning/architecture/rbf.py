@@ -76,7 +76,7 @@ class RBF(Model):
             # Train SOM first
             self._som.train(*args, **kwargs)
 
-        super(type(self), self).train(*args, **kwargs)
+        super(RBF, self).train(*args, **kwargs)
 
 
     def train_step(self, input_matrix, target_matrix):
