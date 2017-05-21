@@ -26,7 +26,8 @@ class RBF(Model):
         self._variance = variance
 
         # Single layer perceptron for output
-        self._perceptron = mlp.Perceptron(num_clusters, num_outputs, learn_rate=learn_rate)
+        self._perceptron = mlp.Perceptron(num_clusters, num_outputs,
+                                          learn_rate=learn_rate, momentum_rate=0.0)
 
         # Optional scaling output by total guassian similarity
         self._scale_by_similarity = scale_by_similarity
