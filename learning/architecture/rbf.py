@@ -9,7 +9,7 @@ from learning.architecture import transfer
 class RBF(Model):
     """Radial Basis Function network."""
     def __init__(self, attributes, num_clusters, num_outputs,
-                 learn_rate=1.0, variance=None, scale_by_similarity=True,
+                 learn_rate=1.0, variance=None, scale_by_similarity=False,
                  pre_train_clusters=False,
                  move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
         super(RBF, self).__init__()
