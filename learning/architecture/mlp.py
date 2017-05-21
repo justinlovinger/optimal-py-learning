@@ -90,7 +90,7 @@ class MLP(Model):
         outputs = self.activate(input_vec)
 
         error = target_vec - outputs
-        output_error = error # For returning
+        output_error = numpy.mean(error**2) # For returning
 
         for i, layer in reversed(list(enumerate(self._layers))):
             # Grab all the variables we need from storage dicts

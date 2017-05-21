@@ -9,7 +9,7 @@ from learning.architecture import transfer
 class RBF(Model):
     """Radial Basis Function network."""
     def __init__(self, attributes, num_clusters, num_outputs,
-                 learn_rate=1.0, variance=None, scale_by_similarity=False,
+                 learn_rate=1.0, variance=None, scale_by_similarity=True,
                  pre_train_clusters=False,
                  move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
         super(RBF, self).__init__()
@@ -104,18 +104,13 @@ class RBF(Model):
         """
         output = self.activate(input_vec)
         error_vec = target_vec - output
+        error = numpy.mean(error_vec**2)
 
         if self._scale_by_similarity:
-            # NOTE: The math seems to say that we should divide by total_similarity
-            # However, conceptually (and empirically) it makes more sense to multitpy
-            #   If output is divided by a very small number (self._total_similarity)
-            #   then it will become much larger, and any change in weight will be magnified
-            #   therefore, we want make a small change in weights
-            #   same thing vice versa
-            error_vec *= self._total_similarity
+            error_vec /= self._total_similarity
 
         # Update perceptron
         # NOTE: Gradient is just error vector in this case
         self._perceptron.update(self._similarities, output, error_vec)
 
-        return error_vec
+        return error

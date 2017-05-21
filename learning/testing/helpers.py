@@ -21,7 +21,7 @@ class EmptyModel(Model):
         """
         output = self.activate(input_vec)
         if output is not None:
-            return target_vec - output
+            return numpy.mean((target_vec - output)**2)
 
 class SetOutputModel(EmptyModel):
     def __init__(self, output):

@@ -1,5 +1,6 @@
 ﻿import random
 import pickle
+import numbers
 
 import numpy
 
@@ -133,7 +134,11 @@ class Model(object):
         error = 0.0
         for input_vec, target_vec in zip(input_matrix, target_matrix):
             # Learn
-            errors = self._train_increment(input_vec, target_vec)
+            next_error = self._train_increment(input_vec, target_vec)
+
+            # Validate error
+            if not isinstance(next_error, (numbers.Number, type(None))):
+                raise TypeError('%s._train_increment must return an error number or None' % type(self))
 
             # Optional callback for user extension,
             # such as a visualization or history tracking
@@ -142,7 +147,7 @@ class Model(object):
 
             # Sum errors
             try:
-                error += numpy.mean(errors**2)
+                error += next_error
             except TypeError:
                 # train_step doesn't return error
                 error = None
