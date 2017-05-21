@@ -75,11 +75,6 @@ class Model(object):
                 and returns a selection of rows. Use partial function to embed arguments.
         """
         # Make sure matrix parameters are np arrays
-        if not isinstance(input_matrix, numpy.ndarray):
-            input_matrix = numpy.array(input_matrix, dtype='float64')
-        if not isinstance(target_matrix, numpy.ndarray):
-            target_matrix = numpy.array(target_matrix, dtype='float64')
-
         self._reset_bookkeeping()
         self._post_pattern_callback = post_pattern_callback # For calling in other method
 
@@ -154,7 +149,7 @@ class Model(object):
 
         # Logging and breaking
         try:
-            return error / input_matrix.shape[0]
+            return error / len(input_matrix)
         except TypeError:
             # _train_increment doesn't return error
             return None
