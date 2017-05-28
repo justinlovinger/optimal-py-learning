@@ -112,6 +112,8 @@ class MultiOutputs(Model):
                 print 'Training Model %d:' % (i+1)
             model.train(input_matrix, targets, *args, **kwargs)
 
+        self.iteration = sum([model.iteration for model in self._models])
+
     def serialize(self):
         """Convert model into string.
 
