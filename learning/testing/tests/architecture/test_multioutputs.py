@@ -119,6 +119,18 @@ def test_matrix_col_3d(type_func):
     ) == helpers.fix_numpy_array_equality(type_func([['s1t21', 's1t22'],
                                                      ['s2t21', 's2t22']])))
 
+def test_matrix_col_2d_list_of_arrays():
+    matrix = [numpy.array(['s1t1', 's1t2']),
+              numpy.array(['s2t1', 's2t2'])]
+
+    assert helpers.fix_numpy_array_equality(multioutputs._matrix_col(
+        matrix, 0
+    ) == helpers.fix_numpy_array_equality(['s1t1', 's2t1']))
+
+    assert helpers.fix_numpy_array_equality(multioutputs._matrix_col(
+        matrix, 1
+    ) == helpers.fix_numpy_array_equality(['s1t2', 's2t2']))
+
 @pytest.mark.parametrize('type_func', [numpy.array, lambda x: x])
 def test_transpose_rowcol_1d(type_func):
     # Should cause no change    
@@ -151,3 +163,12 @@ def test_transpose_rowcol_3d(type_func):
                                                       ['s2t11', 's2t12']),
                                                      (['s1t21', 's1t22'],
                                                       ['s2t21', 's2t22'])])))
+
+def test_transpose_rowcol_2d_list_of_arrays():
+    matrix = [numpy.array(['s1t1', 's1t2']),
+              numpy.array(['s2t1', 's2t2'])]
+
+    assert helpers.fix_numpy_array_equality(multioutputs._transpose_rowcol(
+        matrix
+    ) == helpers.fix_numpy_array_equality([('s1t1', 's2t1'),
+                                           ('s1t2', 's2t2')]))

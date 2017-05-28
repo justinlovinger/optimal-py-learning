@@ -183,7 +183,7 @@ def _matrix_col(matrix, i):
         return _np_matrix_col(matrix, i)
 
     # List of list
-    if isinstance(matrix[0], (list, tuple)):
+    if isinstance(matrix[0], (list, tuple, numpy.ndarray)):
         return [row[i] for row in matrix]
     else:
         # Only 1d, take row
@@ -206,7 +206,7 @@ def _transpose_rowcol(matrix):
         return _np_transpose_rowcol(matrix)
 
     # List of list
-    if isinstance(matrix[0], (list, tuple)):
+    if isinstance(matrix[0], (list, tuple, numpy.ndarray)):
         return zip(*matrix)
     else:
         # Only 1d, no change
