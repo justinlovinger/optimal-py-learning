@@ -179,6 +179,22 @@ def test_break_on_stagnation_dont_break_if_wrapped_around():
     nn.train([[0.0]], [[0.0]], error_stagnant_distance=4, error_stagnant_threshold=0.01)
     assert nn.iteration == 9
 
+def test_break_on_no_improvement_completely_stagnant():
+    nn = helpers.SetOutputModel(1.0)
+
+    # Stop training if error does not improve after 5 iterations
+    nn.train([[0.0]], [[0.0]], error_stagnant_distance=10, error_stagnant_threshold=None,
+             error_improve_iters=5)
+    assert nn.iteration == 6 # The 6th is 5 away from the first
+
+def test_break_on_no_improvement():
+    nn = helpers.ManySetOutputsModel([[1.0], [0.99], [0.98], [0.97], [0.97], [0.97], [0.97], [0.97], [0.97]])
+
+    # Stop training if error does not improve after 5 iterations
+    nn.train([[0.0]], [[0.0]], error_stagnant_distance=10, error_stagnant_threshold=None,
+             error_improve_iters=5)
+    assert nn.iteration == 9
+
 @pytest.mark.skip(reason='Hard to test, but not hard to implement')
 def test_model_train_retry():
     # Model should reset and retry if it doesn't converge

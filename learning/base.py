@@ -60,6 +60,7 @@ class Model(object):
     def train(self, input_matrix, target_matrix,
               iterations=1000, retries=0, error_break=0.002,
               error_stagnant_distance=5, error_stagnant_threshold=0.00001,
+              error_improve_iters=5,
               pattern_select_func=select_iterative, post_pattern_callback=None):
         """Train model to converge on a dataset.
 
@@ -72,6 +73,12 @@ class Model(object):
             retries: Number of times to reset model and retries if it does not converge.
                 Convergence is defined as reaching error_break.
             error_break: Training will end once error is less than this.
+            error_stagnant_distance: Number of iterations during which error must change by at least
+                error_stagnant_threshold, or training ends.
+            error_stagnant_threshold: Threshold by which error must change within
+                error_stagnant_distance iterations, or training ends.
+            error_improve_iters: Best error must decrease within this many iterations,
+                or training ends.
             pattern_select_func: Function that takes (input_matrix, target_matrix),
                 and returns a selection of rows. Use partial function to embed arguments.
         """
@@ -80,8 +87,12 @@ class Model(object):
         self._post_pattern_callback = post_pattern_callback # For calling in other method
 
         # Initialize error history with errors that are
-        # unlikey to be close in reality
+        # unlikely to be close in reality
         error_history = [1e10]*error_stagnant_distance
+
+        # Initialize best error for error_decrease_iters
+        best_error = float('inf')
+        iters_since_improvement = 0
 
         # Learn on each pattern for each iteration
         for attempt in range(retries+1):
@@ -103,14 +114,23 @@ class Model(object):
                         break
 
                     # Break if no progress is made
-                    # TODO: Change to break if best error has not improved within n iterations
                     if _all_close(error_history, error, error_stagnant_threshold):
                         # Break if not enough difference between all resent errors
                         # and current error
                         break
-
                     error_history.append(error)
                     error_history.pop(0)
+
+                    # Break if best error has not improved within n iterations
+                    # Keep track of best error, and iterations since best error has improved
+                    if error < best_error:
+                        best_error = error
+                        iters_since_improvement = 0
+                    else:
+                        iters_since_improvement += 1
+                    # If it has been too many iterations since improvement, break
+                    if iters_since_improvement >= error_improve_iters:
+                        break
 
             # End when out of retries or model converged
             # TODO: Should we use use defined error function?
