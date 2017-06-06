@@ -60,7 +60,7 @@ class Model(object):
     def train(self, input_matrix, target_matrix,
               iterations=1000, retries=0, error_break=0.002,
               error_stagnant_distance=5, error_stagnant_threshold=0.00001,
-              error_improve_iters=5,
+              error_improve_iters=20,
               pattern_select_func=select_iterative, post_pattern_callback=None):
         """Train model to converge on a dataset.
 
@@ -140,6 +140,11 @@ class Model(object):
                                       and self.avg_mse(input_matrix, target_matrix) <= error_break):
                 break
             self.reset()
+
+            # Reset breaking metrics
+            error_history = [1e10]*error_stagnant_distance
+            best_error = float('inf')
+            iters_since_improvement = 0
 
 
     def train_step(self, input_matrix, target_matrix):
