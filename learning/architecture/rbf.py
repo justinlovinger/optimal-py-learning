@@ -29,7 +29,7 @@ class RBF(Model):
         self._perceptron = mlp.Perceptron(num_clusters, num_outputs,
                                           learn_rate=learn_rate, momentum_rate=0.0)
 
-        # Optional scaling output by total guassian similarity
+        # Optional scaling output by total gaussian similarity
         self._scale_by_similarity = scale_by_similarity
 
         # For training

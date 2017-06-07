@@ -266,7 +266,7 @@ class AddBias(ParallelLayer):
         self.layer.update(numpy.hstack((inputs, [1])), outputs, all_errors)
 
 class Perceptron(Layer):
-    def __init__(self, inputs, outputs, 
+    def __init__(self, inputs, outputs,
                  learn_rate=0.5, momentum_rate=0.1, initial_weights_range=0.25):
         super(Perceptron, self).__init__()
 
@@ -277,17 +277,18 @@ class Perceptron(Layer):
         self._size = (inputs, outputs)
 
         # Build weights matrix
-        self._weights = numpy.zeros(self._size)
-        self.reset()
+        self._weights = numpy.zeros(self._size) # Randomized in reset
 
         # Initial momentum
         self._momentums = numpy.zeros(self._size)
 
+        self.reset()
+
     def reset(self):
         # Randomize weights, between -initial_weights_range and initial_weights_range
         # TODO: randomize with Gaussian distribution instead of uniform. Mean = 0, small variance.
-        random_matrix = numpy.random.random(self._size)
-        self._weights = (2*random_matrix-1)*self.initial_weights_range
+        self._weights = (2*numpy.random.random(self._size) - 1)*self.initial_weights_range
+        self._momentums = numpy.zeros(self._size)
 
     def activate(self, inputs):
         return numpy.dot(inputs, self._weights)
@@ -299,7 +300,7 @@ class Perceptron(Layer):
         deltas = error_vec
 
         # Update, [:,None] quickly transposes an array to a col vector
-        changes = inputs[:,None] * deltas
+        changes = inputs[:, None] * deltas
         self._weights += self.learn_rate*changes
 
         if self._momentums is not None:

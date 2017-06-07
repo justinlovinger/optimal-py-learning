@@ -19,13 +19,14 @@ class SOM(Model):
         self._size = (neurons, attributes)
         self._weights = numpy.zeros(self._size)
         self._distances = numpy.zeros(neurons)
+
         self.reset()
 
     def reset(self):
         """Reset this model."""
         # Randomize weights, between -1 and 1
-        random_matrix = numpy.random.random(self._size)
-        self._weights = (2*random_matrix-1)*self.initial_weights_range
+        self._weights = (2*numpy.random.random(self._size) - 1)*self.initial_weights_range
+        self._distances = numpy.zeros(self._distances.shape)
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
