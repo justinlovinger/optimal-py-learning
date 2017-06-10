@@ -6,6 +6,8 @@ import numpy
 from learning import Model
 from learning.architecture import transfer
 
+INITIAL_WEIGHTS_RANGE = 0.25
+
 class MLP(Model):
     """MultiLayer Perceptron
 
@@ -22,64 +24,67 @@ class MLP(Model):
         super(MLP, self).__init__()
 
         if transfers is None:
-            transfers = [ReluTransferPerceptron() for _ in range((len(shape)-1))]+[LinearTransfer()]
-        elif isinstance(transfers, transfer.Transfer):
+            transfers = [ReluTransfer() for _ in range((len(shape)-2))]+[LinearTransfer()]
+        elif isinstance(transfers, Transfer):
             # Treat single given transfer as output transfer
-            transfers = [ReluTransferPerceptron() for _ in range((len(shape)-1))]+[transfers]
+            transfers = [ReluTransfer() for _ in range((len(shape)-2))]+[transfers]
 
-        if len(transfers) != len(shape):
+        if len(transfers) != len(shape)-1:
             raise ValueError(
                 'Must have exactly 1 transfer between each pair of layers, and after the output')
 
-        self._layers = self._make_layers(shape, transfers, learn_rate, learn_rate*momentum_rate)
+        self._shape = shape
+
+        #self._layers = self._make_layers(shape, transfers, learn_rate, learn_rate*momentum_rate)
+
+        self._weight_matrices = []
+        self._setup_weight_matrices()
+        self._transfers = transfers
+
+        # Gradient descent variables
+        self._step_length = learn_rate
+        self._momentum_rate = momentum_rate
+        self._prev_jacobians = None
 
         # Setup activation vectors
-        # 1 for input, then 2 for each hidden and output (1 perceptron, 1 transfer)
-        self._activations = [numpy.zeros(shape[0])]
+        # 1 for input, then 2 for each hidden and output (1 for transfer, 1 for perceptron))
+        self._weight_inputs = [numpy.zeros(shape[0])]
+        self._transfer_inputs = []
         for size in shape[1:]:
-            self._activations.append(numpy.zeros(size))
-            self._activations.append(numpy.zeros(size))
+            self._weight_inputs.append(numpy.zeros(size))
+            self._transfer_inputs.append(numpy.zeros(size))
 
         self.reset()
 
-    def _make_layers(self, shape, transfers, learn_rate, momentum_rate):
-        """Return sequence of perceptron and transfer layers."""
-        # Create mlp layers, containing perceptrons and transfers
-        # Create first layer with bias
-        layers = [AddBias(Perceptron(shape[0]+1, shape[1],
-                                     learn_rate, momentum_rate)),
-                  transfers[0]]
-
-        # After are hidden layers with given shape
-        num_inputs = shape[1]
-        for num_outputs, transfer_layer in zip(shape[2:], transfers[1:]):
-            # Add perceptron followed by transfer
-            layers.append(Perceptron(num_inputs, num_outputs,
-                                     learn_rate, momentum_rate))
-            layers.append(transfer_layer)
-
+    def _setup_weight_matrices(self):
+        # TODO: Add bias
+        self._weight_matrices = []
+        num_inputs = self._shape[0]
+        for num_outputs in self._shape[1:]:
+            self._weight_matrices.append(self._random_weight_matrix((num_inputs, num_outputs)))
             num_inputs = num_outputs
 
-        return layers
+    def _random_weight_matrix(self, shape):
+        """Return a random weight matrix."""
+        return (2*numpy.random.random(shape) - 1)*INITIAL_WEIGHTS_RANGE
 
     def reset(self):
         """Reset this model."""
-        for layer in self._layers:
-            layer.reset()
+        self._setup_weight_matrices()
+        self._prev_jacobians = None
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
         inputs = numpy.array(inputs)
-        self._activations[0] = inputs
+        self._weight_inputs[0][:] = inputs
 
-        for i, layer in enumerate(self._layers):
-            ouputs = layer.activate(self._activations[i])
-
+        for i, (weight_matrix, transfer_func) in enumerate(zip(self._weight_matrices, self._transfers)):
             # Track all activations for learning, and layer inputs
-            self._activations[i+1] = ouputs
+            self._transfer_inputs[i][:] = numpy.dot(self._weight_inputs[i], weight_matrix)
+            self._weight_inputs[i+1][:] = transfer_func(self._transfer_inputs[i])
 
         # Return activation of the only layer that feeds into output
-        return self._activations[-1]
+        return self._weight_inputs[-1]
 
     def _train_increment(self, input_vec, target_vec):
         """Train on a single input, target pair.
@@ -87,25 +92,49 @@ class MLP(Model):
         Optional.
         Model must either override train_step or implement _train_increment.
         """
+        jacobians, error = self._get_jacobians(input_vec, target_vec)
+
+        # Gradient descent
+        # TODO: Line search for step length
+        for i, jacobian in enumerate(jacobians):
+            self._weight_matrices[i] -= self._step_length * jacobian
+
+        # Momentum
+        # TODO: Line search for step length (or save previous step length and re-use it?)
+        if self._prev_jacobians is not None:
+            for i, jacobian in enumerate(self._prev_jacobians):
+                self._weight_matrices[i] -= (self._step_length * self._momentum_rate) * jacobian
+        self._prev_jacobians = jacobians
+
+
+        return error
+
+    def _get_jacobians(self, input_vec, target_vec):
+        """Return jacobian matrix for each weight matrix
+
+        Also return error.
+        """
+        # TODO: Should take error function
         outputs = self.activate(input_vec)
 
-        error = target_vec - outputs
+        error = outputs - target_vec
         output_error = numpy.mean(error**2) # For returning
 
-        for i, layer in reversed(list(enumerate(self._layers))):
-            # Grab all the variables we need from storage dicts
-            inputs = self._activations[i]
-            outputs = self._activations[i+1]
+        # Calculate error for each row
+        errors = [error] # TODO: Use derivative of last layer, instead of assuming t - o
+        for i, (weight_matrix, transfer_func) in reversed(
+                list(enumerate(zip(self._weight_matrices[1:], self._transfers[:-1])))):
+            errors.append((errors[-1].dot(weight_matrix.T)
+                           * transfer_func.derivative(
+                               self._transfer_inputs[i], self._weight_inputs[i+1])))
+        errors = reversed(errors)
 
-            # Compute errors for preceding layer before this layers changes
-            preceding_error = layer.get_prev_errors(inputs, error, outputs)
+        # Calculate jacobian for each weight matrix
+        jacobians = []
+        for i, error in enumerate(errors):
+            jacobians.append(self._weight_inputs[i][:, None].dot(error[None, :]))
 
-            # Update
-            layer.update(inputs, outputs, error)
-
-            error = preceding_error
-
-        return output_error
+        return jacobians, output_error
 
 class DropoutMLP(MLP):
     # TODO: Make sure the pre_iteration callback to disable neurons is implemented
@@ -447,40 +476,97 @@ def _random_indexes(length, probability):
 ################################################
 # Transfer functions with perceptron error rule
 ################################################
-class LinearTransfer(transfer.Transfer):
-    def activate(self, inputs):
-        return inputs
+class Transfer(object):
+    def __call__(self, input_vec):
+        raise NotImplementedError()
 
-    def get_prev_errors(self, input, error, output):
-        return error
+    def derivative(self, input_vec, output_vec):
+        """Return the derivative of this function.
 
-# The perceptron learning rule states that its errors
-# are multiplied by the derivative of the transfers output.
-# The output learning for an rbf, by contrast, does not.
-class TanhTransferPerceptron(transfer.TanhTransfer):
-    def get_prev_errors(self, input_vec, error_vec, output_vec):
-        return super(TanhTransferPerceptron, self).get_prev_errors(
-            input_vec, error_vec, output_vec) * transfer.dtanh(output_vec)
+        We take both input and output vector because
+        some derivatives can be more efficiently calculated from
+        the output of this function.
+        """
+        raise NotImplementedError()
 
+class LinearTransfer(Transfer):
+    def __call__(self, input_vec):
+        return input_vec
 
-class ReluTransferPerceptron(transfer.ReluTransfer):
-    def get_prev_errors(self, input_vec, error_vec, output_vec):
-        return super(ReluTransferPerceptron, self).get_prev_errors(
-            input_vec, error_vec, output_vec) * transfer.drelu(input_vec)
+    def derivative(self, input_vec, output_vec):
+        """Return the derivative of this function.
 
-
-class GaussianTransferPerceptron(transfer.GaussianTransfer):
-    def get_prev_errors(self, input_vec, error_vec, output_vec):
-        return super(GaussianTransferPerceptron, self).get_prev_errors(
-            input_vec, error_vec, output_vec) * transfer.dgaussian_vec(
-                input_vec, output_vec, self._variance)
+        We take both input and output vector because
+        some derivatives can be more efficiently calculated from
+        the output of this function.
+        """
+        return input_vec
 
 
-class SoftmaxTransferPerceptron(transfer.SoftmaxTransfer):
-    def get_prev_errors(self, input_vec, error_vec, output_vec):
-        # dsoftmax returns a jacobian
-        # Mutliply output errors by jacobian for input errors
-        # numpy.array dot numpy.matrix is equivalent to matrix multiplication,
-        # where the first array is a row matrix.
-        return super(SoftmaxTransferPerceptron, self).get_prev_errors(
-            input_vec, error_vec, output_vec).dot(transfer.dsoftmax(output_vec))
+class TanhTransfer(Transfer):
+    def __call__(self, input_vec):
+        return transfer.tanh(input_vec)
+
+    def derivative(self, input_vec, output_vec):
+        """Return the derivative of this function.
+
+        We take both input and output vector because
+        some derivatives can be more efficiently calculated from
+        the output of this function.
+        """
+        return transfer.dtanh(output_vec)
+
+
+class ReluTransfer(Transfer):
+    """Smooth approximation of a rectified linear unit (ReLU).
+
+    Also known as softplus.
+    """
+    def __call__(self, input_vec):
+        return transfer.relu(input_vec)
+
+    def derivative(self, input_vec, output_vec):
+        """Return the derivative of this function.
+
+        We take both input and output vector because
+        some derivatives can be more efficiently calculated from
+        the output of this function.
+        """
+        return transfer.drelu(input_vec)
+
+
+class LogitTransfer(Transfer):
+    pass
+
+
+class GaussianTransfer(Transfer):
+    def __init__(self, variance=1.0):
+        super(GaussianTransfer, self).__init__()
+
+        self._variance = variance
+
+    def __call__(self, input_vec):
+        return transfer.gaussian(input_vec, self._variance)
+
+    def derivative(self, input_vec, output_vec):
+        """Return the derivative of this function.
+
+        We take both input and output vector because
+        some derivatives can be more efficiently calculated from
+        the output of this function.
+        """
+        return transfer.dgaussian(input_vec, output_vec, self._variance)
+
+
+class SoftmaxTransfer(Transfer):
+    def __call__(self, input_vec):
+        return transfer.softmax(input_vec)
+
+    def derivative(self, input_vec, output_vec):
+        """Return the derivative of this function.
+
+        We take both input and output vector because
+        some derivatives can be more efficiently calculated from
+        the output of this function.
+        """
+        transfer.dsoftmax(output_vec)

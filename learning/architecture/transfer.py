@@ -3,63 +3,6 @@
 import numpy
 import math
 
-class Transfer(object):
-    def update(self, *args):
-        pass
-
-    def reset(self):
-        pass
-
-    def activate(self, inputs):
-        raise NotImplementedError()
-
-    def get_prev_errors(self, input_vec, error_vec, output_vec):
-        raise NotImplementedError()
-
-class TanhTransfer(Transfer):
-    def activate(self, inputs):
-        return tanh(inputs)
-
-    def get_prev_errors(self, input_vec, error_vec, output_vec):
-        return error_vec
-
-
-class ReluTransfer(Transfer):
-    """Smooth approximation of a rectified linear unit (ReLU).
-
-    Also known as softplus.
-    """
-    def activate(self, inputs):
-        return relu(inputs)
-
-    def get_prev_errors(self, input_vec, error_vec, output_vec):
-        return error_vec
-
-
-class LogitTransfer(Transfer):
-    pass
-
-
-class GaussianTransfer(Transfer):
-    def __init__(self, variance=1.0):
-        super(GaussianTransfer, self).__init__()
-
-        self._variance = variance
-
-    def activate(self, inputs):
-        return gaussian(inputs, self._variance)
-
-    def get_prev_errors(self, input_vec, error_vec, output_vec):
-        return error_vec
-
-
-class SoftmaxTransfer(Transfer):
-    def activate(self, inputs):
-        return softmax(inputs)
-
-    def get_prev_errors(self, input_vec, error_vec, output_vec):
-        return error_vec
-
 
 def tanh(x):
     """Sigmoid like function using tanh"""
