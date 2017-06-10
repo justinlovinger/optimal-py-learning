@@ -48,24 +48,27 @@ class MLP(Model):
 
         # Setup activation vectors
         # 1 for input, then 2 for each hidden and output (1 for transfer, 1 for perceptron))
-        self._weight_inputs = [numpy.zeros(shape[0])]
+        # +1 for biases
+        self._weight_inputs = [numpy.ones(shape[0]+1)]
         self._transfer_inputs = []
         for size in shape[1:]:
-            self._weight_inputs.append(numpy.zeros(size))
+            self._weight_inputs.append(numpy.ones(size+1))
             self._transfer_inputs.append(numpy.zeros(size))
 
         self.reset()
 
     def _setup_weight_matrices(self):
-        # TODO: Add bias
+        """Initialize weight matrices."""
         self._weight_matrices = []
         num_inputs = self._shape[0]
         for num_outputs in self._shape[1:]:
-            self._weight_matrices.append(self._random_weight_matrix((num_inputs, num_outputs)))
+            # +1 for bias
+            self._weight_matrices.append(self._random_weight_matrix((num_inputs+1, num_outputs)))
             num_inputs = num_outputs
 
     def _random_weight_matrix(self, shape):
         """Return a random weight matrix."""
+        # TODO: Random weight matrix should be a function user can pass in
         return (2*numpy.random.random(shape) - 1)*INITIAL_WEIGHTS_RANGE
 
     def reset(self):
@@ -75,16 +78,18 @@ class MLP(Model):
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
-        inputs = numpy.array(inputs)
-        self._weight_inputs[0][:] = inputs
+        # [:-1] because last component is bias
+        self._weight_inputs[0][:-1] = inputs
 
         for i, (weight_matrix, transfer_func) in enumerate(zip(self._weight_matrices, self._transfers)):
             # Track all activations for learning, and layer inputs
             self._transfer_inputs[i][:] = numpy.dot(self._weight_inputs[i], weight_matrix)
-            self._weight_inputs[i+1][:] = transfer_func(self._transfer_inputs[i])
+            # [:-1] because last component is bias
+            self._weight_inputs[i+1][:-1] = transfer_func(self._transfer_inputs[i])
 
         # Return activation of the only layer that feeds into output
-        return self._weight_inputs[-1]
+        # [:-1] because last component is bias
+        return self._weight_inputs[-1][:-1]
 
     def _train_increment(self, input_vec, target_vec):
         """Train on a single input, target pair.
@@ -124,9 +129,11 @@ class MLP(Model):
         errors = [error] # TODO: Use derivative of last layer, instead of assuming t - o
         for i, (weight_matrix, transfer_func) in reversed(
                 list(enumerate(zip(self._weight_matrices[1:], self._transfers[:-1])))):
-            errors.append((errors[-1].dot(weight_matrix.T)
+            # [:-1] because last column corresponds to bias
+            errors.append((errors[-1].dot(weight_matrix[:-1].T)
                            * transfer_func.derivative(
-                               self._transfer_inputs[i], self._weight_inputs[i+1])))
+                               # [:-1] because last component is bias
+                               self._transfer_inputs[i], self._weight_inputs[i+1][:-1])))
         errors = reversed(errors)
 
         # Calculate jacobian for each weight matrix

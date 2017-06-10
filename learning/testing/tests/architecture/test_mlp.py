@@ -39,7 +39,7 @@ def test_mlp_convergence():
 def test_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransferPerceptron())
+    nn = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransfer())
     pat = datasets.get_xor()
 
     error = nn.avg_mse(*pat)
@@ -51,7 +51,7 @@ pytest.mark.slowtest()
 def test_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = mlp.MLP((2, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
+    nn = mlp.MLP((2, 3, 2), transfers=mlp.SoftmaxTransfer(),
                  learn_rate=0.05, momentum_rate=0.5)
     pat = datasets.get_and()
 
