@@ -91,6 +91,62 @@ class MLP(Model):
         # [:-1] because last component is bias
         return self._weight_inputs[-1][:-1]
 
+
+    # def train(self, input_matrix, target_matrix,
+    #           iterations=1000, retries=0, error_break=0.002, *args, **kwargs):
+    #     """Train model to converge on a dataset.
+
+    #     Note: Override this method for batch learning models.
+
+    #     Args:
+    #         input_matrix: A matrix with samples in rows and attributes in columns.
+    #         target_matrix: A matrix with samples in rows and target values in columns.
+    #         iterations: Max iterations to train model.
+    #         retries: Number of times to reset model and retries if it does not converge.
+    #             Convergence is defined as reaching error_break.
+    #         error_break: Training will end once error is less than this.
+    #         error_stagnant_distance: Number of iterations during which error must change by at least
+    #             error_stagnant_threshold, or training ends.
+    #         error_stagnant_threshold: Threshold by which error must change within
+    #             error_stagnant_distance iterations, or training ends.
+    #         error_improve_iters: Best error must decrease within this many iterations,
+    #             or training ends.
+    #         pattern_select_func: Function that takes (input_matrix, target_matrix),
+    #             and returns a selection of rows. Use partial function to embed arguments.
+    #     """
+    #     from scipy import optimize
+
+    #     def flatten(matrices):
+    #         return numpy.hstack([matrix.ravel() for matrix in matrices])
+
+    #     def unflatten_weights(flat_weights):
+    #         self._weight_matrices = []
+    #         index = 0
+    #         for i, j in zip(self._shape[:-1], self._shape[1:]):
+    #             i += 1 # For bias
+    #             self._weight_matrices.append(
+    #                 flat_weights[index:index+(i*j)].reshape((i, j))
+    #             )
+    #             index += (i*j)
+
+    #     def obj_func(flat_weights):
+    #         # Set weights
+    #         unflatten_weights(flat_weights)
+
+    #         # Calculate jacobians
+    #         sample_jacobians = []
+    #         errors = []
+    #         for input_vec, target_vec in zip(input_matrix, target_matrix):
+    #             jacobians, error = self._get_jacobians(input_vec, target_vec)
+    #             sample_jacobians.append(jacobians)
+    #             errors.append(error)
+    #         return numpy.mean(errors), flatten(numpy.mean(sample_jacobians, axis=0))
+
+    #     flat_weights = optimize.minimize(obj_func, x0=flatten(self._weight_matrices), jac=True,
+    #                                      method='BFGS', tol=error_break,
+    #                                      options={'maxiter': iterations}).x
+    #     unflatten_weights(flat_weights)
+
     def train_step(self, input_matrix, target_matrix):
         """Adjust the model towards the targets for given inputs.
 
