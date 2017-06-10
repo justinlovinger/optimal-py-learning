@@ -91,28 +91,23 @@ class MLP(Model):
         # [:-1] because last component is bias
         return self._weight_inputs[-1][:-1]
 
-    def _train_increment(self, input_vec, target_vec):
-        """Train on a single input, target pair.
+    def train_step(self, input_matrix, target_matrix):
+        """Adjust the model towards the targets for given inputs.
 
-        Optional.
-        Model must either override train_step or implement _train_increment.
+        Train on a mini-batch.
         """
-        jacobians, error = self._get_jacobians(input_vec, target_vec)
+        # Calculate jacobian for each samples
+        sample_jacobians = []
+        errors = []
+        for input_vec, target_vec in zip(input_matrix, target_matrix):
+            jacobians, error = self._get_jacobians(input_vec, target_vec)
+            sample_jacobians.append(jacobians)
+            errors.append(error)
 
-        # Gradient descent
-        # TODO: Line search for step length
-        for i, jacobian in enumerate(jacobians):
-            self._weight_matrices[i] -= self._step_length * jacobian
+        # Average jacobians, for weight optimization
+        self._gradient_descent(numpy.mean(sample_jacobians, axis=0))
 
-        # Momentum
-        # TODO: Line search for step length (or save previous step length and re-use it?)
-        if self._prev_jacobians is not None:
-            for i, jacobian in enumerate(self._prev_jacobians):
-                self._weight_matrices[i] -= (self._step_length * self._momentum_rate) * jacobian
-        self._prev_jacobians = jacobians
-
-
-        return error
+        return numpy.mean(errors)
 
     def _get_jacobians(self, input_vec, target_vec):
         """Return jacobian matrix for each weight matrix
@@ -142,6 +137,20 @@ class MLP(Model):
             jacobians.append(self._weight_inputs[i][:, None].dot(error[None, :]))
 
         return jacobians, output_error
+
+    def _gradient_descent(self, jacobians):
+        """Update weight matrices with gradient descent."""
+        # Steepest descent
+        # TODO: Line search for step length
+        for i, jacobian in enumerate(jacobians):
+            self._weight_matrices[i] -= self._step_length * jacobian
+
+        # Momentum
+        # TODO: Line search for step length (or save previous step length and re-use it?)
+        if self._prev_jacobians is not None:
+            for i, jacobian in enumerate(self._prev_jacobians):
+                self._weight_matrices[i] -= (self._step_length * self._momentum_rate) * jacobian
+        self._prev_jacobians = jacobians
 
 class DropoutMLP(MLP):
     # TODO: Make sure the pre_iteration callback to disable neurons is implemented
