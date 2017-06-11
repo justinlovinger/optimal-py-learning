@@ -345,7 +345,7 @@ class LinearTransfer(Transfer):
         some derivatives can be more efficiently calculated from
         the output of this function.
         """
-        return input_vec
+        return numpy.ones(input_vec.shape)
 
 
 class TanhTransfer(Transfer):
