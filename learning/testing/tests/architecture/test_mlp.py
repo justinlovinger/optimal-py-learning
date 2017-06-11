@@ -11,7 +11,7 @@ from learning import base
 from learning.testing import helpers
 
 ############################
-# Integration tests
+# MLP
 ############################
 # TODO: use validation methods to more robustly test
 def test_mlp():
@@ -59,6 +59,35 @@ def test_mlp_classifier_convergence():
     assert nn.avg_mse(*pat) <= 0.02
 
 
+def test_mlp_bias():
+    # Should have bias for each layer
+    model = mlp.MLP((2, 4, 3))
+
+    # +1 input for bias
+    assert model._weight_matrices[0].shape == (3, 4)
+    assert model._weight_matrices[1].shape == (5, 3)
+
+    # First input should always be 1
+    model.activate([0, 0])
+    assert model._weight_inputs[0][0] == 1.0
+    assert model._weight_inputs[1][0] == 1.0
+    assert model._weight_inputs[2][0] == 1.0
+
+def test_mlp_perceptron():
+    # Given known inputs and weights, test expected outputs
+    model = mlp.MLP((2, 1), transfers=mlp.LinearTransfer())
+    model._weight_matrices[0][0][0] = 0.0
+    model._weight_matrices[0][1][0] = 0.5
+    model._weight_matrices[0][2][0] = -0.5
+    assert (model.activate([1, 1]) == [0.0]).all()
+
+    model._weight_matrices[0][1][0] = 1.0
+    model._weight_matrices[0][2][0] = 2.0
+    assert (model.activate([1, 1]) == [3.0]).all()
+
+##############################
+# DropoutMLP
+##############################
 def test_dropout_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
@@ -82,7 +111,7 @@ def test_dropout_mlp_convergence():
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
-    nn.train(*pat, retries=5, error_break=0.002, pattern_select_func=base.select_sample)
+    nn.train(*pat, retries=5, error_break=0.002, error_improve_iters=50)
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
@@ -92,12 +121,12 @@ def test_dropout_mlp_convergence():
 def test_dropout_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
+    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransfer(),
                         learn_rate=0.2, momentum_rate=0.5)
     pat = datasets.get_and()
 
     error = nn.avg_mse(*pat)
-    nn.train(*pat, iterations=10, pattern_select_func=base.select_sample)
+    nn.train(*pat, iterations=10)
     assert nn.avg_mse(*pat) < error
 
 
@@ -106,7 +135,7 @@ def test_dropout_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
-    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransferPerceptron(),
+    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransfer(),
                         learn_rate=0.2, momentum_rate=0.5,
                         input_active_probability=1.0,
                         hidden_active_probability=0.9)
@@ -114,240 +143,89 @@ def test_dropout_mlp_classifier_convergence():
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
-    nn.train(*pat, retries=5, error_break=0.002)
+    nn.train(*pat, retries=5, error_break=0.002, error_improve_iters=50)
 
     # Dropout sacrifices training accuracy for better generalization
     # so we don't worry as much about convergence
     assert nn.avg_mse(*pat) <= 0.1
 
-############################
-# Perceptron
-############################
-def test_perceptron():
-    # Given known inputs, test expected outputs
-    layer = mlp.Perceptron(2, 1)
-    layer._weights[0][0] = 0.5
-    layer._weights[1][0] = -0.5
-    assert layer.activate(numpy.array([1, 1])) == 0.0
+def test_dropout_mlp_dropout():
+    model = mlp.DropoutMLP((2, 4, 3), input_active_probability=0.5,
+                           hidden_active_probability=0.5)
 
-    layer._weights[0][0] = 1.0
-    layer._weights[1][0] = 2.0
-    assert layer.activate(numpy.array([1, 1])) == 3.0
+    # Only bias and active neurons should not be 0
+    model.train_step([[1, 1]], [[1, 1, 1]])
 
-def test_add_bias():
-    # Given 0 vector inputs, output should not be 0
-    bias = mlp.AddBias(mlp.Perceptron(2, 1))
-    assert bias.activate(numpy.array([0]))[0] != 0.0
+    # Should still have DropoutTransfers (until activation outside of training)
 
-    # Without bias, output should be 0
-    layer = mlp.Perceptron(1, 1)
-    assert layer.activate(numpy.array([0]))[0] == 0.0
+    _validate_weight_inputs(model._weight_inputs[0], model._input_transfer._active_neurons)
+    for weight_inputs, transfer_func in zip(model._weight_inputs[1:-1], model._transfers[:-1]):
+        _validate_weight_inputs(weight_inputs, transfer_func._active_neurons)
 
+def test_dropout_mlp_post_training():
+    # Post training should happen on first activate after training (train step),
+    # and not more than once, unless training begins again
+    model = mlp.DropoutMLP((2, 4, 3), input_active_probability=0.5,
+                           hidden_active_probability=0.5)
 
-####################
-# DropoutPerceptron
-####################
-class MockDropoutLayer(object):
-    """Mock dropout layer that has _active_neurons attribute with all active."""
-    def __init__(self, num_outputs):
-        self._active_neurons = range(num_outputs)
+    # Train, modifying active neurons and weights
+    model.train_step([[1, 1]], [[1, 1, 1]])
+    pre_procedure_weights = copy.deepcopy(model._weight_matrices)
 
-# pre_iteration
-def test_dropout_perceptron_pre_iteration_reduce_outgoing(monkeypatch):
-    # Set weights for later comparison
-    weights = numpy.array([[0.0, 1.0],
-                           [2.0, 3.0]])
+    # Should call post_training procedure after activate
+    model.activate([1, 1])
+    _validate_post_training(model, pre_procedure_weights)
 
-    layer = mlp.DropoutPerceptron(2, 2, MockDropoutLayer(2))
-    layer._weights = weights
-    layer._full_weights = weights
+    # Weights should not change after another activate
+    model.activate([1, 1])
+    _validate_post_training(model, pre_procedure_weights)
 
-    # pre_iteration hook should reduce weight matrix for outgoing weights
-    monkeypatch.setattr(mlp, '_random_indexes', lambda a, b : [0])
-    layer.pre_iteration([], [])
+def _validate_post_training(model, pre_procedure_weights):
+    for weight_matrix, orig_matrix in zip(model._weight_matrices, pre_procedure_weights):
+        # Weights should be scaled by active probability
+        assert (weight_matrix == orig_matrix*model._hid_act_prob).all()
 
-    assert (helpers.sane_equality_array(layer._weights) ==
-            helpers.sane_equality_array(numpy.array([[0.0],
-                                                     [2.0]])))
+    # All inputs and neurons should be active
+    assert not isinstance(model._input_transfer, mlp.DropoutTransfer)
+    for transfer_func in model._transfers:
+        assert not isinstance(transfer_func, mlp.DropoutTransfer)
 
-    # Test for second column
-    monkeypatch.setattr(mlp, '_random_indexes', lambda a, b : [1])
-    layer.pre_iteration([], [])
-
-    assert (helpers.sane_equality_array(layer._weights) ==
-            helpers.sane_equality_array(numpy.array([[1.0],
-                                                     [3.0]])))
+    for weight_inputs in model._weight_inputs:
+        _validate_weight_inputs(weight_inputs, [1.0]*(len(weight_inputs)-1))
 
 
-def test_dropout_perceptron_pre_iteration_reduce_incoming(monkeypatch):
-    # Set weights for later comparison
-    weights = numpy.array([[0.0, 1.0],
-                           [2.0, 3.0]])
+def _validate_weight_inputs(weight_inputs, active_neurons):
+    assert len(weight_inputs)-1 == len(active_neurons) # -1 for bias
 
-    # Make network to test incoming weight matrix reduction
-    nn = mlp.DropoutMLP((1, 2, 2))
-    prev_layer = nn._layers[1]
-    layer = nn._layers[3]
-
-    layer._weights = weights
-    layer._full_weights = weights
-
-    # pre_iteration hook should reduce incoming component of weight matrix
-    # based on incoming dropout perceptrons
-    prev_layer._active_neurons = [0]
-    layer.pre_iteration([], [])
-
-    assert (helpers.sane_equality_array(layer._weights) ==
-            helpers.sane_equality_array(numpy.array([[0.0, 1.0]])))
-
-    # Test for second row
-    prev_layer._active_neurons = [1]
-    layer.pre_iteration([], [])
-
-    assert (helpers.sane_equality_array(layer._weights) ==
-            helpers.sane_equality_array(numpy.array([[2.0, 3.0]])))
-
-
-def test_dropout_perceptron_pre_iteration_correct_order(monkeypatch):
-    # Set weights for later comparison
-    weights = numpy.array([[0.0, 1.0],
-                           [2.0, 3.0]])
-
-    # Create network with two dropout layers
-    nn = mlp.DropoutMLP((1, 2, 2, 1))
-    prev_layer = nn._layers[1]
-    layer = nn._layers[3]
-
-    layer._weights = weights
-    layer._full_weights = weights
-
-    # Disable other training functions
-    monkeypatch.setattr(mlp.DropoutPerceptron, 'update', lambda *args : None)
-    monkeypatch.setattr(mlp.DropoutPerceptron, 'post_iteration', lambda *args : None)
-    monkeypatch.setattr(mlp.DropoutPerceptron, 'post_training', lambda *args : None)
-
-    # prev_layer should set active neurons first, such that will adjust
-    # based on incoming active neurons
-    monkeypatch.setattr(mlp, '_random_indexes', lambda *args : [0])
-    nn.train([[0.0]], [[0.0]], 1)
-
-    assert (helpers.sane_equality_array(layer._weights) ==
-            helpers.sane_equality_array(numpy.array([[0.0]])))
-
-
-# post_iteration
-def test_dropout_perceptron_post_iteration(monkeypatch):
-    nn = mlp.DropoutMLP((1, 2, 2))
-    prev_layer = nn._layers[1]
-    layer = nn._layers[3]
-
-    layer._full_weights = numpy.array([[-1.0, -2.0],
-                                       [-3.0, -4.0]])
-
-    # Pretend specific neurons are activated
-    prev_layer._active_neurons = [0]
-    layer._active_neurons = [0]
-
-    # And weights are updated
-    layer._weights = numpy.array([[1.0]])
-
-    # post_iteration callback should update full_weights, but only those
-    # for active neurons
-    layer.post_iteration([], [])
-    assert (helpers.sane_equality_array(layer._full_weights) ==
-            helpers.sane_equality_array(numpy.array([[1.0, -2.0],
-                                                     [-3.0, -4.0]])))
-
-    # Try again with different active neurons. Both updates should take effect.
-    prev_layer._active_neurons = [0, 1]
-    layer._active_neurons = [1]
-
-    layer._weights = numpy.array([[2.0],
-                                  [4.0]])
-
-    layer.post_iteration([], [])
-    assert (helpers.sane_equality_array(layer._full_weights) ==
-            helpers.sane_equality_array(numpy.array([[1.0, 2.0],
-                                                     [-3.0, 4.0]])))
-
-    # This time, all are active
-    prev_layer._active_neurons = [0, 1]
-    layer._active_neurons = [0, 1]
-
-    layer._weights = numpy.array([[5.0, 6.0],
-                                  [7.0, 8.0]])
-
-    layer.post_iteration([], [])
-    assert (helpers.sane_equality_array(layer._full_weights) ==
-            helpers.sane_equality_array(numpy.array([[5.0, 6.0],
-                                                     [7.0, 8.0]])))
-
-# post_training
-def test_dropout_perceptron_post_training():
-    layer = mlp.DropoutPerceptron(2, 2, MockDropoutLayer(2),
-                                  active_probability=0.5)
-    layer._full_weights = numpy.array([[0.0, 1.0],
-                                       [2.0, 3.0]])
-
-    # post_training hook activates all neurons, and
-    # scales weights them based on active_probability
-    layer.post_training([], [])
-
-    assert layer._active_neurons == [0, 1]
-    assert (helpers.sane_equality_array(layer._weights) ==
-            helpers.sane_equality_array(numpy.array([[0.0, 0.5],
-                                                     [1.0, 1.5]])))
-
+    assert weight_inputs[0] == 1.0 # Bias
+    for i, active in enumerate(active_neurons):
+        # i+1 to offset from bias
+        if active == 0.0:
+            assert weight_inputs[i+1] == 0.0
+        elif active == 1.0:
+            assert weight_inputs[i+1] != 0.0
+        else:
+            assert 0, 'Invalid active neuron value'
 
 ####################
-# DropoutInputs
+# DropoutTransfer
 ####################
-def test_dropout_inputs_activate_adds_bias():
-    layer = mlp.DropoutInputs(2)
-    assert (helpers.sane_equality_array(layer.activate(numpy.array([0.0, 0.0]))) ==
-            helpers.sane_equality_array(numpy.array([0.0, 0.0, 1.0])))
+def test_dropout_transfer_probability_one():
+    length = random.randint(1, 20)
 
-def test_dropout_inputs_activate_inputs_disabled_bias():
-    layer = mlp.DropoutInputs(2)
+    dropout_transfer = mlp.DropoutTransfer(mlp.LinearTransfer(), 1.0, length)
+    assert (dropout_transfer._active_neurons == numpy.array([1.0]*length)).all(), 'All should be active'
 
-    layer._active_neurons = [0, 2]
-    assert (helpers.sane_equality_array(layer.activate(numpy.array([0.1, 0.2]))) ==
-            helpers.sane_equality_array(numpy.array([0.1, 1.0])))
+    # Random input
+    input_vec = numpy.random.random(length)
+    assert (dropout_transfer(input_vec) == input_vec).all()
 
-    layer._active_neurons = [1, 2]
-    assert (helpers.sane_equality_array(layer.activate(numpy.array([0.1, 0.2]))) ==
-            helpers.sane_equality_array(numpy.array([0.2, 1.0])))
+def test_dropout_transfer_probability_zero():
+    length = random.randint(1, 20)
 
-def test_dropout_inputs_pre_training_disables_inputs_not_bias(monkeypatch):
-    layer = mlp.DropoutInputs(2)
+    # Can't actually be zero, but can be close enough
+    dropout_transfer = mlp.DropoutTransfer(mlp.LinearTransfer(), 1e-16, length)
 
-    monkeypatch.setattr(mlp, '_random_indexes', lambda *args : [0])
-    layer.pre_iteration([], [])
-    assert layer._active_neurons == [0, 2]
-
-    monkeypatch.setattr(mlp, '_random_indexes', lambda *args : [1])
-    layer.pre_iteration([], [])
-    assert layer._active_neurons == [1, 2]
-
-def test_dropout_inputs_post_training_all_active():
-    layer = mlp.DropoutInputs(2)
-    layer._active_neurons = [0, 2]
-
-    layer.post_training([], [])
-    assert layer._active_neurons == [0, 1, 2]
-
-####################
-# random_indexes
-####################
-def test_random_indexes_probability_one():
-    length = random.randint(1, 10)
-    assert mlp._random_indexes(length, 1.0) == range(length)
-
-
-def test_random_indexes_probability_zero():
-    length = random.randint(1, 10)
-
-    # Will always select at least 1
-    selected_indexes = mlp._random_indexes(length, 0.0)
-    assert len(selected_indexes) == 1
-    assert 0 <= selected_indexes[0] < length # In range
+    # Should not allow zero active, defaults to 1
+    assert list(dropout_transfer._active_neurons).count(1.0) == 1
+    assert list(dropout_transfer._active_neurons).count(0.0) == length-1
