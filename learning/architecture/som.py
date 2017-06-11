@@ -26,7 +26,7 @@ class SOM(Model):
         """Reset this model."""
         # Randomize weights, between -1 and 1
         self._weights = (2*numpy.random.random(self._size) - 1)*self.initial_weights_range
-        self._distances = numpy.zeros(self._distances.shape)
+        self._distances = numpy.zeros(self._size)
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""

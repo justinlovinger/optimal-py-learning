@@ -95,30 +95,35 @@ class RBF(Model):
         Model must either override train_step or implement _train_increment.
         """
         # Train RBF
-        error_vec = super(RBF, self).train_step(input_matrix, target_matrix)
+        jacobian, error = self._get_jacobian(input_matrix, target_matrix)
+        self._gradient_descent(jacobian)
 
         # Train SOM clusters
         self._som.train_step(input_matrix, target_matrix)
 
-        return error_vec
+        return error
 
-    def _train_increment(self, input_vec, target_vec):
-        """Train on a single input, target pair.
+    def _get_jacobian(self, input_matrix, target_matrix):
+        """Return jacobian and error for given dataset."""
+        jacobians, errors = zip(*[self._get_one_jacobian(input_vec, target_vec)
+                                  for input_vec, target_vec in zip(input_matrix, target_matrix)])
+        return numpy.mean(jacobians, axis=0), numpy.mean(errors)
 
-        Optional.
-        Model must either override train_step or implement _train_increment.
-        """
+    def _get_one_jacobian(self, input_vec, target_vec):
+        """Return jacobian and error for given sample."""
         output = self.activate(input_vec)
         error_vec = output - target_vec
-        error = numpy.mean(error_vec**2)
+        error = numpy.mean(error_vec**2) # NOTE: Technically 0.5*mse, but doesn't matter in practice
 
         if self._scale_by_similarity:
             error_vec /= self._total_similarity
 
+        jacobian = self._similarities[:, None].dot(error_vec[None, :])
+
+        return jacobian, error
+
+    def _gradient_descent(self, jacobian):
         # Update weights weight gradient descent
         # TODO: Take an optimizer, instead of hard coding gradient descent
         # TODO: Line search for step size, instead of just self._learning_rate
-        jacobian = self._similarities[:, None].dot(error_vec[None, :])
         self._weight_matrix -= self._learning_rate*jacobian
-
-        return error
