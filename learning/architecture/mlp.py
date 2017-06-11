@@ -4,7 +4,7 @@ import copy
 import numpy
 
 from learning import Model
-from learning.architecture import transfer
+from learning import calculate
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
@@ -350,7 +350,7 @@ class LinearTransfer(Transfer):
 
 class TanhTransfer(Transfer):
     def __call__(self, input_vec):
-        return transfer.tanh(input_vec)
+        return calculate.tanh(input_vec)
 
     def derivative(self, input_vec, output_vec):
         """Return the derivative of this function.
@@ -359,7 +359,7 @@ class TanhTransfer(Transfer):
         some derivatives can be more efficiently calculated from
         the output of this function.
         """
-        return transfer.dtanh(output_vec)
+        return calculate.dtanh(output_vec)
 
 
 class ReluTransfer(Transfer):
@@ -368,7 +368,7 @@ class ReluTransfer(Transfer):
     Also known as softplus.
     """
     def __call__(self, input_vec):
-        return transfer.relu(input_vec)
+        return calculate.relu(input_vec)
 
     def derivative(self, input_vec, output_vec):
         """Return the derivative of this function.
@@ -377,7 +377,7 @@ class ReluTransfer(Transfer):
         some derivatives can be more efficiently calculated from
         the output of this function.
         """
-        return transfer.drelu(input_vec)
+        return calculate.drelu(input_vec)
 
 
 class LogitTransfer(Transfer):
@@ -391,7 +391,7 @@ class GaussianTransfer(Transfer):
         self._variance = variance
 
     def __call__(self, input_vec):
-        return transfer.gaussian(input_vec, self._variance)
+        return calculate.gaussian(input_vec, self._variance)
 
     def derivative(self, input_vec, output_vec):
         """Return the derivative of this function.
@@ -400,12 +400,12 @@ class GaussianTransfer(Transfer):
         some derivatives can be more efficiently calculated from
         the output of this function.
         """
-        return transfer.dgaussian(input_vec, output_vec, self._variance)
+        return calculate.dgaussian(input_vec, output_vec, self._variance)
 
 
 class SoftmaxTransfer(Transfer):
     def __call__(self, input_vec):
-        return transfer.softmax(input_vec)
+        return calculate.softmax(input_vec)
 
     def derivative(self, input_vec, output_vec):
         """Return the derivative of this function.
@@ -414,4 +414,4 @@ class SoftmaxTransfer(Transfer):
         some derivatives can be more efficiently calculated from
         the output of this function.
         """
-        transfer.dsoftmax(output_vec)
+        calculate.dsoftmax(output_vec)

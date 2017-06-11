@@ -3,7 +3,7 @@ import numpy
 
 from learning import Model
 from learning import SOM
-from learning.architecture import transfer
+from learning import calculate
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
@@ -53,7 +53,7 @@ class RBF(Model):
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
         # Get distance to each cluster center, and apply guassian for similarity
-        self._similarities = transfer.gaussian(self._som.activate(inputs), self._variance)
+        self._similarities = calculate.gaussian(self._som.activate(inputs), self._variance)
 
         # Get output by weighted summation of similarities, weighted by weights
         output = numpy.dot(self._similarities, self._weight_matrix)

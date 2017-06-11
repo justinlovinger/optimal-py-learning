@@ -1,5 +1,6 @@
 import copy
 import collections
+import random
 
 import numpy
 
@@ -166,3 +167,42 @@ def equal_ignore_order(a, b):
             return False
 
     return not copy_b
+
+############################
+# Gradient checking
+############################
+def check_gradient(f, df, inputs=None, epsilon=1e-6, jacobian=False):
+    if inputs is None:
+        inputs = numpy.random.rand(random.randint(2, 10))
+
+    if jacobian:
+        approx_func = _approximate_jacobian
+    else:
+        approx_func = _approximate_gradient
+
+    assert numpy.mean(numpy.abs(
+        df(inputs) - approx_func(f, inputs, epsilon))) <= epsilon
+
+
+def _approximate_gradient(f, x, epsilon):
+    return numpy.array([_approximate_ith(i, f, x, epsilon) for i in range(x.shape[0])])
+
+
+def _approximate_ith(i, f, x, epsilon):
+    x_plus_i = x.copy()
+    x_plus_i[i] += epsilon
+    x_minus_i = x.copy()
+    x_minus_i[i] -= epsilon
+    return ((f(x_plus_i) - f(x_minus_i)) / (2*epsilon))[i]
+
+def _approximate_jacobian(f, x, epsilon):
+    jacobian = numpy.zeros((x.shape[0], x.shape[0]))
+    # Jocobian has inputs on cols and outputs on rows
+    for j in range(x.shape[0]):
+        for i in range(x.shape[0]):
+            x_plus_i = x.copy()
+            x_plus_i[i] += epsilon
+            x_minus_i = x.copy()
+            x_minus_i[i] -= epsilon
+            jacobian[j, i] = (f(x_plus_i)[j] - f(x_minus_i)[j])/(2.0*epsilon)
+    return jacobian

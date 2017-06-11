@@ -2,7 +2,7 @@ import numpy
 
 from learning import calculate
 from learning import Model
-from learning.architecture import transfer
+from learning import calculate
 
 class PBNN(Model):
     def __init__(self, variance=None, scale_by_similarity=True, scale_by_class=True):
@@ -30,7 +30,7 @@ class PBNN(Model):
         """Return the model outputs for given inputs."""
         # Calculate similarity between input and each stored input
         # (gaussian of each distance)
-        similarities = transfer.gaussian(_distances(inputs, self._input_matrix), self._variance)
+        similarities = calculate.gaussian(_distances(inputs, self._input_matrix), self._variance)
         # Then scale each stored target by corresponding similarity, and sum
         output_vec = _weighted_sum_rows(self._target_matrix, similarities)
 
