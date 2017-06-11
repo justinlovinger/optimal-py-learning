@@ -3,8 +3,9 @@ import numpy
 
 from learning import Model
 from learning import SOM
-from learning.architecture import mlp
 from learning.architecture import transfer
+
+INITIAL_WEIGHTS_RANGE = 0.25
 
 class RBF(Model):
     """Radial Basis Function network."""
@@ -25,9 +26,9 @@ class RBF(Model):
             variance = 4.0/num_clusters
         self._variance = variance
 
-        # Single layer perceptron for output
-        self._perceptron = mlp.Perceptron(num_clusters, num_outputs,
-                                          learn_rate=learn_rate, momentum_rate=0.0)
+        # Weight matrix for output
+        self._weight_matrix = self._random_weight_matrix((num_clusters, num_outputs))
+        self._learning_rate = learn_rate
 
         # Optional scaling output by total gaussian similarity
         self._scale_by_similarity = scale_by_similarity
@@ -39,19 +40,24 @@ class RBF(Model):
     def reset(self):
         """Reset this model."""
         self._som.reset()
-        self._perceptron.reset()
+        self._weight_matrix = self._random_weight_matrix(self._weight_matrix.shape)
 
         self._similarities = None
         self._total_similarity = None
+
+    def _random_weight_matrix(self, shape):
+        """Return a random weight matrix."""
+        # TODO: Random weight matrix should be a function user can pass in
+        return (2*numpy.random.random(shape) - 1)*INITIAL_WEIGHTS_RANGE
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
         # Get distance to each cluster center, and apply guassian for similarity
         self._similarities = transfer.gaussian(self._som.activate(inputs), self._variance)
 
-        # Get output from perceptron
-        output = self._perceptron.activate(self._similarities)
-        #self._output = output[:]
+        # Get output by weighted summation of similarities, weighted by weights
+        output = numpy.dot(self._similarities, self._weight_matrix)
+
         if self._scale_by_similarity:
             self._total_similarity = numpy.sum(self._similarities)
             output /= self._total_similarity
@@ -103,14 +109,16 @@ class RBF(Model):
         Model must either override train_step or implement _train_increment.
         """
         output = self.activate(input_vec)
-        error_vec = target_vec - output
+        error_vec = output - target_vec
         error = numpy.mean(error_vec**2)
 
         if self._scale_by_similarity:
             error_vec /= self._total_similarity
 
-        # Update perceptron
-        # NOTE: Gradient is just error vector in this case
-        self._perceptron.update(self._similarities, output, error_vec)
+        # Update weights weight gradient descent
+        # TODO: Take an optimizer, instead of hard coding gradient descent
+        # TODO: Line search for step size, instead of just self._learning_rate
+        jacobian = self._similarities[:, None].dot(error_vec[None, :])
+        self._weight_matrix -= self._learning_rate*jacobian
 
         return error
