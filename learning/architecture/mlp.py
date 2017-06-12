@@ -1,12 +1,24 @@
 import random
 import copy
+import functools
 
 import numpy
 
 from learning import Model
 from learning import calculate
+from learning.optimize import GradientDescent
 
 INITIAL_WEIGHTS_RANGE = 0.25
+
+def make_gradient_descent(model, input_matrix, target_matrix, learn_rate=0.5):
+    return GradientDescent(obj_jac_func=functools.partial(
+        _mlp_obj_jac, model, input_matrix, target_matrix),
+        step_size=learn_rate)
+
+def _mlp_obj_jac(model, input_matrix, target_matrix, parameters):
+    # TODO: Refactor so it doesn't need private attributes and methods
+    model._weight_matrices = parameters
+    return model._get_jacobians(input_matrix, target_matrix)
 
 class MLP(Model):
     """MultiLayer Perceptron
@@ -14,13 +26,13 @@ class MLP(Model):
     Args:
         shape: Number of inputs, followed by number of outputs of each layer.
             Shape of each weight matrix is given by sequential pairs in shape.
-        tranfers: Optional. List of transfer layers.
+        transfers: Optional. List of transfer layers.
             Can be given as a single transfer layer to easily define output transfer.
             Defaults to ReLU hidden followed by linear output.
-        learn_rate: Learning rate for backpropogation.
-        momentum_rate: Momentum rate for backpropagation, value is relative to learn_rate.
+        make_optimizer_func: Function taking (model, input_matrix, target_matrix), and returning
+            Optimizer object.
     """
-    def __init__(self, shape, transfers=None, learn_rate=0.5, momentum_rate=0.2):
+    def __init__(self, shape, transfers=None, make_optimizer_func=None):
         super(MLP, self).__init__()
 
         if transfers is None:
@@ -35,16 +47,15 @@ class MLP(Model):
 
         self._shape = shape
 
-        #self._layers = self._make_layers(shape, transfers, learn_rate, learn_rate*momentum_rate)
-
         self._weight_matrices = []
         self._setup_weight_matrices()
         self._transfers = transfers
 
-        # Gradient descent variables
-        self._step_length = learn_rate
-        self._momentum_rate = momentum_rate
-        self._prev_jacobians = None
+        # Parameter optimization for training
+        if make_optimizer_func is None:
+            # TODO: If optimizer takes problem during "next" call, we won't need to construct
+            # a new optimizer each iteration, and can instead take an instance of optimizer
+            self._make_optimizer_func = make_gradient_descent
 
         # Setup activation vectors
         # 1 for input, then 2 for each hidden and output (1 for transfer, 1 for perceptron))
@@ -152,20 +163,29 @@ class MLP(Model):
 
         Train on a mini-batch.
         """
+        optimizer = self._make_optimizer_func(self, input_matrix, target_matrix)
+        error, self._weight_matrices = optimizer.next(self._weight_matrices)
+
+        return error
+
+    def _get_jacobians(self, input_matrix, target_matrix):
+        """Return mean jacobian matrix for each weight matrix.
+
+        Also return mean error.
+        """
         # Calculate jacobian for each samples
         sample_jacobians = []
         errors = []
         for input_vec, target_vec in zip(input_matrix, target_matrix):
-            jacobians, error = self._get_jacobians(input_vec, target_vec)
+            jacobians, error = self._get_sample_jacobians(input_vec, target_vec)
             sample_jacobians.append(jacobians)
             errors.append(error)
 
-        # Average jacobians, for weight optimization
-        self._gradient_descent(numpy.mean(sample_jacobians, axis=0))
+        # Average jacobians and error
+        return numpy.mean(errors), numpy.mean(sample_jacobians, axis=0)
 
-        return numpy.mean(errors)
 
-    def _get_jacobians(self, input_vec, target_vec):
+    def _get_sample_jacobians(self, input_vec, target_vec):
         """Return jacobian matrix for each weight matrix
 
         Also return error.
@@ -194,24 +214,10 @@ class MLP(Model):
 
         return jacobians, output_error
 
-    def _gradient_descent(self, jacobians):
-        """Update weight matrices with gradient descent."""
-        # Steepest descent
-        # TODO: Line search for step length
-        for i, jacobian in enumerate(jacobians):
-            self._weight_matrices[i] -= self._step_length * jacobian
-
-        # Momentum
-        # TODO: Line search for step length (or save previous step length and re-use it?)
-        if self._prev_jacobians is not None:
-            for i, jacobian in enumerate(self._prev_jacobians):
-                self._weight_matrices[i] -= (self._step_length * self._momentum_rate) * jacobian
-        self._prev_jacobians = jacobians
-
 class DropoutMLP(MLP):
-    def __init__(self, shape, transfers=None, learn_rate=0.5, momentum_rate=0.1,
+    def __init__(self, shape, transfers=None, make_optimizer_func=None,
                  input_active_probability=0.8, hidden_active_probability=0.5):
-        super(DropoutMLP, self).__init__(shape, transfers, learn_rate, momentum_rate)
+        super(DropoutMLP, self).__init__(shape, transfers, make_optimizer_func)
 
         # Dropout hyperparams
         self._inp_act_prob = input_active_probability

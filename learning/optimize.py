@@ -109,6 +109,7 @@ class Optimizer(object):
 
     def next(self, parameters):
         """Return next iteration of this optimizer."""
+        # TODO: Should take problem instance, which contains all of the _get_obj, etc. functions
         raise NotImplementedError()
 
 def _call_return_indices(func, indices, *args, **kwargs):
