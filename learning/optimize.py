@@ -150,10 +150,10 @@ def _return_none(*args, **kwargs):
 ################################
 # Implementations
 ################################
-class GradientDescent(Optimizer):
-    """Simple gradient descent with constant step size."""
+class SteepestDescent(Optimizer):
+    """Simple steepest descent with constant step size."""
     def __init__(self, obj_func=None, jac_func=None, obj_jac_func=None, step_size=1.0):
-        super(GradientDescent, self).__init__(obj_func=obj_func, jac_func=jac_func,
+        super(SteepestDescent, self).__init__(obj_func=obj_func, jac_func=jac_func,
                                               obj_jac_func=obj_jac_func)
         self._step_size = step_size
 
@@ -167,3 +167,30 @@ class GradientDescent(Optimizer):
 
         # Take a step down the first derivative direction
         return obj_value, parameters - self._step_size*jacobian
+
+class SteepestDescentMomentum(Optimizer):
+    """Simple gradient descent with constant step size, and momentum."""
+    def __init__(self, obj_func=None, jac_func=None, obj_jac_func=None,
+                 step_size=1.0, momentum_rate=0.2):
+        super(SteepestDescentMomentum, self).__init__(obj_func=obj_func, jac_func=jac_func,
+                                                      obj_jac_func=obj_jac_func)
+        self._step_size = step_size
+        self._momentum_rate = momentum_rate
+
+        # Store previous jacobian for momentum
+        self._prev_jacobian = None
+
+    def reset(self):
+        """Reset optimizer parameters."""
+        self._prev_jacobian = None
+
+    def next(self, parameters):
+        """Return next iteration of this optimizer."""
+        obj_value, jacobian = self._get_obj_jac(parameters)
+
+        next_parameters = parameters - self._step_size*jacobian
+        if self._prev_jacobian is not None:
+            next_parameters -= (self._step_size*self._momentum_rate) * self._prev_jacobian
+
+        # Take a step down the first derivative direction
+        return obj_value, next_parameters

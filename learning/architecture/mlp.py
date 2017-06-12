@@ -6,12 +6,12 @@ import numpy
 
 from learning import Model
 from learning import calculate
-from learning.optimize import GradientDescent
+from learning.optimize import SteepestDescent
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
 def make_gradient_descent(model, input_matrix, target_matrix, learn_rate=0.5):
-    return GradientDescent(obj_jac_func=functools.partial(
+    return SteepestDescent(obj_jac_func=functools.partial(
         _mlp_obj_jac, model, input_matrix, target_matrix),
         step_size=learn_rate)
 
