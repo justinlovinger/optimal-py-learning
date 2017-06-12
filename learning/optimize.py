@@ -223,11 +223,47 @@ class SteepestDescentLineSearch(Optimizer):
         step_dir = -self.jacobian
 
         # TODO: Replace with _line_search_wolfe when it has constrained optimization
-        step_size = _decr_until_wolfe(parameters, obj_value, self.jacobian, step_dir,
-                                      problem.get_obj_jac, self._c_1, self._c_2)
+        step_size = _optimize_until_wolfe(parameters, obj_value, self.jacobian, step_dir,
+                                          problem.get_obj_jac, self._c_1, self._c_2)
 
         # Take a step down the first derivative direction
         return obj_value, parameters + step_size*step_dir
+
+def _optimize_until_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2):
+    """Return step size that satisfies wolfe conditions.
+
+    Discover step size by metaheuristic optimization.
+
+    args:
+        parameters: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        obj_jac_func: Function taking parameters and returning obj and jac at given parameters.
+        c_1: Strictness parameter for Armijo rule.
+        c_2: Strictness parameter for curvature condition.
+    """
+    import optimal
+
+    MIN_STEP = 1e-10
+    MAX_STEP = 10.0
+    def decode(encoded_solution):
+        return optimal.helpers.binary_to_float(encoded_solution, MIN_STEP, MAX_STEP)
+
+    def fitness(step_size):
+        # Fitness is distance from 0 derivative
+        # NOTE: Should it just be -obj?
+        obj_xk_plus_ap, jac_xk_plus_ap = obj_jac_func(parameters + step_size*step_dir)
+
+        # Finished when wolfe conditions are met
+        finished = _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir,
+                                     obj_xk_plus_ap, jac_xk_plus_ap, c_1, c_2)
+        return -numpy.abs(jac_xk_plus_ap.T.dot(step_dir)), finished
+
+    optimizer = optimal.GenAlg(13, population_size=4)
+    optimizer.logging = False
+    return optimizer.optimize(optimal.Problem(fitness, decode_function=decode))
+
 
 def _decr_until_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2,
                       initial_step=4.0):
