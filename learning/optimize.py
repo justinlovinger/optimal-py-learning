@@ -3,6 +3,8 @@
 import functools
 import operator
 
+import numpy
+
 ############################
 # Problem
 ############################
@@ -199,3 +201,56 @@ class SteepestDescentMomentum(Optimizer):
 
         # Take a step down the first derivative direction
         return obj_value, next_parameters
+
+def _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2):
+    """Return True if Wolfe conditions (Armijo rule and curvature condition) are met.
+
+    step_size: a; Proposed step size.
+    parameters: x_k; Parameter values at current step.
+    obj_xk: f(x_k); Objective value at x_k.
+    jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+    step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+    obj_jac_func: Function taking parameters and returning obj and jac at given parameters.
+    c_1: Strictness parameter for Armijo rule.
+    c_2: Strictness parameter for curvature.
+    """
+    if not (0 < c_1 < c_2 < 1):
+        raise ValueError('0 < c_1 < c_2 < 1')
+
+    # NOTE: Note that we add step_dir, not subtract, ex. -jacobian is a step direction
+    obj_xk_plus_ap, jac_xk_plus_ap = obj_jac_func(parameters + step_size*step_dir)
+
+    wolfe = (_armijo_rule(step_size, obj_xk, jac_xk, step_dir, obj_xk_plus_ap, c_1)
+             and _curvature_condition(jac_xk, step_dir, jac_xk_plus_ap, c_2))
+    assert isinstance(wolfe, (numpy.bool_, bool)), '_wolfe_conditions should return bool, check parameters shape'
+    return wolfe
+
+def _armijo_rule(step_size, obj_xk, jac_xk, step_dir, obj_xk_plus_ap, c_1):
+    """Return True if Armijo rule is met.
+
+    Armijo rule:
+    f(x_k + a_k p_k) <= f(x_k) + c_1 a_k p_k^T grad_f(x_k)
+
+    args:
+        step_size: a; Proposed step size.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        obj_xk_plus_ap: f(x_k + a_k p_k); Objective value at x_k + a_k p_k
+        c_1: Strictness parameter for Armijo rule.
+    """
+    return obj_xk_plus_ap <= obj_xk + ((c_1*step_size)*jac_xk.T).dot(step_dir)
+
+def _curvature_condition(jac_xk, step_dir, jac_xk_plus_ap, c_2):
+    """Return True if curvature condition is met.
+
+    Curvature condition:
+    -p_k^T grad_f(x_k = a_k p_k) <= -c_2 p_k^T grad_f(x_k)
+
+    args:
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        jac_xk_plus_ap: grad_f(x_k = a_k p_k); jacobian value at x_k + a_k p_k
+        c_2: Strictness parameter for curvature.
+    """
+    return (jac_xk_plus_ap.T).dot(step_dir) >= (c_2*jac_xk.T).dot(step_dir)
