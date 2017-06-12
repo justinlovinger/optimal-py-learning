@@ -100,9 +100,7 @@ class Model(object):
                 selected_patterns = pattern_select_func(input_matrix, target_matrix)
 
                 # Learn each selected pattern
-                self.pre_iteration(*selected_patterns)
                 error = self.train_step(*selected_patterns)
-                self.post_iteration(*selected_patterns)
 
                 # Logging and breaking
                 if self.logging:
@@ -191,20 +189,6 @@ class Model(object):
         Model must either override train_step or implement _train_increment.
         """
         raise NotImplementedError()
-
-    def pre_iteration(self, input_matrix, target_matrix):
-        """Optional. Callback performed before each training iteration.
-
-        Note: If self.train is overwritten, this may not be called.
-        """
-        pass
-
-    def post_iteration(self, input_matrix, target_matrix):
-        """Optional. Callback performed after each training iteration.
-
-        Note: If self.train is overwritten, this may not be called.
-        """
-        pass
 
     def serialize(self):
         """Convert model into string.

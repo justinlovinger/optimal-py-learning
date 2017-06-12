@@ -119,42 +119,6 @@ def test_select_random(monkeypatch):
     for tar_vec in new_tar_matrix:
         assert (tar_vec == target_matrix[0]).all() # due to monkeypatch
 
-#########################
-# Pre and post hooks
-#########################
-class CountMLP(mlp.MLP):
-    def __init__(self, *args, **kwargs):
-        super(CountMLP, self).__init__(*args, **kwargs)
-        self.count = 0
-
-
-def test_pre_iteration():
-    # Setup pre_iteration function
-    class TestMLP(CountMLP):
-        def pre_iteration(self, input_matrix, target_matrix):
-            self.count += 1
-
-    # Train for a few iterations
-    nn = TestMLP((1, 1))
-    nn.train([1], [1], iterations=10, error_break=None)
-
-    # Count incremented for each iteration
-    assert nn.count == 10
-
-
-def test_post_iteration():
-    # Setup post_iteration function
-    class TestMLP(CountMLP):
-        def post_iteration(self, input_matrix, target_matrix):
-            self.count += 1
-
-    # Train for a few iterations
-    nn = TestMLP((1, 1))
-    nn.train([[1]], [[1]], iterations=10, error_break=None)
-
-    # Count incremented for each iteration
-    assert nn.count == 10
-
 ####################
 # Train function
 ####################
