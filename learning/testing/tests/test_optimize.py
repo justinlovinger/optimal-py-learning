@@ -75,6 +75,27 @@ def test_optimizer_get_obj_jac_hess_individual_obj_jac_hess():
                                    hess_func=lambda x: x+2)
     assert tuple(problem.get_obj_jac_hess(1)) == (1, 2, 3)
 
+
+############################
+# SteepestDescentLineSearch
+############################
+def test_steepest_descent_line_search():
+    # Attempt to optimize a simple function with line search
+    f = lambda vec: vec[0]**2 + vec[1]**2
+    df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
+
+    optimizer = optimize.SteepestDescentLineSearch()
+    problem = optimize.Problem(obj_func=f, jac_func=df)
+
+    # Optimize
+    vec = numpy.array([10, 10])
+    iteration = 1
+    obj_value = 1
+    while obj_value > 1e-10 and iteration < 100:
+        obj_value, vec = optimizer.next(problem, vec)
+
+    assert obj_value <= 1e-10
+
 #########################
 # Wolfe conditions
 #########################
@@ -91,7 +112,8 @@ def _wolfe_test(xk, step_size):
     df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
 
     return optimize._wolfe_conditions(step_size, xk, f(xk), df(xk), -df(xk),
-                                      lambda vec: (f(vec), df(vec)), 1e-4, 0.1)
+                                      f(xk - step_size*df(xk)), df(xk - step_size*df(xk)),
+                                      1e-4, 0.1)
 
 def test_armijo_rule():
     # This step at this initial x will minimize f, and must therefore satisfy armijo

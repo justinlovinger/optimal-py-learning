@@ -149,9 +149,14 @@ def _return_none(*args, **kwargs):
 class Optimizer(object):
     """Optimizer for optimizing model parameters."""
 
+    def __init__(self):
+        self.jacobian = None # Last computed jacobian
+        self.hessian = None # Last computed hessian
+
     def reset(self):
         """Reset optimizer parameters."""
-        raise NotImplementedError()
+        self.jacobian = None
+        self.hessian = None
 
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
@@ -166,16 +171,12 @@ class SteepestDescent(Optimizer):
         super(SteepestDescent, self).__init__()
         self._step_size = step_size
 
-    def reset(self):
-        """Reset optimizer parameters."""
-        pass
-
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
-        obj_value, jacobian = problem.get_obj_jac(parameters)
+        obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
         # Take a step down the first derivative direction
-        return obj_value, parameters - self._step_size*jacobian
+        return obj_value, parameters - self._step_size*self.jacobian
 
 class SteepestDescentMomentum(Optimizer):
     """Simple gradient descent with constant step size, and momentum."""
@@ -189,36 +190,141 @@ class SteepestDescentMomentum(Optimizer):
 
     def reset(self):
         """Reset optimizer parameters."""
+        super(SteepestDescentMomentum, self).reset()
         self._prev_jacobian = None
 
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
-        obj_value, jacobian = problem.get_obj_jac(parameters)
+        obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
-        next_parameters = parameters - self._step_size*jacobian
+        next_parameters = parameters - self._step_size*self.jacobian
         if self._prev_jacobian is not None:
             next_parameters -= (self._step_size*self._momentum_rate) * self._prev_jacobian
 
         # Take a step down the first derivative direction
         return obj_value, next_parameters
 
-def _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2):
+class SteepestDescentLineSearch(Optimizer):
+    """Simple steepest descent with constant step size.
+
+    args:
+        c_1: Strictness parameter for Armijo rule.
+        c_2: Strictness parameter for curvature condition.
+    """
+    def __init__(self, c_1=1e-4, c_2=0.1):
+        super(SteepestDescentLineSearch, self).__init__()
+
+        self._c_1 = c_1
+        self._c_2 = c_2
+
+    def next(self, problem, parameters):
+        """Return next iteration of this optimizer."""
+        obj_value, self.jacobian = problem.get_obj_jac(parameters)
+        step_dir = -self.jacobian
+
+        # TODO: Replace with _line_search_wolfe when it has constrained optimization
+        step_size = _decr_until_wolfe(parameters, obj_value, self.jacobian, step_dir,
+                                      problem.get_obj_jac, self._c_1, self._c_2)
+
+        # Take a step down the first derivative direction
+        return obj_value, parameters + step_size*step_dir
+
+def _decr_until_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2,
+                      initial_step=4.0):
+    """Return step size that satisfies wolfe conditions.
+
+    Discover step size by decreasing step size in small increments.
+
+    args:
+        parameters: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        obj_jac_func: Function taking parameters and returning obj and jac at given parameters.
+        c_1: Strictness parameter for Armijo rule.
+        c_2: Strictness parameter for curvature condition.
+    """
+    iteration = 1
+    step_size = initial_step
+    obj_xk_plus_ap, jac_xk_plus_ap = obj_jac_func(parameters + step_size*step_dir)
+    while not _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir,
+                                obj_xk_plus_ap, jac_xk_plus_ap, c_1, c_2):
+        if iteration > 1000:
+            raise RuntimeError('Line search did not converge')
+
+        # Did not satisfy, decrease step size
+        step_size -= 0.1*step_size
+        obj_xk_plus_ap, jac_xk_plus_ap = obj_jac_func(parameters + step_size*step_dir)
+
+        iteration += 1
+
+    assert step_size > 0
+    return step_size
+
+def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2,
+                       initial_step=1.0):
+    """Return step size that satisfies wolfe conditions.
+
+    Discover step size with gradient descent.
+
+    args:
+        parameters: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        obj_jac_func: Function taking parameters and returning obj and jac at given parameters.
+        c_1: Strictness parameter for Armijo rule.
+        c_2: Strictness parameter for curvature condition.
+    """
+    step_size = initial_step
+
+    # Use gradient descent to find step size that satisfies wolfe conditions
+    # TODO: Optimizer must have constraint that step_size > 0
+    optimizer = SteepestDescent(step_size=0.1)
+    # Used to extract jac_xk_plus_ap that is computed during step_size_obj_jac_func,
+    # because it is also needed for _wolfe_conditions
+    jac_xk_plus_ap = [None]
+    def step_size_obj_jac_func(a):
+        # NOTE: Note that we add step_dir, not subtract, ex. -jacobian is a step direction
+        obj_val, jac_xk_plus_ap[0] = obj_jac_func(parameters + a*step_dir)
+        return obj_val, jac_xk_plus_ap[0].T.dot(step_dir)
+    problem = Problem(obj_jac_func=step_size_obj_jac_func)
+
+    # Optimize step size until it matches wolfe conditions
+    # obj_xk_plus_ap and jac_xk_plus_ap[0] is are for the step size when optimizer.next is called
+    # (not the new one returned by optimizer.next)
+    # That is why we store next_step_size, and set it equal to step_size before calling optimizer.next
+    iteration = 1
+    obj_xk_plus_ap, next_step_size = optimizer.next(problem, step_size)
+    while not _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir,
+                                obj_xk_plus_ap, jac_xk_plus_ap[0], c_1, c_2):
+        step_size = next_step_size
+        obj_xk_plus_ap, next_step_size = optimizer.next(problem, step_size)
+
+        iteration += 1
+        if iteration > 1000:
+            raise RuntimeError('Line search did not converge')
+
+    assert step_size > 0
+    return step_size
+
+def _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir,
+                      obj_xk_plus_ap, jac_xk_plus_ap, c_1, c_2):
     """Return True if Wolfe conditions (Armijo rule and curvature condition) are met.
 
-    step_size: a; Proposed step size.
-    parameters: x_k; Parameter values at current step.
-    obj_xk: f(x_k); Objective value at x_k.
-    jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
-    step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
-    obj_jac_func: Function taking parameters and returning obj and jac at given parameters.
-    c_1: Strictness parameter for Armijo rule.
-    c_2: Strictness parameter for curvature.
+    args:
+        step_size: a; Proposed step size.
+        parameters: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        obj_xk_plus_ap: f(x_k + a_k p_k); Objective value at x_k + a_k p_k
+        jac_xk_plus_ap: grad_f(x_k = a_k p_k); jacobian value at x_k + a_k p_k
+        c_1: Strictness parameter for Armijo rule.
+        c_2: Strictness parameter for curvature condition.
     """
     if not (0 < c_1 < c_2 < 1):
         raise ValueError('0 < c_1 < c_2 < 1')
-
-    # NOTE: Note that we add step_dir, not subtract, ex. -jacobian is a step direction
-    obj_xk_plus_ap, jac_xk_plus_ap = obj_jac_func(parameters + step_size*step_dir)
 
     wolfe = (_armijo_rule(step_size, obj_xk, jac_xk, step_dir, obj_xk_plus_ap, c_1)
              and _curvature_condition(jac_xk, step_dir, jac_xk_plus_ap, c_2))
@@ -251,6 +357,6 @@ def _curvature_condition(jac_xk, step_dir, jac_xk_plus_ap, c_2):
         jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
         step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
         jac_xk_plus_ap: grad_f(x_k = a_k p_k); jacobian value at x_k + a_k p_k
-        c_2: Strictness parameter for curvature.
+        c_2: Strictness parameter for curvature condition.
     """
     return (jac_xk_plus_ap.T).dot(step_dir) >= (c_2*jac_xk.T).dot(step_dir)
