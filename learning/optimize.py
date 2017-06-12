@@ -3,9 +3,12 @@
 import functools
 import operator
 
-class Optimizer(object):
-    """Optimizer for optimizing model parameters.
-    
+############################
+# Problem
+############################
+class Problem(object):
+    """Problem instance for optimizer.
+
     Functions are prioritized as follows:
         value(s): first priority, second_priority, (first_value_using_best_func, second_func)
 
@@ -25,92 +28,83 @@ class Optimizer(object):
                  obj_jac_hess_func=None):
         # Get objective function
         if obj_func is not None:
-            self._get_obj = obj_func
+            self.get_obj = obj_func
         elif obj_jac_func is not None:
-            self._get_obj = functools.partial(_call_return_index, obj_jac_func, 0)
+            self.get_obj = functools.partial(_call_return_index, obj_jac_func, 0)
         elif obj_hess_func is not None:
-            self._get_obj = functools.partial(_call_return_index, obj_hess_func, 0)
+            self.get_obj = functools.partial(_call_return_index, obj_hess_func, 0)
         elif obj_jac_hess_func is not None:
-            self._get_obj = functools.partial(_call_return_index, obj_jac_hess_func, 0)
+            self.get_obj = functools.partial(_call_return_index, obj_jac_hess_func, 0)
         else:
-            self._get_obj = _return_none
+            self.get_obj = _return_none
 
         # Get jacobian function
         if jac_func is not None:
-            self._get_jac = jac_func
+            self.get_jac = jac_func
         elif obj_jac_func is not None:
-            self._get_jac = functools.partial(_call_return_index, obj_jac_func, 1)
+            self.get_jac = functools.partial(_call_return_index, obj_jac_func, 1)
         elif jac_hess_func is not None:
-            self._get_jac = functools.partial(_call_return_index, jac_hess_func, 0)
+            self.get_jac = functools.partial(_call_return_index, jac_hess_func, 0)
         elif obj_jac_hess_func is not None:
-            self._get_jac = functools.partial(_call_return_index, obj_jac_hess_func, 1)
+            self.get_jac = functools.partial(_call_return_index, obj_jac_hess_func, 1)
         else:
-            self._get_jac = _return_none
+            self.get_jac = _return_none
 
         # Get hessian function
         if hess_func is not None:
-            self._get_hess = hess_func
+            self.get_hess = hess_func
         elif obj_hess_func is not None:
-            self._get_hess = functools.partial(_call_return_index, obj_hess_func, 1)
+            self.get_hess = functools.partial(_call_return_index, obj_hess_func, 1)
         elif jac_hess_func is not None:
-            self._get_hess = functools.partial(_call_return_index, jac_hess_func, 1)
+            self.get_hess = functools.partial(_call_return_index, jac_hess_func, 1)
         elif obj_jac_hess_func is not None:
-            self._get_hess = functools.partial(_call_return_index, obj_jac_hess_func, 2)
+            self.get_hess = functools.partial(_call_return_index, obj_jac_hess_func, 2)
         else:
-            self._get_hess = _return_none
+            self.get_hess = _return_none
 
         # Get objective and jacobian function
         if obj_jac_func is not None:
-            self._get_obj_jac = obj_jac_func
+            self.get_obj_jac = obj_jac_func
         elif obj_jac_hess_func is not None:
-            self._get_obj_jac = functools.partial(_call_return_indices, obj_jac_hess_func, (0, 1))
+            self.get_obj_jac = functools.partial(_call_return_indices, obj_jac_hess_func, (0, 1))
         else:
-            self._get_obj_jac = functools.partial(_bundle, (self._get_obj, self._get_jac))
+            self.get_obj_jac = functools.partial(_bundle, (self.get_obj, self.get_jac))
 
         # Get objective and hessian function
         if obj_hess_func is not None:
-            self._get_obj_hess = obj_hess_func
+            self.get_obj_hess = obj_hess_func
         elif obj_jac_hess_func is not None:
-            self._get_obj_hess = functools.partial(_call_return_indices, obj_jac_hess_func, (0, 2))
+            self.get_obj_hess = functools.partial(_call_return_indices, obj_jac_hess_func, (0, 2))
         else:
-            self._get_obj_hess = functools.partial(_bundle, (self._get_obj, self._get_hess))
+            self.get_obj_hess = functools.partial(_bundle, (self.get_obj, self.get_hess))
 
         # Get jacobian and hessian function
         if jac_hess_func is not None:
-            self._get_jac_hess = jac_hess_func
+            self.get_jac_hess = jac_hess_func
         elif obj_jac_hess_func is not None:
-            self._get_jac_hess = functools.partial(_call_return_indices, obj_jac_hess_func, (1, 2))
+            self.get_jac_hess = functools.partial(_call_return_indices, obj_jac_hess_func, (1, 2))
         else:
-            self._get_jac_hess = functools.partial(_bundle, (self._get_jac, self._get_hess))
+            self.get_jac_hess = functools.partial(_bundle, (self.get_jac, self.get_hess))
 
         # Get objective, jacobian, hessian function
         if obj_jac_hess_func is not None:
-            self._get_obj_jac_hess = obj_jac_hess_func
+            self.get_obj_jac_hess = obj_jac_hess_func
         elif obj_jac_func is not None:
-            self._get_obj_jac_hess = functools.partial(
+            self.get_obj_jac_hess = functools.partial(
                 _bundle_add,
-                (obj_jac_func, functools.partial(_tuple_result, self._get_hess))
+                (obj_jac_func, functools.partial(_tuple_result, self.get_hess))
             )
         elif obj_hess_func is not None:
-            self._get_obj_jac_hess = functools.partial(
-                _bundle_add_split, obj_hess_func, self._get_jac)
+            self.get_obj_jac_hess = functools.partial(
+                _bundle_add_split, obj_hess_func, self.get_jac)
         elif jac_hess_func is not None:
-            self._get_obj_jac_hess = functools.partial(
+            self.get_obj_jac_hess = functools.partial(
                 _bundle_add,
-                (functools.partial(_tuple_result, self._get_obj), jac_hess_func)
+                (functools.partial(_tuple_result, self.get_obj), jac_hess_func)
             )
         else:
-            self._get_obj_jac_hess = functools.partial(
-                _bundle, (self._get_obj, self._get_jac, self._get_hess))
-
-    def reset(self):
-        """Reset optimizer parameters."""
-        raise NotImplementedError()
-
-    def next(self, parameters):
-        """Return next iteration of this optimizer."""
-        # TODO: Should take problem instance, which contains all of the _get_obj, etc. functions
-        raise NotImplementedError()
+            self.get_obj_jac_hess = functools.partial(
+                _bundle, (self.get_obj, self.get_jac, self.get_hess))
 
 def _call_return_indices(func, indices, *args, **kwargs):
     """Return indices of func called with *args and **kwargs.
@@ -148,32 +142,43 @@ def _return_none(*args, **kwargs):
     return None
 
 ################################
+# Optimizer
+################################
+class Optimizer(object):
+    """Optimizer for optimizing model parameters."""
+
+    def reset(self):
+        """Reset optimizer parameters."""
+        raise NotImplementedError()
+
+    def next(self, problem, parameters):
+        """Return next iteration of this optimizer."""
+        raise NotImplementedError()
+
+################################
 # Implementations
 ################################
 class SteepestDescent(Optimizer):
     """Simple steepest descent with constant step size."""
-    def __init__(self, obj_func=None, jac_func=None, obj_jac_func=None, step_size=1.0):
-        super(SteepestDescent, self).__init__(obj_func=obj_func, jac_func=jac_func,
-                                              obj_jac_func=obj_jac_func)
+    def __init__(self, step_size=1.0):
+        super(SteepestDescent, self).__init__()
         self._step_size = step_size
 
     def reset(self):
         """Reset optimizer parameters."""
         pass
 
-    def next(self, parameters):
+    def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
-        obj_value, jacobian = self._get_obj_jac(parameters)
+        obj_value, jacobian = problem.get_obj_jac(parameters)
 
         # Take a step down the first derivative direction
         return obj_value, parameters - self._step_size*jacobian
 
 class SteepestDescentMomentum(Optimizer):
     """Simple gradient descent with constant step size, and momentum."""
-    def __init__(self, obj_func=None, jac_func=None, obj_jac_func=None,
-                 step_size=1.0, momentum_rate=0.2):
-        super(SteepestDescentMomentum, self).__init__(obj_func=obj_func, jac_func=jac_func,
-                                                      obj_jac_func=obj_jac_func)
+    def __init__(self, step_size=1.0, momentum_rate=0.2):
+        super(SteepestDescentMomentum, self).__init__()
         self._step_size = step_size
         self._momentum_rate = momentum_rate
 
@@ -184,9 +189,9 @@ class SteepestDescentMomentum(Optimizer):
         """Reset optimizer parameters."""
         self._prev_jacobian = None
 
-    def next(self, parameters):
+    def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
-        obj_value, jacobian = self._get_obj_jac(parameters)
+        obj_value, jacobian = problem.get_obj_jac(parameters)
 
         next_parameters = parameters - self._step_size*jacobian
         if self._prev_jacobian is not None:

@@ -6,19 +6,9 @@ import numpy
 
 from learning import Model
 from learning import calculate
-from learning.optimize import SteepestDescent
+from learning.optimize import Problem, SteepestDescent, SteepestDescentMomentum
 
 INITIAL_WEIGHTS_RANGE = 0.25
-
-def make_gradient_descent(model, input_matrix, target_matrix, learn_rate=0.5):
-    return SteepestDescent(obj_jac_func=functools.partial(
-        _mlp_obj_jac, model, input_matrix, target_matrix),
-        step_size=learn_rate)
-
-def _mlp_obj_jac(model, input_matrix, target_matrix, parameters):
-    # TODO: Refactor so it doesn't need private attributes and methods
-    model._weight_matrices = parameters
-    return model._get_jacobians(input_matrix, target_matrix)
 
 class MLP(Model):
     """MultiLayer Perceptron
@@ -32,7 +22,7 @@ class MLP(Model):
         make_optimizer_func: Function taking (model, input_matrix, target_matrix), and returning
             Optimizer object.
     """
-    def __init__(self, shape, transfers=None, make_optimizer_func=None):
+    def __init__(self, shape, transfers=None, optimizer=None):
         super(MLP, self).__init__()
 
         if transfers is None:
@@ -52,10 +42,10 @@ class MLP(Model):
         self._transfers = transfers
 
         # Parameter optimization for training
-        if make_optimizer_func is None:
-            # TODO: If optimizer takes problem during "next" call, we won't need to construct
-            # a new optimizer each iteration, and can instead take an instance of optimizer
-            self._make_optimizer_func = make_gradient_descent
+        if optimizer is None:
+            self._optimizer = SteepestDescentMomentum(step_size=0.5, momentum_rate=0.2)
+        else:
+            self._optimizer = optimizer
 
         # Setup activation vectors
         # 1 for input, then 2 for each hidden and output (1 for transfer, 1 for perceptron))
@@ -85,7 +75,7 @@ class MLP(Model):
     def reset(self):
         """Reset this model."""
         self._setup_weight_matrices()
-        self._prev_jacobians = None
+        self._optimizer.reset()
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
@@ -163,8 +153,9 @@ class MLP(Model):
 
         Train on a mini-batch.
         """
-        optimizer = self._make_optimizer_func(self, input_matrix, target_matrix)
-        error, self._weight_matrices = optimizer.next(self._weight_matrices)
+        problem = Problem(obj_jac_func=functools.partial(
+            _mlp_obj_jac, self, input_matrix, target_matrix))
+        error, self._weight_matrices = self._optimizer.next(problem, self._weight_matrices)
 
         return error
 
@@ -214,10 +205,15 @@ class MLP(Model):
 
         return jacobians, output_error
 
+def _mlp_obj_jac(model, input_matrix, target_matrix, parameters):
+    # TODO: Refactor so it doesn't need private attributes and methods
+    model._weight_matrices = parameters
+    return model._get_jacobians(input_matrix, target_matrix)
+
 class DropoutMLP(MLP):
-    def __init__(self, shape, transfers=None, make_optimizer_func=None,
+    def __init__(self, shape, transfers=None, optimizer=None,
                  input_active_probability=0.8, hidden_active_probability=0.5):
-        super(DropoutMLP, self).__init__(shape, transfers, make_optimizer_func)
+        super(DropoutMLP, self).__init__(shape, transfers, optimizer)
 
         # Dropout hyperparams
         self._inp_act_prob = input_active_probability
