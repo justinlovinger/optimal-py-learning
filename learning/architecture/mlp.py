@@ -43,7 +43,7 @@ class MLP(Model):
 
         # Parameter optimization for training
         if optimizer is None:
-            self._optimizer = SteepestDescentMomentum(step_size=0.5, momentum_rate=0.2)
+            self._optimizer = SteepestDescentLineSearch()
         else:
             self._optimizer = optimizer
 
@@ -98,6 +98,7 @@ class MLP(Model):
 
         Train on a mini-batch.
         """
+        # TODO: Also pass obj_func (activation passed into error), for potentially more efficient line search
         problem = Problem(obj_jac_func=functools.partial(
             _mlp_obj_jac, self, input_matrix, target_matrix))
 

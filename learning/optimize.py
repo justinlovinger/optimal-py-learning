@@ -2,6 +2,8 @@
 
 import functools
 import operator
+import itertools
+import logging
 
 import numpy
 
@@ -211,20 +213,29 @@ class SteepestDescentLineSearch(Optimizer):
         c_1: Strictness parameter for Armijo rule.
         c_2: Strictness parameter for curvature condition.
     """
-    def __init__(self, c_1=1e-4, c_2=0.1):
+    def __init__(self, c_1=1e-4, decr_rate=0.9):
         super(SteepestDescentLineSearch, self).__init__()
 
         self._c_1 = c_1
-        self._c_2 = c_2
+        self._decr_rate = decr_rate
+
+        self._prev_step_size = 1.0
+
+    def reset(self):
+        """Reset optimizer parameters."""
+        super(SteepestDescentLineSearch, self).reset()
+        self._prev_step_size = 1.0
 
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
         step_dir = -self.jacobian
 
-        # TODO: Replace with _line_search_wolfe when it has constrained optimization
-        step_size = _optimize_until_wolfe(parameters, obj_value, self.jacobian, step_dir,
-                                          problem.get_obj_jac, self._c_1, self._c_2)
+        # Initialize to one step up from previously best step size
+        step_size = _backtracking_line_search(
+            parameters, obj_value, self.jacobian, step_dir, problem.get_obj, self._c_1,
+            (self._prev_step_size/self._decr_rate), decr_rate=self._decr_rate)
+        self._prev_step_size = step_size
 
         # Take a step down the first derivative direction
         return obj_value, parameters + step_size*step_dir
@@ -233,6 +244,8 @@ def _optimize_until_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_
     """Return step size that satisfies wolfe conditions.
 
     Discover step size by metaheuristic optimization.
+
+    NOTE: Experimental, and quite slow.
 
     args:
         parameters: x_k; Parameter values at current step.
@@ -265,9 +278,9 @@ def _optimize_until_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_
     return optimizer.optimize(optimal.Problem(fitness, decode_function=decode))
 
 
-def _decr_until_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2,
-                      initial_step=4.0):
-    """Return step size that satisfies wolfe conditions.
+def _backtracking_line_search(parameters, obj_xk, jac_xk, step_dir, obj_func, c_1,
+                              initial_step, decr_rate=0.9):
+    """Return step size that satisfies the armijo rule.
 
     Discover step size by decreasing step size in small increments.
 
@@ -276,26 +289,23 @@ def _decr_until_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c
         obj_xk: f(x_k); Objective value at x_k.
         jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
         step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
-        obj_jac_func: Function taking parameters and returning obj and jac at given parameters.
+        obj_func: Function taking parameters and returning obj value at given parameters.
         c_1: Strictness parameter for Armijo rule.
-        c_2: Strictness parameter for curvature condition.
     """
-    iteration = 1
+    if numpy.isnan(obj_xk):
+        # Failsafe because _armijo rule will never return True
+        logging.warning('nan objective value in _backtracking_line_search, defaulting to 1e-10 step size')
+        return 1e-10
+
     step_size = initial_step
-    obj_xk_plus_ap, jac_xk_plus_ap = obj_jac_func(parameters + step_size*step_dir)
-    while not _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir,
-                                obj_xk_plus_ap, jac_xk_plus_ap, c_1, c_2):
-        if iteration > 1000:
-            raise RuntimeError('Line search did not converge')
+    while True:
+        obj_xk_plus_ap = obj_func(parameters + step_size*step_dir)
+        if _armijo_rule(step_size, obj_xk, jac_xk, step_dir, obj_xk_plus_ap, c_1):
+            assert step_size > 0
+            return step_size
 
-        # Did not satisfy, decrease step size
-        step_size -= 0.1*step_size
-        obj_xk_plus_ap, jac_xk_plus_ap = obj_jac_func(parameters + step_size*step_dir)
-
-        iteration += 1
-
-    assert step_size > 0
-    return step_size
+        # Did not satisfy, decrease step size and try again
+        step_size *= decr_rate
 
 def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2,
                        initial_step=1.0):
@@ -312,6 +322,12 @@ def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, 
         c_1: Strictness parameter for Armijo rule.
         c_2: Strictness parameter for curvature condition.
     """
+    if numpy.isnan(obj_xk):
+        # Failsafe because _armijo rule will never return True
+        # TODO: Might need similar failsafe for nan in jac_xk or step_dir
+        logging.warning('nan objective value in _line_search_wolfe, defaulting to 1e-10 step size')
+        return 1e-10
+
     step_size = initial_step
 
     # Use gradient descent to find step size that satisfies wolfe conditions
