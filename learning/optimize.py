@@ -146,7 +146,7 @@ def _return_none(*args, **kwargs):
     return None
 
 ################################
-# Optimizer
+# Base Models
 ################################
 class Optimizer(object):
     """Optimizer for optimizing model parameters."""
@@ -164,57 +164,124 @@ class Optimizer(object):
         """Return next iteration of this optimizer."""
         raise NotImplementedError()
 
+class GetStepSize(object):
+    """Returns step size when called."""
+    def reset(self):
+        """Reset parameters."""
+        pass
+
+    def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
+        """Return step size.
+
+        xk: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        problem: Problem; Problem instance passed to Optimizer
+        """
+        raise NotImplementedError()
+
 ################################
-# Implementations
+# Optimizer Implementations
 ################################
 class SteepestDescent(Optimizer):
     """Simple steepest descent with constant step size."""
-    def __init__(self, step_size=1.0):
+    def __init__(self, step_size_getter=None):
         super(SteepestDescent, self).__init__()
-        self._step_size = step_size
+
+        if step_size_getter is None:
+            # TODO: Backtracking armijo is not considered best for steepest descent
+            # "This simple and popular strategy for terminating a line search is well suited
+            # for Newton methods but is less appropriate for quasi-Newton and
+            # conjugate gradient methods." ~ Numerical Optimization (2nd) pp. 56
+            step_size_getter = BacktrackingStepSize()
+        self._step_size_getter = step_size_getter
+
+    def reset(self):
+        """Reset optimizer parameters."""
+        super(SteepestDescent, self).__init__()
+        self._step_size_getter.reset()
 
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
+        step_size = self._step_size_getter(parameters, obj_value, self.jacobian,
+                                           -self.jacobian, problem)
+
         # Take a step down the first derivative direction
-        return obj_value, parameters - self._step_size*self.jacobian
+        return obj_value, parameters - step_size*self.jacobian
 
 class SteepestDescentMomentum(Optimizer):
     """Simple gradient descent with constant step size, and momentum."""
-    def __init__(self, step_size=1.0, momentum_rate=0.2):
+    def __init__(self, step_size_getter=None, momentum_rate=0.2):
         super(SteepestDescentMomentum, self).__init__()
-        self._step_size = step_size
+        if step_size_getter is None:
+            # TODO: Backtracking armijo is not considered best for steepest descent
+            # "This simple and popular strategy for terminating a line search is well suited
+            # for Newton methods but is less appropriate for quasi-Newton and
+            # conjugate gradient methods." ~ Numerical Optimization (2nd) pp. 56
+            step_size_getter = BacktrackingStepSize()
+        self._step_size_getter = step_size_getter
+
         self._momentum_rate = momentum_rate
 
-        # Store previous jacobian for momentum
-        self._prev_jacobian = None
+        # Store previous step (step_size*direction) for momentum
+        self._prev_step = None
 
     def reset(self):
         """Reset optimizer parameters."""
         super(SteepestDescentMomentum, self).reset()
-        self._prev_jacobian = None
+        self._step_size_getter.reset()
+        self._prev_step = None
 
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
-        next_parameters = parameters - self._step_size*self.jacobian
-        if self._prev_jacobian is not None:
-            next_parameters -= (self._step_size*self._momentum_rate) * self._prev_jacobian
+        # Setup step for this iteration (step_size*direction)
+        step_dir = -self.jacobian
+        step_size = self._step_size_getter(parameters, obj_value, self.jacobian,
+                                           step_dir, problem)
+        step = step_size*step_dir
+
+        # Add steps from this and previous iteration
+        next_parameters = parameters + step
+        if self._prev_step is not None:
+            next_parameters += self._momentum_rate * self._prev_step
+        self._prev_step = step
 
         # Take a step down the first derivative direction
         return obj_value, next_parameters
 
-class SteepestDescentLineSearch(Optimizer):
-    """Simple steepest descent with constant step size.
+###############################
+# GetStepSize implementations
+###############################
+class SetStepSize(GetStepSize):
+    """Return a given step size every call.
 
-    args:
-        c_1: Strictness parameter for Armijo rule.
-        c_2: Strictness parameter for curvature condition.
+    Simple and efficient. Not always effective.
     """
+    def __init__(self, step_size):
+        super(SetStepSize, self).__init__()
+
+        self._step_size = step_size
+
+    def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
+        """Return step size.
+
+        xk: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        problem: Problem; Problem instance passed to Optimizer
+        """
+        return self._step_size
+
+class BacktrackingStepSize(GetStepSize):
+    """Return step size found with backtracking line search."""
     def __init__(self, c_1=1e-4, decr_rate=0.9):
-        super(SteepestDescentLineSearch, self).__init__()
+        super(BacktrackingStepSize, self).__init__()
 
         self._c_1 = c_1
         self._decr_rate = decr_rate
@@ -222,30 +289,32 @@ class SteepestDescentLineSearch(Optimizer):
         self._prev_step_size = 1.0
 
     def reset(self):
-        """Reset optimizer parameters."""
-        super(SteepestDescentLineSearch, self).reset()
+        """Reset parameters."""
+        super(BacktrackingStepSize, self).reset()
         self._prev_step_size = 1.0
 
-    def next(self, problem, parameters):
-        """Return next iteration of this optimizer."""
-        obj_value, self.jacobian = problem.get_obj_jac(parameters)
-        step_dir = -self.jacobian
+    def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
+        """Return step size.
 
+        xk: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        problem: Problem; Problem instance passed to Optimizer
+        """
         # Initialize to one step up from previously best step size
         step_size = _backtracking_line_search(
-            parameters, obj_value, self.jacobian, step_dir, problem.get_obj, self._c_1,
+            xk, obj_xk, jac_xk, step_dir, problem.get_obj, self._c_1,
             (self._prev_step_size/self._decr_rate), decr_rate=self._decr_rate)
         self._prev_step_size = step_size
-
-        # Take a step down the first derivative direction
-        return obj_value, parameters + step_size*step_dir
+        return step_size
 
 def _optimize_until_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2):
     """Return step size that satisfies wolfe conditions.
 
     Discover step size by metaheuristic optimization.
 
-    NOTE: Experimental, and quite slow.
+    NOTE: Experimental, and quite slow. Should not be used.
 
     args:
         parameters: x_k; Parameter values at current step.
@@ -332,7 +401,7 @@ def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, 
 
     # Use gradient descent to find step size that satisfies wolfe conditions
     # TODO: Optimizer must have constraint that step_size > 0
-    optimizer = SteepestDescent(step_size=0.1)
+    optimizer = SteepestDescent(step_size_getter=SetStepSize(0.1))
     # Used to extract jac_xk_plus_ap that is computed during step_size_obj_jac_func,
     # because it is also needed for _wolfe_conditions
     jac_xk_plus_ap = [None]

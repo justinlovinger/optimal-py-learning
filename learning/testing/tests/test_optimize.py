@@ -84,7 +84,24 @@ def test_steepest_descent_line_search():
     f = lambda vec: vec[0]**2 + vec[1]**2
     df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
 
-    optimizer = optimize.SteepestDescentLineSearch()
+    optimizer = optimize.SteepestDescent(step_size_getter=optimize.BacktrackingStepSize())
+    problem = optimize.Problem(obj_func=f, jac_func=df)
+
+    # Optimize
+    vec = numpy.array([10, 10])
+    iteration = 1
+    obj_value = 1
+    while obj_value > 1e-10 and iteration < 100:
+        obj_value, vec = optimizer.next(problem, vec)
+
+    assert obj_value <= 1e-10
+
+def test_steepest_descent_momentum_line_search():
+    # Attempt to optimize a simple function with line search
+    f = lambda vec: vec[0]**2 + vec[1]**2
+    df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
+
+    optimizer = optimize.SteepestDescentMomentum(step_size_getter=optimize.BacktrackingStepSize())
     problem = optimize.Problem(obj_func=f, jac_func=df)
 
     # Optimize

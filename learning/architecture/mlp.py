@@ -6,7 +6,7 @@ import numpy
 
 from learning import Model
 from learning import calculate
-from learning.optimize import Problem, SteepestDescent, SteepestDescentMomentum, SteepestDescentLineSearch
+from learning.optimize import Problem, SteepestDescent, SteepestDescentMomentum
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
@@ -43,7 +43,7 @@ class MLP(Model):
 
         # Parameter optimization for training
         if optimizer is None:
-            self._optimizer = SteepestDescentLineSearch()
+            self._optimizer = SteepestDescentMomentum()
         else:
             self._optimizer = optimizer
 
