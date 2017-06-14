@@ -98,9 +98,9 @@ class MLP(Model):
 
         Train on a mini-batch.
         """
-        # TODO: Also pass obj_func (activation passed into error), for potentially more efficient line search
-        problem = Problem(obj_jac_func=functools.partial(
-            _mlp_obj_jac, self, input_matrix, target_matrix))
+        problem = Problem(
+            obj_func=functools.partial(_mlp_obj, self, input_matrix, target_matrix),
+            obj_jac_func=functools.partial(_mlp_obj_jac, self, input_matrix, target_matrix))
 
         error, flat_weights = self._optimizer.next(problem, _flatten(self._weight_matrices))
         self._weight_matrices = _unflatten_weights(flat_weights, self._shape)
@@ -121,7 +121,8 @@ class MLP(Model):
             errors.append(error)
 
         # Average jacobians and error
-        return numpy.mean(errors), numpy.mean(sample_jacobians, axis=0)
+        # NOTE: We don't use numpy.mean(sample_jacobians, axis=0) because it can raise errors
+        return numpy.mean(errors), _mean_list_of_list_of_matrices(sample_jacobians)
 
 
     def _get_sample_jacobians(self, input_vec, target_vec):
@@ -152,6 +153,26 @@ class MLP(Model):
             jacobians.append(self._weight_inputs[i][:, None].dot(error[None, :]))
 
         return jacobians, output_error
+
+def _mean_list_of_list_of_matrices(lol_matrices):
+    """Return mean of each matrix in list of lists of matrices."""
+    # Sum matrices
+    mean_matrices = lol_matrices[0]
+    for list_of_matrices in lol_matrices[1:]:
+        for i, matrix in enumerate(list_of_matrices):
+            mean_matrices[i] += matrix
+
+    # Divide each by number of lists of matrices
+    for matrix in mean_matrices:
+        matrix /= len(lol_matrices)
+
+    # Return list of mean matrices
+    return mean_matrices
+
+def _mlp_obj(model, input_matrix, target_matrix, parameters):
+    model._weight_matrices = _unflatten_weights(parameters, model._shape)
+    # TODO: Should use error function given to model
+    return model.avg_mse(input_matrix, target_matrix)
 
 def _mlp_obj_jac(model, input_matrix, target_matrix, parameters):
     # TODO: Refactor so it doesn't need private attributes and methods

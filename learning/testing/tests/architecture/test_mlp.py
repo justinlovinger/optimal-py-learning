@@ -84,6 +84,15 @@ def test_mlp_perceptron():
     model._weight_matrices[0][2][0] = 2.0
     assert (model.activate([1, 1]) == [3.0]).all()
 
+def test_mean_list_of_list_of_matrices():
+    lol_matrices = [
+        [numpy.array([[1, 2], [3, 4]]), numpy.array([[-1, -2], [-3, -4]])],
+        [numpy.array([[1, 2], [3, 4]]), numpy.array([[1, 2], [3, 4]])]
+    ]
+    assert helpers.approx_equal(
+        mlp._mean_list_of_list_of_matrices(lol_matrices),
+        [numpy.array([[1, 2], [3, 4]]), numpy.array([[0, 0], [0, 0]])])
+
 ##############################
 # DropoutMLP
 ##############################
