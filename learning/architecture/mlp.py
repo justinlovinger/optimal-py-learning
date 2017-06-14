@@ -77,10 +77,13 @@ class MLP(Model):
         self._setup_weight_matrices()
         self._optimizer.reset()
 
-    def activate(self, inputs):
-        """Return the model outputs for given inputs."""
+    def activate(self, input_vec):
+        """Return the model outputs for given input_vec."""
+        if len(input_vec) != self._shape[0]:
+            raise ValueError('input_vec shape == %s, expected %s' % (len(input_vec), self._shape[0]))
+
         # [1:] because first component is bias
-        self._weight_inputs[0][1:] = inputs
+        self._weight_inputs[0][1:] = input_vec
 
         for i, (weight_matrix, transfer_func) in enumerate(
                 zip(self._weight_matrices, self._transfers)):
@@ -91,7 +94,7 @@ class MLP(Model):
 
         # Return activation of the only layer that feeds into output
         # [1:] because first component is bias
-        return self._weight_inputs[-1][1:]
+        return numpy.copy(self._weight_inputs[-1][1:])
 
     def train_step(self, input_matrix, target_matrix):
         """Adjust the model towards the targets for given inputs.
