@@ -362,12 +362,19 @@ def _backtracking_line_search(parameters, obj_xk, jac_xk, step_dir, obj_func, c_
         c_1: Strictness parameter for Armijo rule.
     """
     if numpy.isnan(obj_xk):
-        # Failsafe because _armijo rule will never return True
+        # Failsafe because _armijo_rule will never return True
         logging.warning('nan objective value in _backtracking_line_search, defaulting to 1e-10 step size')
         return 1e-10
 
     step_size = initial_step
-    while True:
+    for i in itertools.count(start=1):
+        if step_size < 1e-10:
+            # Failsafe for numerical precision errors preventing _armijo_rule returning True
+            # This can happen if gradient provides very little improvement
+            # (or is in the wrong direction)
+            logging.warning('_backtracking_line_search failed Armijo with step_size ~= 1e-10, returning')
+            return step_size
+
         obj_xk_plus_ap = obj_func(parameters + step_size*step_dir)
         if _armijo_rule(step_size, obj_xk, jac_xk, step_dir, obj_xk_plus_ap, c_1):
             assert step_size > 0
