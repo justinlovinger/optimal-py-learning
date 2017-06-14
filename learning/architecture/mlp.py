@@ -43,9 +43,8 @@ class MLP(Model):
 
         # Parameter optimization for training
         if optimizer is None:
-            self._optimizer = SteepestDescentMomentum()
-        else:
-            self._optimizer = optimizer
+            optimizer = SteepestDescentMomentum()
+        self._optimizer = optimizer
 
         # Setup activation vectors
         # 1 for input, then 2 for each hidden and output (1 for transfer, 1 for perceptron))

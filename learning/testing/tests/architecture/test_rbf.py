@@ -21,7 +21,7 @@ pytest.mark.slowtest()
 def test_rbf_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = rbf.RBF(2, 4, 2, learn_rate=0.75, scale_by_similarity=True)
+    nn = rbf.RBF(2, 4, 2, scale_by_similarity=True)
     pat = datasets.get_xor()
 
     nn.train(*pat, retries=5, error_break=0.002)

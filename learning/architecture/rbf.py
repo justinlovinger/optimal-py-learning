@@ -4,13 +4,14 @@ import numpy
 from learning import Model
 from learning import SOM
 from learning import calculate
+from learning.optimize import Problem, SteepestDescent
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
 class RBF(Model):
     """Radial Basis Function network."""
     def __init__(self, attributes, num_clusters, num_outputs,
-                 learn_rate=1.0, variance=None, scale_by_similarity=True,
+                 optimizer=None, variance=None, scale_by_similarity=True,
                  pre_train_clusters=False,
                  move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
         super(RBF, self).__init__()
@@ -28,7 +29,11 @@ class RBF(Model):
 
         # Weight matrix for output
         self._weight_matrix = self._random_weight_matrix((num_clusters, num_outputs))
-        self._learning_rate = learn_rate
+
+        # Optimizer to optimize weight_matrix
+        if optimizer is None:
+            optimizer = SteepestDescent()
+        self._optimizer = optimizer
 
         # Optional scaling output by total gaussian similarity
         self._scale_by_similarity = scale_by_similarity
@@ -95,32 +100,49 @@ class RBF(Model):
         Model must either override train_step or implement _train_increment.
         """
         # Train RBF
-        jacobian, error = self._get_jacobian(input_matrix, target_matrix)
-        self._gradient_descent(jacobian)
+        error, flat_weights = self._optimizer.next(
+            Problem(obj_func=lambda xk: self._get_obj(xk, input_matrix, target_matrix),
+                    obj_jac_func=lambda xk: self._get_obj_jac(xk, input_matrix, target_matrix)),
+            self._weight_matrix.ravel()
+        )
+        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
 
         # Train SOM clusters
         self._som.train_step(input_matrix, target_matrix)
 
         return error
 
+    def _get_obj(self, flat_weights, input_matrix, target_matrix):
+        """Helper function for Optimizer."""
+        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
+        # TODO: Should take user provided error function
+        return 0.5*self.avg_mse(input_matrix, target_matrix) 
+
+    def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
+        """Helper function for Optimizer."""
+        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
+        error, jacobian = self._get_jacobian(input_matrix, target_matrix)
+        return error, jacobian.ravel()
+
     def _get_jacobian(self, input_matrix, target_matrix):
         """Return jacobian and error for given dataset."""
-        jacobians, errors = zip(*[self._get_one_jacobian(input_vec, target_vec)
+        errors, jacobians = zip(*[self._get_sample_jacobian(input_vec, target_vec)
                                   for input_vec, target_vec in zip(input_matrix, target_matrix)])
-        return numpy.mean(jacobians, axis=0), numpy.mean(errors)
+        return 0.5*numpy.mean(errors), numpy.mean(jacobians, axis=0)
 
-    def _get_one_jacobian(self, input_vec, target_vec):
+    def _get_sample_jacobian(self, input_vec, target_vec):
         """Return jacobian and error for given sample."""
         output = self.activate(input_vec)
+        # TODO: Should be based on user provided error function
         error_vec = output - target_vec
-        error = numpy.mean(error_vec**2) # NOTE: Technically 0.5*mse, but doesn't matter in practice
+        error = numpy.mean(error_vec**2)
 
         if self._scale_by_similarity:
             error_vec /= self._total_similarity
 
         jacobian = self._similarities[:, None].dot(error_vec[None, :])
 
-        return jacobian, error
+        return error, jacobian
 
     def _gradient_descent(self, jacobian):
         # Update weights weight gradient descent
