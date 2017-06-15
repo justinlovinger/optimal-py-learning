@@ -142,15 +142,26 @@ class MLP(Model):
         # Note that error function is not 0.5*mse, so we multiply by 2
         error_vec *= (2.0/len(target_vec))
 
+        # Derivative of error_vec w.r.t. output transfer
+        error_vec = _dot_diag_or_matrix(
+            error_vec,
+            self._transfers[-1].derivative(self._transfer_inputs[-1],
+                                           self._weight_inputs[-1][1:])
+        )
+
         # Calculate error for each row
-        error_matrix = [error_vec] # TODO: Use derivative of last layer, instead of assuming t - o
+        error_matrix = [error_vec]
         for i, (weight_matrix, transfer_func) in reversed(
                 list(enumerate(zip(self._weight_matrices[1:], self._transfers[:-1])))):
             # [1:] because first column corresponds to bias
-            error_matrix.append((error_matrix[-1].dot(weight_matrix[1:].T)
-                                * transfer_func.derivative(
-                               # [1:] because first component is bias
-                               self._transfer_inputs[i], self._weight_inputs[i+1][1:])))
+            error_matrix.append(
+                _dot_diag_or_matrix(
+                    error_matrix[-1].dot(weight_matrix[1:].T),
+                    # [1:] because first component is bias
+                    transfer_func.derivative(self._transfer_inputs[i],
+                                             self._weight_inputs[i+1][1:])
+                    )
+            )
         error_matrix = reversed(error_matrix)
 
         # Calculate jacobian for each weight matrix
@@ -159,6 +170,19 @@ class MLP(Model):
             jacobians.append(self._weight_inputs[i][:, None].dot(error_vec[None, :]))
 
         return jacobians, mse
+
+def _dot_diag_or_matrix(vec, matrix):
+    """Dot vector with either vector of diagonals or matrix.
+
+    For efficiency, transfer derivatives can return either a vector corresponding
+    to the diagonals of a jacobian, or a full jacobian.
+    The diagonal must be multiplied element-wise, which is equivalent to
+    a dot product with a diagonal matrix.
+    """
+    if len(matrix.shape) == 1:
+        return vec * matrix
+    else:
+        return vec.dot(matrix)
 
 def _mean_list_of_list_of_matrices(lol_matrices):
     """Return mean of each matrix in list of lists of matrices."""
@@ -408,4 +432,4 @@ class SoftmaxTransfer(Transfer):
         some derivatives can be more efficiently calculated from
         the output of this function.
         """
-        calculate.dsoftmax(output_vec)
+        return calculate.dsoftmax(output_vec)
