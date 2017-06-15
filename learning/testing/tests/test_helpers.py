@@ -23,9 +23,15 @@ def test_fix_numpy_array_equality():
 ###########################
 # Gradient checking
 ###########################
-def test_check_gradient():
-    helpers.check_gradient(lambda x: x**2, lambda x: 2*x)
-    helpers.check_gradient(lambda x: numpy.sqrt(x), lambda x: 1.0 / (2*numpy.sqrt(x)))
+def test_check_gradient_scalar():
+    helpers.check_gradient(lambda x: numpy.sum(x**2), lambda x: 2.0*x,
+                           f_shape='scalar')
+
+def test_check_gradient_lin():
+    helpers.check_gradient(lambda x: x**2, lambda x: 2*x,
+                           f_shape='lin')
+    helpers.check_gradient(lambda x: numpy.sqrt(x), lambda x: 1.0 / (2*numpy.sqrt(x)),
+                           f_shape='lin')
 
 
 def test_check_gradient_jacobian():
@@ -33,4 +39,4 @@ def test_check_gradient_jacobian():
                            lambda x: numpy.array([[2*x[0]*x[1], x[0]**2       ],
                                                   [5.0,         math.cos(x[1])]]),
                            inputs=numpy.random.rand(2),
-                           jacobian=True)
+                           f_shape='jac')

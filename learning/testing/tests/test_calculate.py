@@ -62,7 +62,7 @@ def test_softmax_transfer():
 
 def test_softmax_jacobian():
     helpers.check_gradient(calculate.softmax, lambda x: calculate.dsoftmax(calculate.softmax(x)),
-                           jacobian=True)
+                           f_shape='jac')
 
 ##############
 # ReLU

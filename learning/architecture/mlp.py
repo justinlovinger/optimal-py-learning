@@ -132,29 +132,33 @@ class MLP(Model):
 
         Also return error.
         """
-        # TODO: Should take error function
         outputs = self.activate(input_vec)
 
-        error = outputs - target_vec
-        output_error = numpy.mean(error**2) # For returning
+        error_vec = outputs - target_vec
+        mse = numpy.mean(error_vec**2) # For returning
+
+        # TODO: Should be based on user provided error function
+        # Derivative of mse error function
+        # Note that error function is not 0.5*mse, so we multiply by 2
+        error_vec *= (2.0/len(target_vec))
 
         # Calculate error for each row
-        errors = [error] # TODO: Use derivative of last layer, instead of assuming t - o
+        error_matrix = [error_vec] # TODO: Use derivative of last layer, instead of assuming t - o
         for i, (weight_matrix, transfer_func) in reversed(
                 list(enumerate(zip(self._weight_matrices[1:], self._transfers[:-1])))):
             # [1:] because first column corresponds to bias
-            errors.append((errors[-1].dot(weight_matrix[1:].T)
-                           * transfer_func.derivative(
+            error_matrix.append((error_matrix[-1].dot(weight_matrix[1:].T)
+                                * transfer_func.derivative(
                                # [1:] because first component is bias
                                self._transfer_inputs[i], self._weight_inputs[i+1][1:])))
-        errors = reversed(errors)
+        error_matrix = reversed(error_matrix)
 
         # Calculate jacobian for each weight matrix
         jacobians = []
-        for i, error in enumerate(errors):
-            jacobians.append(self._weight_inputs[i][:, None].dot(error[None, :]))
+        for i, error_vec in enumerate(error_matrix):
+            jacobians.append(self._weight_inputs[i][:, None].dot(error_vec[None, :]))
 
-        return jacobians, output_error
+        return jacobians, mse
 
 def _mean_list_of_list_of_matrices(lol_matrices):
     """Return mean of each matrix in list of lists of matrices."""

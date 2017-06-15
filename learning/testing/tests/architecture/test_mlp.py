@@ -93,6 +93,43 @@ def test_mean_list_of_list_of_matrices():
         mlp._mean_list_of_list_of_matrices(lol_matrices),
         [numpy.array([[1, 2], [3, 4]]), numpy.array([[0, 0], [0, 0]])])
 
+def test_mlp_obj_and_obj_jac_match_lin_out():
+    _check_obj_and_obj_jac_match(mlp.LinearTransfer())
+
+def test_mlp_obj_and_obj_jac_match_softmax_out():
+    _check_obj_and_obj_jac_match(mlp.SoftmaxTransfer())
+
+def _check_obj_and_obj_jac_match(transfers):
+    """obj and obj_jac functions should return the same obj value."""
+    attrs = random.randint(1, 10)
+    outs = random.randint(1, 10)
+    model = mlp.MLP((attrs, random.randint(1, 10), outs), transfers=transfers)
+
+    dataset = datasets.get_random_regression(10, attrs, outs)
+
+    parameters = mlp._flatten(model._weight_matrices)
+    assert helpers.approx_equal(mlp._mlp_obj(model, dataset[0], dataset[1], parameters),
+                                mlp._mlp_obj_jac(model, dataset[0], dataset[1], parameters)[0])
+
+def test_mlp_jacobian_lin_out():
+    _check_jacobian(lambda s1, s2, s3: mlp.MLP((s1, s2, s3), transfers=mlp.LinearTransfer()))
+
+def test_mlp_jacobian_softmax_out():
+    _check_jacobian(lambda s1, s2, s3: mlp.MLP((s1, s2, s3), transfers=mlp.SoftmaxTransfer()))
+
+def _check_jacobian(make_model_func):
+    attrs = random.randint(1, 10)
+    outs = random.randint(1, 10)
+
+    model = make_model_func(attrs, random.randint(1, 10), outs)
+    inp_matrix, tar_matrix = datasets.get_random_regression(10, attrs, outs)
+
+    # Test jacobian of error function
+    f = lambda xk: mlp._mlp_obj(model, inp_matrix, tar_matrix, xk)
+    df = lambda xk: mlp._mlp_obj_jac(model, inp_matrix, tar_matrix, xk)[1]
+
+    helpers.check_gradient(f, df, inputs=mlp._flatten(model._weight_matrices), f_shape='scalar')
+
 ##############################
 # DropoutMLP
 ##############################

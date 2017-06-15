@@ -171,31 +171,35 @@ def equal_ignore_order(a, b):
 ############################
 # Gradient checking
 ############################
-def check_gradient(f, df, inputs=None, epsilon=1e-6, jacobian=False):
+def check_gradient(f, df, inputs=None, epsilon=1e-6, f_shape='lin'):
     if inputs is None:
         inputs = numpy.random.rand(random.randint(2, 10))
 
-    if jacobian:
-        approx_func = _approximate_jacobian
+    if f_shape == 'scalar':
+        approx_func = _approximate_gradient_scalar
+    elif f_shape == 'lin':
+        approx_func = _approximate_gradient_lin
+    elif f_shape == 'jac':
+        approx_func = _approximate_gradient_jac
     else:
-        approx_func = _approximate_gradient
+        raise ValueError("Invalid f_shape. Must be one of ('scalar', 'lin', 'jac').")
 
-    assert numpy.mean(numpy.abs(
-        df(inputs) - approx_func(f, inputs, epsilon))) <= epsilon
+    assert approx_equal(df(inputs), approx_func(f, inputs, epsilon), tol=epsilon)
 
-
-def _approximate_gradient(f, x, epsilon):
+def _approximate_gradient_scalar(f, x, epsilon):
     return numpy.array([_approximate_ith(i, f, x, epsilon) for i in range(x.shape[0])])
 
+def _approximate_gradient_lin(f, x, epsilon):
+    return numpy.array([_approximate_ith(i, f, x, epsilon)[i] for i in range(x.shape[0])])
 
 def _approximate_ith(i, f, x, epsilon):
     x_plus_i = x.copy()
     x_plus_i[i] += epsilon
     x_minus_i = x.copy()
     x_minus_i[i] -= epsilon
-    return ((f(x_plus_i) - f(x_minus_i)) / (2*epsilon))[i]
+    return ((f(x_plus_i) - f(x_minus_i)) / (2*epsilon))
 
-def _approximate_jacobian(f, x, epsilon):
+def _approximate_gradient_jac(f, x, epsilon):
     jacobian = numpy.zeros((x.shape[0], x.shape[0]))
     # Jocobian has inputs on cols and outputs on rows
     for j in range(x.shape[0]):

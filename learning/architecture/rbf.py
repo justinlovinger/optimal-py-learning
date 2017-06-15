@@ -57,7 +57,7 @@ class RBF(Model):
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
-        # Get distance to each cluster center, and apply guassian for similarity
+        # Get distance to each cluster center, and apply gaussian for similarity
         self._similarities = calculate.gaussian(self._som.activate(inputs), self._variance)
 
         # Get output by weighted summation of similarities, weighted by weights
@@ -116,7 +116,7 @@ class RBF(Model):
         """Helper function for Optimizer."""
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
         # TODO: Should take user provided error function
-        return 0.5*self.avg_mse(input_matrix, target_matrix) 
+        return self.avg_mse(input_matrix, target_matrix)
 
     def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
@@ -128,21 +128,25 @@ class RBF(Model):
         """Return jacobian and error for given dataset."""
         errors, jacobians = zip(*[self._get_sample_jacobian(input_vec, target_vec)
                                   for input_vec, target_vec in zip(input_matrix, target_matrix)])
-        return 0.5*numpy.mean(errors), numpy.mean(jacobians, axis=0)
+        return numpy.mean(errors), numpy.mean(jacobians, axis=0)
 
     def _get_sample_jacobian(self, input_vec, target_vec):
         """Return jacobian and error for given sample."""
         output = self.activate(input_vec)
-        # TODO: Should be based on user provided error function
         error_vec = output - target_vec
-        error = numpy.mean(error_vec**2)
+        mse = numpy.mean(error_vec**2)
+
+        # TODO: Should be based on user provided error function
+        # Derivative of mse error function
+        # Note that error function is not 0.5*mse, so we multiply by 2
+        error_vec *= (2.0/len(target_vec))
 
         if self._scale_by_similarity:
             error_vec /= self._total_similarity
 
         jacobian = self._similarities[:, None].dot(error_vec[None, :])
 
-        return error, jacobian
+        return mse, jacobian
 
     def _gradient_descent(self, jacobian):
         # Update weights weight gradient descent
