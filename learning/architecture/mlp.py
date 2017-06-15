@@ -7,6 +7,7 @@ import numpy
 from learning import Model
 from learning import calculate
 from learning.optimize import Problem, SteepestDescent, SteepestDescentMomentum
+from learning.error import MSE
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
@@ -19,10 +20,10 @@ class MLP(Model):
         transfers: Optional. List of transfer layers.
             Can be given as a single transfer layer to easily define output transfer.
             Defaults to ReLU hidden followed by linear output.
-        make_optimizer_func: Function taking (model, input_matrix, target_matrix), and returning
-            Optimizer object.
+        optimizer: Optimizer; Optimizer used to optimize weight matrices.
+        error_func: ErrorFunc; Error function for optimizing weight matrices.
     """
-    def __init__(self, shape, transfers=None, optimizer=None):
+    def __init__(self, shape, transfers=None, optimizer=None, error_func=None):
         super(MLP, self).__init__()
 
         if transfers is None:
@@ -45,6 +46,11 @@ class MLP(Model):
         if optimizer is None:
             optimizer = SteepestDescentMomentum()
         self._optimizer = optimizer
+
+        # Error function for training
+        if error_func is None:
+            error_func = MSE()
+        self._error_func = error_func
 
         # Setup activation vectors
         # 1 for input, then 2 for each hidden and output (1 for transfer, 1 for perceptron))
@@ -118,7 +124,7 @@ class MLP(Model):
         sample_jacobians = []
         errors = []
         for input_vec, target_vec in zip(input_matrix, target_matrix):
-            jacobians, error = self._get_sample_jacobians(input_vec, target_vec)
+            error, jacobians = self._get_sample_jacobians(input_vec, target_vec)
             sample_jacobians.append(jacobians)
             errors.append(error)
 
@@ -132,25 +138,20 @@ class MLP(Model):
 
         Also return error.
         """
-        outputs = self.activate(input_vec)
+        output_vec = self.activate(input_vec)
 
-        error_vec = outputs - target_vec
-        mse = numpy.mean(error_vec**2) # For returning
+        error, error_jac = self._error_func.derivative(output_vec, target_vec)
 
-        # TODO: Should be based on user provided error function
-        # Derivative of mse error function
-        # Note that error function is not 0.5*mse, so we multiply by 2
-        error_vec *= (2.0/len(target_vec))
-
+        # TODO: Add optimization for cross entropy and softmax output (just o - t)
         # Derivative of error_vec w.r.t. output transfer
-        error_vec = _dot_diag_or_matrix(
-            error_vec,
+        error_jac = _dot_diag_or_matrix(
+            error_jac,
             self._transfers[-1].derivative(self._transfer_inputs[-1],
                                            self._weight_inputs[-1][1:])
         )
 
         # Calculate error for each row
-        error_matrix = [error_vec]
+        error_matrix = [error_jac]
         for i, (weight_matrix, transfer_func) in reversed(
                 list(enumerate(zip(self._weight_matrices[1:], self._transfers[:-1])))):
             # [1:] because first column corresponds to bias
@@ -169,7 +170,7 @@ class MLP(Model):
         for i, error_vec in enumerate(error_matrix):
             jacobians.append(self._weight_inputs[i][:, None].dot(error_vec[None, :]))
 
-        return jacobians, mse
+        return error, jacobians
 
 def _dot_diag_or_matrix(vec, matrix):
     """Dot vector with either vector of diagonals or matrix.

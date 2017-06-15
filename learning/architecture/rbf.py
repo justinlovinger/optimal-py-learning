@@ -5,13 +5,15 @@ from learning import Model
 from learning import SOM
 from learning import calculate
 from learning.optimize import Problem, SteepestDescent
+from learning.error import MSE
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
 class RBF(Model):
     """Radial Basis Function network."""
     def __init__(self, attributes, num_clusters, num_outputs,
-                 optimizer=None, variance=None, scale_by_similarity=True,
+                 optimizer=None, error_func=None,
+                 variance=None, scale_by_similarity=True,
                  pre_train_clusters=False,
                  move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
         super(RBF, self).__init__()
@@ -34,6 +36,11 @@ class RBF(Model):
         if optimizer is None:
             optimizer = SteepestDescent()
         self._optimizer = optimizer
+
+        # Error function for training
+        if error_func is None:
+            error_func = MSE()
+        self._error_func = error_func
 
         # Optional scaling output by total gaussian similarity
         self._scale_by_similarity = scale_by_similarity
@@ -132,24 +139,13 @@ class RBF(Model):
 
     def _get_sample_jacobian(self, input_vec, target_vec):
         """Return jacobian and error for given sample."""
-        output = self.activate(input_vec)
-        error_vec = output - target_vec
-        mse = numpy.mean(error_vec**2)
+        output_vec = self.activate(input_vec)
 
-        # TODO: Should be based on user provided error function
-        # Derivative of mse error function
-        # Note that error function is not 0.5*mse, so we multiply by 2
-        error_vec *= (2.0/len(target_vec))
+        error, error_jac = self._error_func.derivative(output_vec, target_vec)
 
         if self._scale_by_similarity:
-            error_vec /= self._total_similarity
+            error_jac /= self._total_similarity
 
-        jacobian = self._similarities[:, None].dot(error_vec[None, :])
+        jacobian = self._similarities[:, None].dot(error_jac[None, :])
 
-        return mse, jacobian
-
-    def _gradient_descent(self, jacobian):
-        # Update weights weight gradient descent
-        # TODO: Take an optimizer, instead of hard coding gradient descent
-        # TODO: Line search for step size, instead of just self._learning_rate
-        self._weight_matrix -= self._learning_rate*jacobian
+        return error, jacobian
