@@ -86,6 +86,53 @@ class Model(object):
         self._reset_bookkeeping()
         self._post_pattern_callback = post_pattern_callback # For calling in other method
 
+        # Initialize variables for retries
+        best_try = (float('inf'), None) # (error, serialized_model)
+
+        # Learn on each pattern for each iteration
+        for attempt in range(retries+1):
+            success = self._train_attempt(
+                input_matrix, target_matrix,
+                iterations, error_break, error_stagnant_distance, error_stagnant_threshold,
+                error_improve_iters, pattern_select_func, post_pattern_callback)
+
+            # Skip all the tracking and whatnot if there are no retries (optimization)
+            if retries == 0:
+                return
+
+            # End if model converged
+            # No need to use best attempt (since this is the first to reach best error)
+            if success:
+                return
+
+            # TODO: Should we use user provided error function?
+            attempt_error = self.avg_mse(input_matrix, target_matrix)
+
+            # End when out of retries, use best attempt so far
+            if attempt >= retries:
+                if attempt_error < best_try[0]:
+                    # Last attempt was our best
+                    return
+                else:
+                    # Use best attempt
+                    best_model = self.unserialize(best_try[1])
+                    self.__dict__ = best_model.__dict__
+                    return
+
+            # Keep track of best attempt
+            if attempt_error < best_try[0]:
+                best_try = (attempt_error, self.serialize())
+
+            # Reset for next attempt
+            self.reset()
+
+    def _train_attempt(self, input_matrix, target_matrix,
+                       iterations, error_break, error_stagnant_distance, error_stagnant_threshold,
+                       error_improve_iters, pattern_select_func, post_pattern_callback):
+        """Attempt to train this model.
+
+        Return True if model converged (error <= error_break)
+        """
         # Initialize error history with errors that are
         # unlikely to be close in reality
         error_history = [1e10]*error_stagnant_distance
@@ -94,55 +141,45 @@ class Model(object):
         best_error = float('inf')
         iters_since_improvement = 0
 
-        # Learn on each pattern for each iteration
-        for attempt in range(retries+1):
-            for self.iteration in range(1, iterations+1):
-                selected_patterns = pattern_select_func(input_matrix, target_matrix)
+        for self.iteration in range(1, iterations+1):
+            selected_patterns = pattern_select_func(input_matrix, target_matrix)
 
-                # Learn each selected pattern
-                error = self.train_step(*selected_patterns)
+            # Learn each selected pattern
+            error = self.train_step(*selected_patterns)
 
-                # Logging and breaking
-                if self.logging:
-                    print "Iteration {}, Error: {}".format(self.iteration, error)
+            # Logging and breaking
+            if self.logging:
+                print "Iteration {}, Error: {}".format(self.iteration, error)
 
-                if error is not None:
-                    # Break early to prevent overtraining
-                    if error < error_break:
-                        break
+            if error is not None:
+                # Break early to prevent overtraining
+                if (error <= error_break
+                        # Perform a second test on whole dataset
+                        # incase model is training on mini-batches
+                        # TODO: Should we use user provided error function?
+                        and self.avg_mse(input_matrix, target_matrix) <= error_break):
+                    return True
 
-                    # Break if no progress is made
-                    if _all_close(error_history, error, error_stagnant_threshold):
-                        # Break if not enough difference between all resent errors
-                        # and current error
-                        break
-                    error_history.append(error)
-                    error_history.pop(0)
+                # Break if no progress is made
+                if _all_close(error_history, error, error_stagnant_threshold):
+                    # Break if not enough difference between all resent errors
+                    # and current error
+                    return False
+                error_history.append(error)
+                error_history.pop(0)
 
-                    # Break if best error has not improved within n iterations
-                    # Keep track of best error, and iterations since best error has improved
-                    if error < best_error:
-                        best_error = error
-                        iters_since_improvement = 0
-                    else:
-                        iters_since_improvement += 1
-                    # If it has been too many iterations since improvement, break
-                    if iters_since_improvement >= error_improve_iters:
-                        break
+                # Break if best error has not improved within n iterations
+                # Keep track of best error, and iterations since best error has improved
+                if error < best_error:
+                    best_error = error
+                    iters_since_improvement = 0
+                else:
+                    iters_since_improvement += 1
+                # If it has been too many iterations since improvement, break
+                if iters_since_improvement >= error_improve_iters:
+                    return False
 
-            # End when out of retries or model converged
-            # TODO: Should we use use defined error function?
-            # Check if we are out of retires, so we don't waste time calculating
-            # avg_mse
-            if attempt >= retries or (error is not None
-                                      and self.avg_mse(input_matrix, target_matrix) <= error_break):
-                break
-            self.reset()
-
-            # Reset breaking metrics
-            error_history = [1e10]*error_stagnant_distance
-            best_error = float('inf')
-            iters_since_improvement = 0
+        return False
 
 
     def train_step(self, input_matrix, target_matrix):

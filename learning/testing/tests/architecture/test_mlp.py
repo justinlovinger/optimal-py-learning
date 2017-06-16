@@ -168,11 +168,11 @@ def _check_jacobian(make_model_func):
 def test_dropout_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = mlp.DropoutMLP((2, 4, 2))
-    pat = datasets.get_xor()
+    nn = mlp.DropoutMLP((2, 8, 2))
+    pat = datasets.get_and()
 
     error = nn.avg_mse(*pat)
-    nn.train(*pat, iterations=10)
+    nn.train(*pat, iterations=20)
     assert nn.avg_mse(*pat) < error
 
 
@@ -202,7 +202,7 @@ def test_dropout_mlp_classifier():
     pat = datasets.get_and()
 
     error = nn.avg_mse(*pat)
-    nn.train(*pat, iterations=10)
+    nn.train(*pat, iterations=20)
     assert nn.avg_mse(*pat) < error
 
 
