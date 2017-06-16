@@ -21,7 +21,7 @@ def test_rbf():
     assert nn.avg_mse(*pat) < error
 
 
-pytest.mark.slowtest()
+@pytest.mark.slowtest
 def test_rbf_convergence():
     # Run until convergence
     # assert that network can converge
@@ -39,7 +39,9 @@ def test_rbf_obj_and_obj_jac_match():
 
     dataset = datasets.get_random_regression(10, attrs, outs)
 
-    parameters = model._weight_matrix.ravel()
+    # Don't use exactly the same parameters, to ensure obj functions are actually
+    # using the given parameters
+    parameters = random.uniform(-1.0, 1.0)*model._weight_matrix.ravel()
     assert helpers.approx_equal(model._get_obj(parameters, dataset[0], dataset[1]),
                                 model._get_obj_jac(parameters, dataset[0], dataset[1])[0])
 

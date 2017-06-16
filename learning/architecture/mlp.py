@@ -202,8 +202,8 @@ def _mean_list_of_list_of_matrices(lol_matrices):
 
 def _mlp_obj(model, input_matrix, target_matrix, parameters):
     model._weight_matrices = _unflatten_weights(parameters, model._shape)
-    # TODO: Should use error function given to model
-    return model.avg_mse(input_matrix, target_matrix)
+    return numpy.mean([model._error_func(model.activate(inp_vec), tar_vec)
+                       for inp_vec, tar_vec in zip(input_matrix, target_matrix)])
 
 def _mlp_obj_jac(model, input_matrix, target_matrix, parameters):
     # TODO: Refactor so it doesn't need private attributes and methods
@@ -228,9 +228,9 @@ def _unflatten_weights(vector, shape):
     return matrices
 
 class DropoutMLP(MLP):
-    def __init__(self, shape, transfers=None, optimizer=None,
+    def __init__(self, shape, transfers=None, optimizer=None, error_func=None,
                  input_active_probability=0.8, hidden_active_probability=0.5):
-        super(DropoutMLP, self).__init__(shape, transfers, optimizer)
+        super(DropoutMLP, self).__init__(shape, transfers, optimizer, error_func)
 
         # Dropout hyperparams
         self._inp_act_prob = input_active_probability

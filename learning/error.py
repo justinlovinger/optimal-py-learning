@@ -35,5 +35,23 @@ class MSE(ErrorFunc):
         return mse, error_vec
 
 class CrossEntropy(ErrorFunc):
-    """Cross entropy error."""
-    # TODO
+    """Cross entropy error.
+
+    Note that this error function is not symmetric.
+    vec_a is expected to be the predicted vector,
+    while vec_b is the reference vector.
+    """
+    def __call__(self, vec_a, vec_b):
+        """Return the error between two vectors.
+
+        Typically, vec_a with be a model output, and vec_b a target vector.
+        """
+        # TODO: Should we do something like numpy.maximum(vec_a, 1e-10) to prevent log(0)?
+        # Use mean instead of sum, so magnitude is independent of length of vectors
+        with numpy.errstate(divide='raise', invalid='raise'): # Do not allow log(-) or log(0)
+            return -numpy.mean(numpy.log(vec_a) * vec_b)
+
+    def derivative(self, vec_a, vec_b):
+        """Return error, derivative_matrix."""
+        # NOTE: If CE uses sum instead of mean, this would be -(vec_b / vec_a)
+        return self(vec_a, vec_b), (vec_b / vec_a)/(-len(vec_b))

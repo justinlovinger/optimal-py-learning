@@ -122,8 +122,8 @@ class RBF(Model):
     def _get_obj(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        # TODO: Should take user provided error function
-        return self.avg_mse(input_matrix, target_matrix)
+        return numpy.mean([self._error_func(self.activate(inp_vec), tar_vec)
+                           for inp_vec, tar_vec in zip(input_matrix, target_matrix)])
 
     def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""

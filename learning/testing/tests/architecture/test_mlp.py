@@ -5,6 +5,7 @@ import pytest
 import numpy
 
 from learning.architecture import mlp
+from learning.error import MSE, CrossEntropy
 from learning.data import datasets
 from learning import base
 
@@ -25,7 +26,7 @@ def test_mlp():
     assert nn.avg_mse(*pat) < error
 
 
-pytest.mark.slowtest()
+@pytest.mark.slowtest
 def test_mlp_convergence():
     # Run until convergence
     # assert that network can converge
@@ -39,7 +40,7 @@ def test_mlp_convergence():
 def test_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransfer())
+    nn = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy())
     pat = datasets.get_xor()
 
     error = nn.avg_mse(*pat)
@@ -47,11 +48,11 @@ def test_mlp_classifier():
     assert nn.avg_mse(*pat) < error
 
 
-pytest.mark.slowtest()
+@pytest.mark.slowtest
 def test_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = mlp.MLP((2, 3, 2), transfers=mlp.SoftmaxTransfer())
+    nn = mlp.MLP((2, 3, 2), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy())
     pat = datasets.get_and()
 
     nn.train(*pat, retries=5, error_break=0.002)
@@ -93,29 +94,60 @@ def test_mean_list_of_list_of_matrices():
         mlp._mean_list_of_list_of_matrices(lol_matrices),
         [numpy.array([[1, 2], [3, 4]]), numpy.array([[0, 0], [0, 0]])])
 
-def test_mlp_obj_and_obj_jac_match_lin_out():
-    _check_obj_and_obj_jac_match(mlp.LinearTransfer())
+def test_mlp_obj_and_obj_jac_match_lin_out_mse():
+    _check_obj_and_obj_jac_match(lambda s1, s2, s3: mlp.MLP(
+        (s1, s2, s3), transfers=mlp.LinearTransfer(), error_func=MSE()))
 
-def test_mlp_obj_and_obj_jac_match_softmax_out():
-    _check_obj_and_obj_jac_match(mlp.SoftmaxTransfer())
+def test_mlp_obj_and_obj_jac_match_relu_out_ce():
+    _check_obj_and_obj_jac_match(
+        lambda s1, s2, s3: mlp.MLP(
+            (s1, s2, s3), transfers=mlp.ReluTransfer(), error_func=CrossEntropy()),
+        classification=True
+    )
 
-def _check_obj_and_obj_jac_match(transfers):
+def test_mlp_obj_and_obj_jac_match_softmax_out_mse():
+    _check_obj_and_obj_jac_match(lambda s1, s2, s3: mlp.MLP(
+        (s1, s2, s3), transfers=mlp.SoftmaxTransfer(), error_func=MSE()))
+
+def test_mlp_obj_and_obj_jac_match_softmax_out_ce():
+    _check_obj_and_obj_jac_match(
+        lambda s1, s2, s3: mlp.MLP(
+            (s1, s2, s3), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy()),
+        classification=True
+    )
+
+def _check_obj_and_obj_jac_match(make_model_func, classification=False):
     """obj and obj_jac functions should return the same obj value."""
     attrs = random.randint(1, 10)
     outs = random.randint(1, 10)
-    model = mlp.MLP((attrs, random.randint(1, 10), outs), transfers=transfers)
+    model = model = make_model_func(attrs, random.randint(1, 10), outs)
 
-    dataset = datasets.get_random_regression(10, attrs, outs)
+    if classification:
+        dataset = datasets.get_random_classification(10, attrs, outs)
+    else:
+        dataset = datasets.get_random_regression(10, attrs, outs)
 
-    parameters = mlp._flatten(model._weight_matrices)
+    # Don't use exactly the same parameters, to ensure obj functions are actually
+    # using the given parameters
+    parameters = random.uniform(-1.0, 1.0)*mlp._flatten(model._weight_matrices)
     assert helpers.approx_equal(mlp._mlp_obj(model, dataset[0], dataset[1], parameters),
                                 mlp._mlp_obj_jac(model, dataset[0], dataset[1], parameters)[0])
 
-def test_mlp_jacobian_lin_out():
-    _check_jacobian(lambda s1, s2, s3: mlp.MLP((s1, s2, s3), transfers=mlp.LinearTransfer()))
+def test_mlp_jacobian_lin_out_mse():
+    _check_jacobian(lambda s1, s2, s3: mlp.MLP(
+        (s1, s2, s3), transfers=mlp.LinearTransfer(), error_func=MSE()))
 
-def test_mlp_jacobian_softmax_out():
-    _check_jacobian(lambda s1, s2, s3: mlp.MLP((s1, s2, s3), transfers=mlp.SoftmaxTransfer()))
+def test_mlp_jacobian_relu_out_ce():
+    _check_jacobian(lambda s1, s2, s3: mlp.MLP(
+        (s1, s2, s3), transfers=mlp.ReluTransfer(), error_func=CrossEntropy()))
+
+def test_mlp_jacobian_softmax_out_mse():
+    _check_jacobian(lambda s1, s2, s3: mlp.MLP(
+        (s1, s2, s3), transfers=mlp.SoftmaxTransfer(), error_func=MSE()))
+
+def test_mlp_jacobian_softmax_out_ce():
+    _check_jacobian(lambda s1, s2, s3: mlp.MLP(
+        (s1, s2, s3), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy()))
 
 def _check_jacobian(make_model_func):
     attrs = random.randint(1, 10)
@@ -136,7 +168,7 @@ def _check_jacobian(make_model_func):
 def test_dropout_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = mlp.DropoutMLP((2, 2, 2))
+    nn = mlp.DropoutMLP((2, 4, 2))
     pat = datasets.get_xor()
 
     error = nn.avg_mse(*pat)
@@ -144,12 +176,12 @@ def test_dropout_mlp():
     assert nn.avg_mse(*pat) < error
 
 
-pytest.mark.slowtest()
+@pytest.mark.slowtest
 def test_dropout_mlp_convergence():
     # Run until convergence
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
-    nn = mlp.DropoutMLP((2, 6, 3, 2),
+    nn = mlp.DropoutMLP((2, 8, 2),
                         input_active_probability=1.0,
                         hidden_active_probability=0.9)
     pat = datasets.get_and() # Easier and dataset for lienar output
@@ -166,7 +198,7 @@ def test_dropout_mlp_convergence():
 def test_dropout_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransfer())
+    nn = mlp.DropoutMLP((2, 8, 2), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy())
     pat = datasets.get_and()
 
     error = nn.avg_mse(*pat)
@@ -174,12 +206,13 @@ def test_dropout_mlp_classifier():
     assert nn.avg_mse(*pat) < error
 
 
-pytest.mark.slowtest()
+@pytest.mark.slowtest
 def test_dropout_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
     # Since XOR does not really need dropout, we use high probabilities
-    nn = mlp.DropoutMLP((2, 6, 3, 2), transfers=mlp.SoftmaxTransfer(),
+    nn = mlp.DropoutMLP((2, 8, 2), transfers=mlp.SoftmaxTransfer(),
+                        error_func=CrossEntropy(),
                         input_active_probability=1.0,
                         hidden_active_probability=0.9)
     pat = datasets.get_and()
