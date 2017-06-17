@@ -45,11 +45,15 @@ class CrossEntropy(ErrorFunc):
         """Return the error between two vectors.
 
         Typically, vec_a with be a model output, and vec_b a target vector.
+
+        log(0) in vec_a is changed to very negative value, to keep the spirit
+        of cross entropy, while avoiding numerical errors.
         """
-        # TODO: Should we do something like numpy.maximum(vec_a, 1e-10) to prevent log(0)?
         # Use mean instead of sum, so magnitude is independent of length of vectors
-        with numpy.errstate(divide='raise', invalid='raise'): # Do not allow log(-) or log(0)
-            return -numpy.mean(numpy.log(vec_a) * vec_b)
+        with numpy.errstate(invalid='raise', divide='ignore'): # Do not allow log(-)
+            log_a = numpy.log(vec_a)
+        log_a = numpy.nan_to_num(log_a) # Change -inf from log(0) to -1.79769313e+308
+        return -numpy.mean(log_a * vec_b)
 
     def derivative(self, vec_a, vec_b):
         """Return error, derivative_matrix."""

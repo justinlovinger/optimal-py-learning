@@ -2,10 +2,27 @@
 import random
 
 import numpy
+import pytest
 
 from learning import error
 
 from learning.testing import helpers
+
+def test_cross_entropy_zero_in_vec_a():
+    """Should not raise error when zeros are in vec_a.
+
+    Because CE takes log of first vector, it can have issues with vectors containing 0s.
+    """
+    error_func = error.CrossEntropy()
+    assert error_func(numpy.array([0., 0., 1.]), numpy.array([0., 0., 1.])) == 0
+    assert error_func(numpy.array([1., 0., 1.]), numpy.array([0., 0., 1.])) == 0
+
+def test_cross_entropy_error_on_negative():
+    """CrossEntropy does not take negative values in vec_a."""
+    error_func = error.CrossEntropy()
+
+    with pytest.raises(FloatingPointError):
+        assert error_func(numpy.array([-1., 1.]), numpy.array([0., 1.]))
 
 def test_mse_derivative():
     check_error_gradient(error.MSE())
