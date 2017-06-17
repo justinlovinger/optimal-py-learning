@@ -4,7 +4,7 @@ import numpy
 from learning import Model
 from learning import SOM
 from learning import calculate
-from learning.optimize import Problem, SteepestDescent
+from learning.optimize import Problem, BFGS, SteepestDescent
 from learning.error import MSE
 
 INITIAL_WEIGHTS_RANGE = 0.25
@@ -34,7 +34,7 @@ class RBF(Model):
 
         # Optimizer to optimize weight_matrix
         if optimizer is None:
-            optimizer = SteepestDescent()
+            optimizer = BFGS()
         self._optimizer = optimizer
 
         # Error function for training
@@ -52,6 +52,8 @@ class RBF(Model):
     def reset(self):
         """Reset this model."""
         self._som.reset()
+        self._optimizer.reset()
+
         self._weight_matrix = self._random_weight_matrix(self._weight_matrix.shape)
 
         self._similarities = None

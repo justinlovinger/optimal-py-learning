@@ -6,7 +6,7 @@ import numpy
 
 from learning import Model
 from learning import calculate
-from learning.optimize import Problem, SteepestDescent, SteepestDescentMomentum
+from learning.optimize import Problem, BFGS, SteepestDescent
 from learning.error import MSE
 
 INITIAL_WEIGHTS_RANGE = 0.25
@@ -44,7 +44,7 @@ class MLP(Model):
 
         # Parameter optimization for training
         if optimizer is None:
-            optimizer = SteepestDescentMomentum()
+            optimizer = BFGS()
         self._optimizer = optimizer
 
         # Error function for training
@@ -230,6 +230,12 @@ def _unflatten_weights(vector, shape):
 class DropoutMLP(MLP):
     def __init__(self, shape, transfers=None, optimizer=None, error_func=None,
                  input_active_probability=0.8, hidden_active_probability=0.5):
+        if optimizer is None:
+            # Don't use BFGS for Dropout
+            # BFGS cannot effectively approximate hessian when problem
+            # is constantly changing
+            optimizer = SteepestDescent()
+
         super(DropoutMLP, self).__init__(shape, transfers, optimizer, error_func)
 
         # Dropout hyperparams

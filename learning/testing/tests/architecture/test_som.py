@@ -20,7 +20,7 @@ def test_som_reduces_distances():
     # Train SOM
     # Assert that distances have decreased
     all_closest = min_distances()
-    som_.train(input_matrix, target_matrix, iterations=10)
+    som_.train(input_matrix, target_matrix, iterations=20)
     new_closest = min_distances()
     print all_closest
     print new_closest
