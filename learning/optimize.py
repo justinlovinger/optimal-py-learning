@@ -586,6 +586,8 @@ def _armijo_rule(step_size, obj_xk, jac_xk, step_dir, obj_xk_plus_ap, c_1):
     Armijo rule:
     f(x_k + a_k p_k) <= f(x_k) + c_1 a_k p_k^T grad_f(x_k)
 
+    Where all vectors all column matrices
+
     args:
         step_size: a; Proposed step size.
         obj_xk: f(x_k); Objective value at x_k.
@@ -594,7 +596,8 @@ def _armijo_rule(step_size, obj_xk, jac_xk, step_dir, obj_xk_plus_ap, c_1):
         obj_xk_plus_ap: f(x_k + a_k p_k); Objective value at x_k + a_k p_k
         c_1: Strictness parameter for Armijo rule.
     """
-    return obj_xk_plus_ap <= obj_xk + ((c_1*step_size)*jac_xk.T).dot(step_dir)
+    # NOTE: x.dot(y) == col_matrix(x).T * col_matrix(y)
+    return obj_xk_plus_ap <= obj_xk + (c_1*step_size)*(jac_xk.dot(step_dir))
 
 def _curvature_condition(jac_xk, step_dir, jac_xk_plus_ap, c_2):
     """Return True if curvature condition is met.
@@ -602,10 +605,13 @@ def _curvature_condition(jac_xk, step_dir, jac_xk_plus_ap, c_2):
     Curvature condition:
     grad_f(x_k + a_k p_k)^T p_k  >= c_2 grad_f(x_k)^T p_k
 
+    Where all vectors all column matrices
+
     args:
         jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
         step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
         jac_xk_plus_ap: grad_f(x_k = a_k p_k); jacobian value at x_k + a_k p_k
         c_2: Strictness parameter for curvature condition.
     """
-    return (jac_xk_plus_ap.T).dot(step_dir) >= (c_2*jac_xk.T).dot(step_dir)
+    # NOTE: x.dot(y) == col_matrix(x).T * col_matrix(y)
+    return (jac_xk_plus_ap).dot(step_dir) >= c_2*(jac_xk.dot(step_dir))
