@@ -2,6 +2,8 @@ import numpy
 
 from learning import optimize
 
+from learning.testing import helpers
+
 # NOTE: Not all combinations are tested
 ##################################
 # Problem._get_obj
@@ -112,6 +114,42 @@ def test_steepest_descent_momentum_line_search():
         obj_value, vec = optimizer.next(problem, vec)
 
     assert obj_value <= 1e-10
+
+#########################
+# BFGS
+#########################
+def test_bfgs_backtracking_line_search():
+    # Attempt to optimize a simple function with line search
+    f = lambda vec: vec[0]**2 + vec[1]**2
+    df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
+
+    optimizer = optimize.BFGS(step_size_getter=optimize.BacktrackingStepSize())
+    problem = optimize.Problem(obj_func=f, jac_func=df)
+
+    # Optimize
+    vec = numpy.array([10, 10])
+    iteration = 1
+    obj_value = 1
+    while obj_value > 1e-10 and iteration < 100:
+        obj_value, vec = optimizer.next(problem, vec)
+
+    assert obj_value <= 1e-10
+
+def test_bfgs_eq():
+    """Should satisfy certain requirements.
+
+    min_{H_{k+1}} ||H_{k+1} - H_k||,
+    subject to H_{k+1} = H_{k+1}^T and H_{k+1} y_k = s_k.
+    """
+    H_k = numpy.identity(2)
+    s_k = numpy.array([-8.0, -8.0]) - numpy.array([10.0, 10.0])
+    y_k = numpy.array([ 20.,  20.]) - numpy.array([-16., -16.])
+
+    H_kp1 = optimize._bfgs_eq(H_k, s_k, y_k)
+
+    # TODO: Check minimize condition (use scipy.minimize with constraints)
+    assert helpers.approx_equal(H_kp1.T, H_kp1)
+    assert helpers.approx_equal(H_kp1.dot(y_k), s_k)
 
 #########################
 # Wolfe conditions

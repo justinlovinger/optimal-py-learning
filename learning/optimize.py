@@ -254,6 +254,127 @@ class SteepestDescentMomentum(Optimizer):
         # Take a step down the first derivative direction
         return obj_value, next_parameters
 
+class BFGS(Optimizer):
+    """Quasi-Newton BFGS optimizer.
+
+    Broyden-Fletcher-Goldfarb-Shanno (BFGS)
+    Ref: Numerical Optimization pp. 136
+    """
+    def __init__(self, step_size_getter=None):
+        super(BFGS, self).__init__()
+
+        if step_size_getter is None:
+            # TODO: Backtracking armijo is not considered best for steepest descent
+            # "This simple and popular strategy for terminating a line search is well suited
+            # for Newton methods but is less appropriate for quasi-Newton and
+            # conjugate gradient methods." ~ Numerical Optimization (2nd) pp. 56
+            #
+            # "The performance of the BFGS method can degrade if the line search
+            # is not based on the Wolfe conditions.
+            # For example, some software implements an Armijo backtracking line search
+            # (see Section 3.1): The unit step length ak = 1 is tried first
+            # and is successively decreased until the sufficient decrease
+            # condition (3.6a) is satisfied. For this strategy,
+            # there is no guarantee that the curvature condition y_k^T s_k > 0 (6.7)
+            # will be satisfied by the chosen step,
+            # since a step length greater than 1 may be required to satisfy this condition"
+            #  ~ Numerical Optimization (2nd) pp. 143
+            step_size_getter = BacktrackingStepSize()
+        self._step_size_getter = step_size_getter
+
+        # BFGS Parameters
+        self._prev_params = None
+        self._prev_jacobian = None
+        self._prev_inv_hessian = None
+
+    def reset(self):
+        """Reset optimizer parameters."""
+        super(BFGS, self).reset()
+        self._step_size_getter.reset()
+
+        # Reset BFGS Parameters
+        self._prev_params = None
+        self._prev_jacobian = None
+        self._prev_inv_hessian = None
+
+    def next(self, problem, parameters):
+        """Return next iteration of this optimizer."""
+        obj_value, self.jacobian = problem.get_obj_jac(parameters)
+        approx_inv_hessian = self._get_approx_inv_hessian(parameters, self.jacobian)
+
+        step_dir = -(approx_inv_hessian.dot(self.jacobian))
+
+        step_size = self._step_size_getter(parameters, obj_value, self.jacobian,
+                                           step_dir, problem)
+
+        return obj_value, parameters + step_size*step_dir
+
+    def _get_approx_inv_hessian(self, parameters, jacobian):
+        """Calculate approx inv hessian for this iteration, and return it."""
+        if self._prev_inv_hessian is None:
+            # If first iteration, default to identity for approx inv hessian
+            H_kp1 = numpy.identity(parameters.shape[0])
+        else:
+            H_kp1 = _bfgs_eq(
+                self._prev_inv_hessian,
+                parameters - self._prev_params,
+                jacobian - self._prev_jacobian
+            )
+
+        # Save values from current iteration for next iteration
+        self._prev_inv_hessian = H_kp1
+        self._prev_params = parameters
+        self._prev_jacobian = jacobian
+
+        return H_kp1
+
+def _bfgs_eq(H_k, s_k, y_k):
+    """Apply the bfgs update rule to obtain the next approx inverse hessian.
+
+    H_{k+1} = (I - p_k s_k y_k^T) H_k (I - p_k y_k s_k^T) + p_k s_k s_k^T
+    where
+    s_k = x_{k+1} - x_k (x = parameters)
+    y_k = jac_f_{k+1} - jac_f_k
+    p_k = 1 / (y_k^T s_k)
+
+    Note that all vectors are column vectors (so vec.T is a row vector)
+
+    Note that the current iteration is k+1, and k is the previous iteration.
+    However s_k and y_k correspond to he current iteration (and previous).
+    """
+    # An implementation very close to the original, using matrices, and column matrices:
+    # I = numpy.matrix(I)
+
+    # H_k = numpy.matrix(H_k)
+    # s_k = numpy.matrix(s_k).T
+    # y_k = numpy.matrix(y_k).T
+
+    # p_k = float(1.0 / (y_k.T * s_k))
+
+    # p_k_times_s_k = p_k * s_k
+    # import pdb; pdb.set_trace()
+    # return numpy.array(
+    #     (I - p_k_times_s_k * y_k.T)
+    #     * H_k
+    #     * (I - p_k * y_k * s_k.T)
+    #     + (p_k_times_s_k * s_k.T)
+    # )
+
+    # More efficient implementation with arrays and fast [:, None] transposes
+    # Vectors are row vectors (1d, as given)
+    I = numpy.identity(s_k.shape[0])
+
+    p_k = 1.0 / (y_k.dot(s_k)) # y_k.dot(s_k) == y_k.dot(s_k[:, None])
+
+    p_k_times_s_k = p_k * s_k
+    return (
+        (I - p_k_times_s_k[:, None] * y_k)
+        .dot(H_k)
+        .dot(I - (p_k * y_k)[:, None] * (s_k))
+        + (p_k_times_s_k[:, None] * s_k)
+    )
+
+
 ###############################
 # GetStepSize implementations
 ###############################
@@ -479,7 +600,7 @@ def _curvature_condition(jac_xk, step_dir, jac_xk_plus_ap, c_2):
     """Return True if curvature condition is met.
 
     Curvature condition:
-    -p_k^T grad_f(x_k = a_k p_k) <= -c_2 p_k^T grad_f(x_k)
+    grad_f(x_k + a_k p_k)^T p_k  >= c_2 grad_f(x_k)^T p_k
 
     args:
         jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
