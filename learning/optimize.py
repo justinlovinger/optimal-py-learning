@@ -184,17 +184,17 @@ class GetStepSize(object):
 ################################
 # Optimizer Implementations
 ################################
+# TODO: Optimize optimizers by re-using objective and jacobians calculated
+# during line searches. Such as by caching these values, and checking cache before
+# calculating (Problem object can cache these (by parameters), but we need to make sure
+# model do not make another instance of an Problem if the problem is the same)
 class SteepestDescent(Optimizer):
     """Simple steepest descent with constant step size."""
     def __init__(self, step_size_getter=None):
         super(SteepestDescent, self).__init__()
 
         if step_size_getter is None:
-            # TODO: Backtracking armijo is not considered best for steepest descent
-            # "This simple and popular strategy for terminating a line search is well suited
-            # for Newton methods but is less appropriate for quasi-Newton and
-            # conjugate gradient methods." ~ Numerical Optimization (2nd) pp. 56
-            step_size_getter = BacktrackingStepSize()
+            step_size_getter = WolfeLineSearch()
         self._step_size_getter = step_size_getter
 
     def reset(self):
@@ -217,11 +217,7 @@ class SteepestDescentMomentum(Optimizer):
     def __init__(self, step_size_getter=None, momentum_rate=0.2):
         super(SteepestDescentMomentum, self).__init__()
         if step_size_getter is None:
-            # TODO: Backtracking armijo is not considered best for steepest descent
-            # "This simple and popular strategy for terminating a line search is well suited
-            # for Newton methods but is less appropriate for quasi-Newton and
-            # conjugate gradient methods." ~ Numerical Optimization (2nd) pp. 56
-            step_size_getter = BacktrackingStepSize()
+            step_size_getter = WolfeLineSearch()
         self._step_size_getter = step_size_getter
 
         self._momentum_rate = momentum_rate
@@ -264,22 +260,7 @@ class BFGS(Optimizer):
         super(BFGS, self).__init__()
 
         if step_size_getter is None:
-            # TODO: Backtracking armijo is not considered best for steepest descent
-            # "This simple and popular strategy for terminating a line search is well suited
-            # for Newton methods but is less appropriate for quasi-Newton and
-            # conjugate gradient methods." ~ Numerical Optimization (2nd) pp. 56
-            #
-            # "The performance of the BFGS method can degrade if the line search
-            # is not based on the Wolfe conditions.
-            # For example, some software implements an Armijo backtracking line search
-            # (see Section 3.1): The unit step length ak = 1 is tried first
-            # and is successively decreased until the sufficient decrease
-            # condition (3.6a) is satisfied. For this strategy,
-            # there is no guarantee that the curvature condition y_k^T s_k > 0 (6.7)
-            # will be satisfied by the chosen step,
-            # since a step length greater than 1 may be required to satisfy this condition"
-            #  ~ Numerical Optimization (2nd) pp. 143
-            step_size_getter = BacktrackingStepSize()
+            step_size_getter = WolfeLineSearch()
         self._step_size_getter = step_size_getter
 
         # BFGS Parameters
@@ -399,10 +380,10 @@ class SetStepSize(GetStepSize):
         """
         return self._step_size
 
-class BacktrackingStepSize(GetStepSize):
+class BacktrackingLineSearch(GetStepSize):
     """Return step size found with backtracking line search."""
     def __init__(self, c_1=1e-4, decr_rate=0.9):
-        super(BacktrackingStepSize, self).__init__()
+        super(BacktrackingLineSearch, self).__init__()
 
         self._c_1 = c_1
         self._decr_rate = decr_rate
@@ -411,7 +392,7 @@ class BacktrackingStepSize(GetStepSize):
 
     def reset(self):
         """Reset parameters."""
-        super(BacktrackingStepSize, self).reset()
+        super(BacktrackingLineSearch, self).reset()
         self._prev_step_size = 1.0
 
     def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
@@ -430,42 +411,47 @@ class BacktrackingStepSize(GetStepSize):
         self._prev_step_size = step_size
         return step_size
 
-def _optimize_until_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2):
-    """Return step size that satisfies wolfe conditions.
+class WolfeLineSearch(GetStepSize):
+    """Specialized algorithm for finding step size that satisfies strong wolfe conditions."""
+    def __init__(self, c_1=1e-4, c_2=0.9, max_step_size=3.0):
+        super(WolfeLineSearch, self).__init__()
 
-    Discover step size by metaheuristic optimization.
+        # "In practice, c_1 is chosen to be quite small, say c_1 = 10^-4"
+        # ~Numerical Optimization (2nd) pp. 33
+        self._c_1 = c_1
 
-    NOTE: Experimental, and quite slow. Should not be used.
+        # "Typical values of c_2 are 0.9 when the search direction p_k
+        # is chosen by a Newton or quasi-Newton method,
+        # and 0.1 when pk is obtained from a nonlinear conjugate gradient method."
+        # ~Numerical Optimization (2nd) pp. 34
+        self._c_2 = c_2
 
-    args:
-        parameters: x_k; Parameter values at current step.
+        # This algorithm requires a maximum
+        self._max_step_size = max_step_size
+
+        # For initial step size
+        self._prev_step_size = 1.0
+
+    def reset(self):
+        """Reset parameters."""
+        super(WolfeLineSearch, self).reset()
+        self._prev_step_size = 1.0
+
+    def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
+        """Return step size.
+
+        xk: x_k; Parameter values at current step.
         obj_xk: f(x_k); Objective value at x_k.
         jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
         step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
-        obj_jac_func: Function taking parameters and returning obj and jac at given parameters.
-        c_1: Strictness parameter for Armijo rule.
-        c_2: Strictness parameter for curvature condition.
-    """
-    import optimal
-
-    MIN_STEP = 1e-10
-    MAX_STEP = 10.0
-    def decode(encoded_solution):
-        return optimal.helpers.binary_to_float(encoded_solution, MIN_STEP, MAX_STEP)
-
-    def fitness(step_size):
-        # Fitness is distance from 0 derivative
-        # NOTE: Should it just be -obj?
-        obj_xk_plus_ap, jac_xk_plus_ap = obj_jac_func(parameters + step_size*step_dir)
-
-        # Finished when wolfe conditions are met
-        finished = _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir,
-                                     obj_xk_plus_ap, jac_xk_plus_ap, c_1, c_2)
-        return -numpy.abs(jac_xk_plus_ap.T.dot(step_dir)), finished
-
-    optimizer = optimal.GenAlg(13, population_size=4)
-    optimizer.logging = False
-    return optimizer.optimize(optimal.Problem(fitness, decode_function=decode))
+        problem: Problem; Problem instance passed to Optimizer
+        """
+        # Initialize to previously best step size
+        step_size = _line_search_wolfe(
+            xk, obj_xk, jac_xk, step_dir, problem.get_obj_jac, self._c_1, self._c_2,
+            self._prev_step_size, self._max_step_size)
+        self._prev_step_size = step_size
+        return step_size
 
 
 def _backtracking_line_search(parameters, obj_xk, jac_xk, step_dir, obj_func, c_1,
@@ -505,10 +491,15 @@ def _backtracking_line_search(parameters, obj_xk, jac_xk, step_dir, obj_func, c_
         step_size *= decr_rate
 
 def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2,
-                       initial_step=1.0):
+                       initial_step, max_step_size):
     """Return step size that satisfies wolfe conditions.
 
-    Discover step size with gradient descent.
+    See Numerical Optimization (2nd) pp. 60
+
+    This procedure first finds an interval containing an
+    acceptable step length,
+    then calls the zoom procedure to fine tune that interval
+    until an acceptable step length is discovered.
 
     args:
         parameters: x_k; Parameter values at current step.
@@ -520,42 +511,135 @@ def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, 
         c_2: Strictness parameter for curvature condition.
     """
     if numpy.isnan(obj_xk):
-        # Failsafe because _armijo rule will never return True
+        # Failsafe for erroneously calculated obj_xk (usually overflow or x/0)
         # TODO: Might need similar failsafe for nan in jac_xk or step_dir
         logging.warning('nan objective value in _line_search_wolfe, defaulting to 1e-10 step size')
         return 1e-10
 
+    step_zero_obj = obj_xk
+    step_zero_grad = jac_xk.dot(step_dir)
+
+    # We need the current and previous step size for some operations
+    prev_step_size = 0.0
+    prev_step_obj = step_zero_obj
+    prev_step_grad = step_zero_grad
+
     step_size = initial_step
+    for i in itertools.count(start=1):
+        if i >= 10:
+            # Failsafe for numerical precision errors preventing convergence
+            # This can happen if gradient provides very little improvement
+            # (or is in the wrong direction)
+            logging.warning('Wolfe line search aborting after 10 iterations')
+            return step_size
 
-    # Use gradient descent to find step size that satisfies wolfe conditions
-    # TODO: Optimizer must have constraint that step_size > 0
-    optimizer = SteepestDescent(step_size_getter=SetStepSize(0.1))
-    # Used to extract jac_xk_plus_ap that is computed during step_size_obj_jac_func,
-    # because it is also needed for _wolfe_conditions
-    jac_xk_plus_ap = [None]
-    def step_size_obj_jac_func(a):
-        # NOTE: Note that we add step_dir, not subtract, ex. -jacobian is a step direction
-        obj_val, jac_xk_plus_ap[0] = obj_jac_func(parameters + a*step_dir)
-        return obj_val, jac_xk_plus_ap[0].T.dot(step_dir)
-    problem = Problem(obj_jac_func=step_size_obj_jac_func)
+        # Evaluate objective and jacobian for most recent step size
+        step_obj, step_grad = _step_size_obj_jac_func(
+            step_size, parameters, step_dir, obj_jac_func)
 
-    # Optimize step size until it matches wolfe conditions
-    # obj_xk_plus_ap and jac_xk_plus_ap[0] is are for the step size when optimizer.next is called
-    # (not the new one returned by optimizer.next)
-    # That is why we store next_step_size, and set it equal to step_size before calling optimizer.next
-    iteration = 1
-    obj_xk_plus_ap, next_step_size = optimizer.next(problem, step_size)
-    while not _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir,
-                                obj_xk_plus_ap, jac_xk_plus_ap[0], c_1, c_2):
-        step_size = next_step_size
-        obj_xk_plus_ap, next_step_size = optimizer.next(problem, step_size)
+        # True if objective did not improve (step_obj >= prev_step_obj), after first iterations,
+        # or armijo condition is False (step_obj > obj_xk + c_1*step_size*step_grad)
+        if ((i > 1 and step_obj >= prev_step_obj)
+                or (step_obj > obj_xk + c_1*step_size*step_grad)):
+            return _zoom_wolfe(prev_step_size, prev_step_obj, step_size, parameters,
+                               obj_xk, step_zero_grad, step_dir, obj_jac_func, c_1, c_2)
 
-        iteration += 1
-        if iteration > 1000:
-            raise RuntimeError('Line search did not converge')
+        # Check if step size is already an acceptable step length
+        # True when gradient is sufficiently small (magnitude wise)
+        elif numpy.abs(step_grad) <= -c_2 * step_zero_grad:
+            return step_size
 
-    assert step_size > 0
-    return step_size
+        # If objective value did not improve (first if statement)
+        # and step size needs to increase (non-negative gradient)
+        elif step_grad >= 0:
+            return _zoom_wolfe(step_size, step_obj, prev_step_size, parameters,
+                               obj_xk, step_zero_grad, step_dir, obj_jac_func, c_1, c_2)
+
+        # Increase step size, up to max
+        prev_step_size = step_size
+        prev_step_obj = step_obj
+        prev_step_grad = step_grad
+
+        step_size = _bisect_value(step_size, max_step_size) # Halfway to max_step_size
+
+
+def _zoom_wolfe(step_size_low, step_size_low_obj, step_size_high, parameters,
+                step_zero_obj, step_zero_grad, step_dir, obj_jac_func, c_1, c_2):
+    """Zoom into acceptable step size within a given interval.
+
+    Args:
+        step_size_low: Step size with low objective value (good)
+        step_size_high: Step size with high objective value (high)
+    """
+    # NOTE: lower objective values are better
+    # (hence step_size_low better than step_size_high)
+    # TODO: Optimize by caching values repeatedly used in inequalities
+
+    for i in itertools.count(start=1):
+        # Choose step size
+        # NOTE: step_size should not be too close to low or high
+        # TODO: Maybe use a better strategy?
+        # "Interpolate (using quadratic, cubic, or bisection)
+        # to find a trial step length alpha_j between alpha_lo and alpha_hi"
+        # ~Numerical Optimization (2nd) pp. 61
+        # Use bisection
+        step_size = _bisect_value(
+            min(step_size_low, step_size_high),
+            max(step_size_low, step_size_high)
+        )
+        step_size = step_size_low + 0.5*(step_size_high - step_size_low)
+        assert step_size >= 0
+
+        if i >= 10:
+            # Failsafe for numerical precision errors preventing convergence
+            # This can happen if gradient provides very little improvement
+            # (or is in the wrong direction)
+            logging.warning('Wolfe line search (zoom) aborting after 10 iterations')
+            return step_size
+
+        step_obj, step_grad = _step_size_obj_jac_func(
+            step_size, parameters, step_dir, obj_jac_func)
+
+        # If this step is worse, than the projection from initial parameters
+        # or this step is worse than the current high (bad) step size
+        if (step_obj > step_zero_obj + c_1*step_size*step_zero_grad
+                or step_obj >= step_size_low_obj):
+            # step_size is not an improvement
+            # This step size is the new poor valued side of the interval
+            step_size_high = step_size
+
+        # step_size is an improvement
+        else:
+            # If this step size caused an improvement
+            # (first if statement is false),
+            # and step size gradient is sufficiently small (magnitude wise)
+            if numpy.abs(step_grad) <= -c_2*step_zero_grad:
+                return step_size
+
+            # If good step size is larger than bad step size,
+            # and gradient is positive,
+            # or vice versa
+            if step_grad * (step_size_high - step_size_low) >= 0:
+                # Set the current bad step size to the current good step size
+                # Because step_size is better (and will be set so in a couple lines)
+                step_size_high = step_size_low
+
+            # Set step_size_low
+            step_size_low = step_size
+            step_size_low_obj = step_obj
+
+def _bisect_value(min_, max_):
+    """Return value half way between min and max."""
+    return min_ + 0.5*(max_ - min_)
+
+def _step_size_obj_jac_func(step_size, parameters, step_dir, obj_jac_func):
+    """Return objective value and gradient for step size."""
+    step_obj, jac_xk_plus_ap = obj_jac_func(parameters + step_size*step_dir)
+    # Derivative of step size objective function, is jacobian
+    # dot step direction
+    step_grad = jac_xk_plus_ap.dot(step_dir)
+
+    return step_obj, step_grad
 
 def _wolfe_conditions(step_size, parameters, obj_xk, jac_xk, step_dir,
                       obj_xk_plus_ap, jac_xk_plus_ap, c_1, c_2):

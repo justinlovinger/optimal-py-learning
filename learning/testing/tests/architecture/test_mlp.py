@@ -44,7 +44,7 @@ def test_mlp_classifier():
     pat = datasets.get_xor()
 
     error = nn.avg_mse(*pat)
-    nn.train(*pat, iterations=10)
+    nn.train(*pat, iterations=20)
     assert nn.avg_mse(*pat) < error
 
 

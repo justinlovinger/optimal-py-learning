@@ -79,61 +79,29 @@ def test_optimizer_get_obj_jac_hess_individual_obj_jac_hess():
 
 
 ############################
-# SteepestDescentLineSearch
+# Backtracking Line Search
 ############################
-def test_steepest_descent_line_search():
-    # Attempt to optimize a simple function with line search
-    f = lambda vec: vec[0]**2 + vec[1]**2
-    df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
+def test_steepest_descent_backtracking_line_search():
+    check_optimize_sphere_function(
+        optimize.SteepestDescent(step_size_getter=optimize.BacktrackingLineSearch()))
 
-    optimizer = optimize.SteepestDescent(step_size_getter=optimize.BacktrackingStepSize())
-    problem = optimize.Problem(obj_func=f, jac_func=df)
+def test_steepest_descent_momentum_backtracking_line_search():
+    check_optimize_sphere_function(
+        optimize.SteepestDescentMomentum(step_size_getter=optimize.BacktrackingLineSearch()))
 
-    # Optimize
-    vec = numpy.array([10, 10])
-    iteration = 1
-    obj_value = 1
-    while obj_value > 1e-10 and iteration < 100:
-        obj_value, vec = optimizer.next(problem, vec)
-
-    assert obj_value <= 1e-10
-
-def test_steepest_descent_momentum_line_search():
-    # Attempt to optimize a simple function with line search
-    f = lambda vec: vec[0]**2 + vec[1]**2
-    df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
-
-    optimizer = optimize.SteepestDescentMomentum(step_size_getter=optimize.BacktrackingStepSize())
-    problem = optimize.Problem(obj_func=f, jac_func=df)
-
-    # Optimize
-    vec = numpy.array([10, 10])
-    iteration = 1
-    obj_value = 1
-    while obj_value > 1e-10 and iteration < 100:
-        obj_value, vec = optimizer.next(problem, vec)
-
-    assert obj_value <= 1e-10
+############################
+# Wolfe Line Search
+############################
+def test_steepest_descent_wolfe_line_search():
+    check_optimize_sphere_function(
+        optimize.SteepestDescent(step_size_getter=optimize.WolfeLineSearch()))
 
 #########################
 # BFGS
 #########################
 def test_bfgs_backtracking_line_search():
-    # Attempt to optimize a simple function with line search
-    f = lambda vec: vec[0]**2 + vec[1]**2
-    df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
-
-    optimizer = optimize.BFGS(step_size_getter=optimize.BacktrackingStepSize())
-    problem = optimize.Problem(obj_func=f, jac_func=df)
-
-    # Optimize
-    vec = numpy.array([10, 10])
-    iteration = 1
-    obj_value = 1
-    while obj_value > 1e-10 and iteration < 100:
-        obj_value, vec = optimizer.next(problem, vec)
-
-    assert obj_value <= 1e-10
+    check_optimize_sphere_function(
+        optimize.BFGS(step_size_getter=optimize.BacktrackingLineSearch()))
 
 def test_bfgs_eq():
     """Should satisfy certain requirements.
@@ -196,3 +164,22 @@ def _curvature_test(xk, step_size):
     df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
 
     return optimize._curvature_condition(df(xk), -df(xk), df(xk - step_size*df(xk)), 0.1)
+
+######################
+# Helpers
+######################
+def check_optimize_sphere_function(optimizer):
+    # Attempt to optimize a simple sphere function
+    f = lambda vec: vec[0]**2 + vec[1]**2
+    df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
+
+    problem = optimize.Problem(obj_func=f, jac_func=df)
+
+    # Optimize
+    vec = numpy.array([10, 10])
+    iteration = 1
+    obj_value = 1
+    while obj_value > 1e-10 and iteration < 100:
+        obj_value, vec = optimizer.next(problem, vec)
+
+    assert obj_value <= 1e-10
