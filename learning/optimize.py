@@ -405,6 +405,7 @@ class BacktrackingLineSearch(GetStepSize):
         problem: Problem; Problem instance passed to Optimizer
         """
         # Initialize to one step up from previously best step size
+        # TODO: Try other strategies for initial step size
         step_size = _backtracking_line_search(
             xk, obj_xk, jac_xk, step_dir, problem.get_obj, self._c_1,
             (self._prev_step_size/self._decr_rate), decr_rate=self._decr_rate)
@@ -413,7 +414,7 @@ class BacktrackingLineSearch(GetStepSize):
 
 class WolfeLineSearch(GetStepSize):
     """Specialized algorithm for finding step size that satisfies strong wolfe conditions."""
-    def __init__(self, c_1=1e-4, c_2=0.9, max_step_size=3.0):
+    def __init__(self, c_1=1e-4, c_2=0.9):
         super(WolfeLineSearch, self).__init__()
 
         # "In practice, c_1 is chosen to be quite small, say c_1 = 10^-4"
@@ -425,9 +426,6 @@ class WolfeLineSearch(GetStepSize):
         # and 0.1 when pk is obtained from a nonlinear conjugate gradient method."
         # ~Numerical Optimization (2nd) pp. 34
         self._c_2 = c_2
-
-        # This algorithm requires a maximum
-        self._max_step_size = max_step_size
 
         # For initial step size
         self._prev_step_size = 1.0
@@ -446,10 +444,11 @@ class WolfeLineSearch(GetStepSize):
         step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
         problem: Problem; Problem instance passed to Optimizer
         """
-        # Initialize to previously best step size
+        # Initialize to small increase from previously best step size
+        # TODO: Try other strategies for initial step size
         step_size = _line_search_wolfe(
             xk, obj_xk, jac_xk, step_dir, problem.get_obj_jac, self._c_1, self._c_2,
-            self._prev_step_size, self._max_step_size)
+            1.05*self._prev_step_size)
         self._prev_step_size = step_size
         return step_size
 
@@ -490,14 +489,15 @@ def _backtracking_line_search(parameters, obj_xk, jac_xk, step_dir, obj_func, c_
         # Did not satisfy, decrease step size and try again
         step_size *= decr_rate
 
+WOLFE_INCR_RATE = 1.5
 def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, c_2,
-                       initial_step, max_step_size):
+                       initial_step):
     """Return step size that satisfies wolfe conditions.
 
     See Numerical Optimization (2nd) pp. 60
 
     This procedure first finds an interval containing an
-    acceptable step length,
+    acceptable step length (or just happens upon such a length),
     then calls the zoom procedure to fine tune that interval
     until an acceptable step length is discovered.
 
@@ -555,12 +555,26 @@ def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, 
             return _zoom_wolfe(step_size, step_obj, prev_step_size, parameters,
                                obj_xk, step_zero_grad, step_dir, obj_jac_func, c_1, c_2)
 
-        # Increase step size, up to max
+        # Increase step size, score current values for comparison to previous
         prev_step_size = step_size
         prev_step_obj = step_obj
         prev_step_grad = step_grad
 
-        step_size = _bisect_value(step_size, max_step_size) # Halfway to max_step_size
+        # Similar to zoom, we need to find a new trial step size
+        # somewhere between current, and an arbitrary max
+        # alpha_i < alpha_{i+1} < max
+        # "The last step of the algorithm performs extrapolation to find
+        # the next trial value alpha_{i+1}.
+        # To implement this step we can use approaches like the interpolation
+        # procedures above, or we can simply set alpha_{i+1} to some constant
+        # multiple of alpha_i.
+        # Whichever strategy we use,
+        # it is important that the successive steps increase quickly enough to
+        # reach the upper limit alpha_max in a finite number of iterations."
+        # ~Numerical Optimization (2nd) pp. 61
+        # Use multiply by constant strategy
+        # TODO: Try other interpolation strategies
+        step_size *= WOLFE_INCR_RATE
 
 
 def _zoom_wolfe(step_size_low, step_size_low_obj, step_size_high, parameters,
@@ -578,7 +592,7 @@ def _zoom_wolfe(step_size_low, step_size_low_obj, step_size_high, parameters,
     for i in itertools.count(start=1):
         # Choose step size
         # NOTE: step_size should not be too close to low or high
-        # TODO: Maybe use a better strategy?
+        # TODO: Test other strategies (see Interpolation subsection of NumOpt)
         # "Interpolate (using quadratic, cubic, or bisection)
         # to find a trial step length alpha_j between alpha_lo and alpha_hi"
         # ~Numerical Optimization (2nd) pp. 61
