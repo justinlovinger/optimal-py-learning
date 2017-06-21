@@ -79,6 +79,10 @@ def test_relu_transfer():
     assert helpers.approx_equal(calculate.relu(numpy.array([-1.5, 10])),
                                 [0.201413, 10.00004539])
 
+def test_big_relu():
+    """Naive relu can overflow with large input values."""
+    assert helpers.approx_equal(calculate.relu(numpy.array([0., 1000.])),
+                                [0.6931471805, 1000])
 
 def test_relu_derivative():
     assert helpers.approx_equal(calculate.drelu(numpy.array([0, 1])),
@@ -86,6 +90,14 @@ def test_relu_derivative():
     assert helpers.approx_equal(calculate.drelu(numpy.array([-1.5, 10])),
                                 [0.182426, 0.9999546])
 
+def test_big_relu_derivative():
+    """Naive relu can overflow with large input values."""
+    assert helpers.approx_equal(calculate.drelu(numpy.array([0., 1000.])),
+                                [0.5, 1.0])
 
 def test_relu_gradient():
     helpers.check_gradient(calculate.relu, calculate.drelu)
+
+def test_big_relu_gradient():
+    helpers.check_gradient(calculate.relu, calculate.drelu,
+                           inputs=numpy.array([0., 1000.]))

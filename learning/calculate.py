@@ -46,12 +46,36 @@ def dgaussian(x, y, variance=1.0):
 
 def relu(x):
     """Return ln(1 + e^x) for each input value."""
-    return numpy.log(1 + numpy.e**x)
+    # NOTE: numpy.errstate is very expensive, so the following is slower
+    # Maybe numpy will optimize errstate in the future, to make this more effective
+    # try:
+    #     with numpy.errstate(over='raise'):
+    #         return numpy.log(1.0 + numpy.exp(x))
+    # except FloatingPointError:
+    #     with numpy.errstate(over='ignore'):
+    #         out = numpy.log(1.0 + numpy.exp(x))
+
+    #     # Replace inf's with corresponding components in x
+    #     # inf is caused by overflow in exp
+    #     infs = out == numpy.Infinity
+    #     out[infs] = x[infs]
+
+    #     return out
+
+    # Don't use try except with numpy.errstate, because it is slow
+    out = numpy.log(1.0 + numpy.exp(x))
+
+    # Replace inf's with corresponding components in x
+    # inf is caused by overflow in exp
+    infs = out == numpy.Infinity
+    out[infs] = x[infs]
+
+    return out
 
 def drelu(x):
-    """Return the derivative of the softplus relu function for y."""
+    """Return the derivative of the softplus relu function for x."""
     # NOTE: Can be optimized by caching numpy.e**(x) and returning e^x / (e^x + 1)
-    return 1.0 / (1.0 + numpy.e**(-x))
+    return 1.0 / (1.0 + numpy.exp(-x))
 
 def softmax(x):
     """Return the softmax of vector x."""
