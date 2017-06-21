@@ -55,7 +55,13 @@ def drelu(x):
 
 def softmax(x):
     """Return the softmax of vector x."""
-    exp_ = numpy.exp(x)
+    # Subtract max to prevent overflow
+    # Instead results in underflow for small components,
+    # which is just zero, and thus acceptable
+    # NOTE: Attempting to subtract max only when overflow would occur
+    # (ex. try / except block for overflow with numpy.errstate('over': 'raise'))
+    # results in worse performance for both the overflow and no overflow cases
+    exp_ = numpy.exp(x  - numpy.max(x))
     return exp_ / numpy.sum(exp_)
 
 def dsoftmax(y):

@@ -57,8 +57,14 @@ def test_softmax_transfer():
 
     softmax_out = calculate.softmax(numpy.array([1.0, -1.0]))
     assert softmax_out[0] > 0.5 and softmax_out[1] < 0.5
-    assert sum(softmax_out) == 1.0
+    assert helpers.approx_equal(sum(softmax_out), 1.0)
 
+def test_softmax_large_input():
+    """Softmax includes an exponential, which can cause overflows.
+
+    Our softmax implementation should protect against overflow.
+    """
+    assert list(calculate.softmax(numpy.array([-1000.0, 1000.0]))) == [0.0, 1.0]
 
 def test_softmax_jacobian():
     helpers.check_gradient(calculate.softmax, lambda x: calculate.dsoftmax(calculate.softmax(x)),

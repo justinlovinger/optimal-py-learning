@@ -30,6 +30,18 @@ def test_mse_derivative():
 def test_cross_entropy_derivative():
     check_error_gradient(error.CrossEntropy())
 
+def test_cross_entropy_derivative_equals():
+    """Should not raise error or return nan, when both inputs match.
+
+    Because the derivative includes a division, this could occur.
+    """
+    assert (
+        list(error.CrossEntropy().derivative(
+            numpy.array([0., 1.]), numpy.array([0., 1.])
+        )[1])
+        == [0., -0.5]
+    )
+
 def check_error_gradient(error_func):
     vec_length = random.randint(1, 10)
 

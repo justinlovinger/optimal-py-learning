@@ -52,10 +52,19 @@ class CrossEntropy(ErrorFunc):
         # Use mean instead of sum, so magnitude is independent of length of vectors
         with numpy.errstate(invalid='raise', divide='ignore'): # Do not allow log(-)
             log_a = numpy.log(vec_a)
-        log_a = numpy.nan_to_num(log_a) # Change -inf from log(0) to -1.79769313e+308
+        log_a = numpy.nan_to_num(log_a) # Change -inf (from log(0)) to -1.79769313e+308
         return -numpy.mean(log_a * vec_b)
 
     def derivative(self, vec_a, vec_b):
         """Return error, derivative_matrix."""
         # NOTE: If CE uses sum instead of mean, this would be -(vec_b / vec_a)
-        return self(vec_a, vec_b), (vec_b / vec_a)/(-len(vec_b))
+
+        # Ignore 0/0 (handled in next line), warn for (x/0),
+        # because this is less likely in practice, and may indicate a problem
+        with numpy.errstate(invalid='ignore', divide='warn'):
+            vec_b_div_vec_a = vec_b / vec_a
+
+        # Change nan (0/0) to 0, and inf (x/0) to 1.79769313e+308
+        vec_b_div_vec_a = numpy.nan_to_num(vec_b_div_vec_a)
+
+        return self(vec_a, vec_b), vec_b_div_vec_a/(-len(vec_b))
