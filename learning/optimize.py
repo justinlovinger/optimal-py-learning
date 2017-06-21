@@ -381,7 +381,14 @@ def _bfgs_eq(H_k, s_k, y_k):
     # Vectors are row vectors (1d, as given)
     I = numpy.identity(s_k.shape[0])
 
-    p_k = 1.0 / (y_k.dot(s_k)) # y_k.dot(s_k) == y_k.dot(s_k[:, None])
+    # Calculate p_k with failsafe for divide by zero errors
+    y_k_dot_s_k = y_k.dot(s_k) # y_k.dot(s_k) == y_k.dot(s_k[:, None])
+    # Failsafe for divide by zero errors
+    # y_k and s_k are change in jacobian and parameters respectively
+    # If these values did not change, we can re-use previous inv hessian
+    if y_k_dot_s_k == 0.0:
+        return H_k
+    p_k = 1.0 / y_k_dot_s_k
 
     p_k_times_s_k = p_k * s_k
     return (
