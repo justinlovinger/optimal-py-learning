@@ -164,8 +164,11 @@ class Optimizer(object):
         """Return next iteration of this optimizer."""
         raise NotImplementedError()
 
-class GetStepSize(object):
-    """Returns step size when called."""
+class StepSizeGetter(object):
+    """Returns step size when called.
+
+    Used by Optimizer.
+    """
     def reset(self):
         """Reset parameters."""
         pass
@@ -181,6 +184,33 @@ class GetStepSize(object):
         """
         raise NotImplementedError()
 
+class InitialStepGetter(object):
+    """Returns initial step size when called.
+
+    Used by StepSizeGetter.
+    """
+    def reset(self):
+        """Reset parameters."""
+        pass
+
+    def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
+        """Return initial step size.
+
+        xk: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        problem: Problem; Problem instance passed to Optimizer
+        """
+        raise NotImplementedError()
+
+    def update(self, step_size):
+        """Update parameters
+
+        Optional. Some methods require remembering previously discovered step sizes.
+        """
+        pass
+
 ################################
 # Optimizer Implementations
 ################################
@@ -194,7 +224,9 @@ class SteepestDescent(Optimizer):
         super(SteepestDescent, self).__init__()
 
         if step_size_getter is None:
-            step_size_getter = WolfeLineSearch()
+            step_size_getter = WolfeLineSearch(
+                initial_step_getter=FOChangeInitialStep()
+            )
         self._step_size_getter = step_size_getter
 
     def reset(self):
@@ -217,7 +249,9 @@ class SteepestDescentMomentum(Optimizer):
     def __init__(self, step_size_getter=None, momentum_rate=0.2):
         super(SteepestDescentMomentum, self).__init__()
         if step_size_getter is None:
-            step_size_getter = WolfeLineSearch()
+            step_size_getter = WolfeLineSearch(
+                initial_step_getter=FOChangeInitialStep()
+            )
         self._step_size_getter = step_size_getter
 
         self._momentum_rate = momentum_rate
@@ -260,7 +294,9 @@ class BFGS(Optimizer):
         super(BFGS, self).__init__()
 
         if step_size_getter is None:
-            step_size_getter = WolfeLineSearch()
+            step_size_getter = WolfeLineSearch(
+                initial_step_getter=IncrPrevStep()
+            )
         self._step_size_getter = step_size_getter
 
         # BFGS Parameters
@@ -357,9 +393,9 @@ def _bfgs_eq(H_k, s_k, y_k):
 
 
 ###############################
-# GetStepSize implementations
+# StepSizeGetter implementations
 ###############################
-class SetStepSize(GetStepSize):
+class SetStepSize(StepSizeGetter):
     """Return a given step size every call.
 
     Simple and efficient. Not always effective.
@@ -380,20 +416,24 @@ class SetStepSize(GetStepSize):
         """
         return self._step_size
 
-class BacktrackingLineSearch(GetStepSize):
+class BacktrackingLineSearch(StepSizeGetter):
     """Return step size found with backtracking line search."""
-    def __init__(self, c_1=1e-4, decr_rate=0.9):
+    def __init__(self, c_1=1e-4, decr_rate=0.9, initial_step_getter=None):
         super(BacktrackingLineSearch, self).__init__()
 
         self._c_1 = c_1
         self._decr_rate = decr_rate
 
-        self._prev_step_size = 1.0
+        if initial_step_getter is None:
+            # Slightly more than 1 step up
+            initial_step_getter = IncrPrevStep(
+                incr_rate=1.0/self._decr_rate+0.05, upper_bound=None)
+        self._initial_step_getter = initial_step_getter
 
     def reset(self):
         """Reset parameters."""
         super(BacktrackingLineSearch, self).reset()
-        self._prev_step_size = 1.0
+        self._initial_step_getter.reset()
 
     def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
         """Return step size.
@@ -404,17 +444,19 @@ class BacktrackingLineSearch(GetStepSize):
         step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
         problem: Problem; Problem instance passed to Optimizer
         """
-        # Initialize to one step up from previously best step size
-        # TODO: Try other strategies for initial step size
+        initial_step = self._initial_step_getter(xk, obj_xk, jac_xk, step_dir, problem)
+
         step_size = _backtracking_line_search(
             xk, obj_xk, jac_xk, step_dir, problem.get_obj, self._c_1,
-            (self._prev_step_size/self._decr_rate), decr_rate=self._decr_rate)
-        self._prev_step_size = step_size
+            initial_step, decr_rate=self._decr_rate)
+
+        self._initial_step_getter.update(step_size)
+
         return step_size
 
-class WolfeLineSearch(GetStepSize):
+class WolfeLineSearch(StepSizeGetter):
     """Specialized algorithm for finding step size that satisfies strong wolfe conditions."""
-    def __init__(self, c_1=1e-4, c_2=0.9):
+    def __init__(self, c_1=1e-4, c_2=0.9, initial_step_getter=None):
         super(WolfeLineSearch, self).__init__()
 
         # "In practice, c_1 is chosen to be quite small, say c_1 = 10^-4"
@@ -427,13 +469,15 @@ class WolfeLineSearch(GetStepSize):
         # ~Numerical Optimization (2nd) pp. 34
         self._c_2 = c_2
 
-        # For initial step size
-        self._prev_step_size = 1.0
+        if initial_step_getter is None:
+            # Slightly more than 1 step up
+            initial_step_getter = QuadraticInitialStep()
+        self._initial_step_getter = initial_step_getter
 
     def reset(self):
         """Reset parameters."""
         super(WolfeLineSearch, self).reset()
-        self._prev_step_size = 1.0
+        self._initial_step_getter.reset()
 
     def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
         """Return step size.
@@ -444,12 +488,13 @@ class WolfeLineSearch(GetStepSize):
         step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
         problem: Problem; Problem instance passed to Optimizer
         """
-        # Initialize to small increase from previously best step size
-        # TODO: Try other strategies for initial step size
+        initial_step = self._initial_step_getter(xk, obj_xk, jac_xk, step_dir, problem)
+
         step_size = _line_search_wolfe(
             xk, obj_xk, jac_xk, step_dir, problem.get_obj_jac, self._c_1, self._c_2,
-            1.05*self._prev_step_size)
-        self._prev_step_size = step_size
+            initial_step)
+
+        self._initial_step_getter.update(step_size)
         return step_size
 
 
@@ -601,7 +646,6 @@ def _zoom_wolfe(step_size_low, step_size_low_obj, step_size_high, parameters,
             min(step_size_low, step_size_high),
             max(step_size_low, step_size_high)
         )
-        step_size = step_size_low + 0.5*(step_size_high - step_size_low)
         assert step_size >= 0
 
         if i >= 10:
@@ -713,3 +757,143 @@ def _curvature_condition(jac_xk, step_dir, jac_xk_plus_ap, c_2):
     """
     # NOTE: x.dot(y) == col_matrix(x).T * col_matrix(y)
     return (jac_xk_plus_ap).dot(step_dir) >= c_2*(jac_xk.dot(step_dir))
+
+####################################
+# InitialStepGetter implementations
+####################################
+class IncrPrevStep(InitialStepGetter):
+    """Return initial step size by incrementing previous best.
+
+    Effective for optimizers that converge superlinearly
+    (such as Newton and quasi-newton (TODO: Confirm)),
+    where 1 will eventually always be accepted.
+
+    NOTE: Set upper_bound to None if using BacktrackingLineSearch
+    with an optimizer that may requires step_size > 1,
+    such as quasi-Newton methods.
+    """
+    def __init__(self, incr_rate=1.05, upper_bound=1.0):
+        if incr_rate < 1.0:
+            raise ValueError('incr_rate > 1 to increment')
+
+        if upper_bound is not None and upper_bound < 0:
+            raise ValueError('upper_bound must be positive')
+
+        self._incr_rate = incr_rate
+        self._upper_bound = upper_bound
+
+        self._prev_step_size = 1.0
+
+    def reset(self):
+        """Reset parameters."""
+        self._prev_step_size = 1.0
+
+    def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
+        """Return initial step size.
+
+        xk: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        problem: Problem; Problem instance passed to Optimizer
+        """
+        initial_step = self._incr_rate*self._prev_step_size
+        if self._upper_bound is not None:
+            return min(self._upper_bound, initial_step)
+        else:
+            return initial_step
+
+    def update(self, step_size):
+        """Update parameters."""
+        self._prev_step_size = step_size
+
+class FOChangeInitialStep(InitialStepGetter):
+    """Return initial step by assuming first order change is same as previous iteration.
+
+    Popular for methods that do not produce well scaled search directions,
+    such as steepest descent and conjugate gradient optimizers.
+
+    alpha_0 = alpha_{k-1} (grad_f_{k-1}^T p_{k-1} / grad_f_k^T p_k)
+    where alpha_0 is the initial step.
+
+    Note that vectors are column matrices.
+    """
+    def __init__(self):
+        self._prev_step_size = None
+        self._prev_jac_dot_dir = None
+
+    def reset(self):
+        """Reset parameters."""
+        self._prev_step_size = None
+        self._prev_jac_dot_dir = None
+
+    def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
+        """Return initial step size.
+
+        xk: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        problem: Problem; Problem instance passed to Optimizer
+        """
+        step_dot_dir = jac_xk.dot(step_dir)
+
+        if self._prev_step_size is None:
+            # Default to 1 for first iteration
+            initial_step = 1.0
+        else:
+            initial_step = self._prev_step_size * (self._prev_jac_dot_dir / step_dot_dir)
+
+        # For next iteration
+        self._prev_jac_dot_dir = step_dot_dir
+
+        return initial_step
+
+    def update(self, step_size):
+        """Update parameters."""
+        self._prev_step_size = step_size
+
+class QuadraticInitialStep(InitialStepGetter):
+    """Return initial step by interpolating a quadratic between prev and current obj value.
+
+    Get initial step by minimizing a quadratic interpolated to
+    previous objective value, current objective value, and derivative of step obj.
+
+    alpha_0 = (2 (f_k - f_{k-1})) / phi'(0)
+    where alpha_0 is the initial step,
+    phi'(0) = grad_f_k^T step_dir
+
+    Note that vectors are column matrices.
+    """
+    def __init__(self):
+        self._prev_obj_value = None
+
+    def reset(self):
+        """Reset parameters."""
+        self._prev_obj_value = None
+
+    def __call__(self, xk, obj_xk, jac_xk, step_dir, problem):
+        """Return initial step size.
+
+        xk: x_k; Parameter values at current step.
+        obj_xk: f(x_k); Objective value at x_k.
+        jac_xk: grad_f(x_k); First derivative (jacobian) at x_k.
+        step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
+        problem: Problem; Problem instance passed to Optimizer
+        """
+        if self._prev_obj_value is None:
+            # Default to 1 for first iteration
+            initial_step = 1.0
+        else:
+            initial_step = ((2.0 * (obj_xk - self._prev_obj_value))
+                            / (jac_xk.dot(step_dir)))
+
+        # For next iteration
+        self._prev_obj_value = obj_xk
+
+        if numpy.isnan(initial_step):
+            logging.warning('nan in objective of jacobian, in QuadraticInitialStep call, '\
+                            'returning 1e-10')
+            return 1e-10
+
+        return initial_step

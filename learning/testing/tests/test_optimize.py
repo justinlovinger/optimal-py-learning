@@ -78,24 +78,6 @@ def test_optimizer_get_obj_jac_hess_individual_obj_jac_hess():
     assert tuple(problem.get_obj_jac_hess(1)) == (1, 2, 3)
 
 
-############################
-# Backtracking Line Search
-############################
-def test_steepest_descent_backtracking_line_search():
-    check_optimize_sphere_function(
-        optimize.SteepestDescent(step_size_getter=optimize.BacktrackingLineSearch()))
-
-def test_steepest_descent_momentum_backtracking_line_search():
-    check_optimize_sphere_function(
-        optimize.SteepestDescentMomentum(step_size_getter=optimize.BacktrackingLineSearch()))
-
-############################
-# Wolfe Line Search
-############################
-def test_steepest_descent_wolfe_line_search():
-    check_optimize_sphere_function(
-        optimize.SteepestDescent(step_size_getter=optimize.WolfeLineSearch()))
-
 #########################
 # BFGS
 #########################
@@ -118,6 +100,25 @@ def test_bfgs_eq():
     # TODO: Check minimize condition (use scipy.minimize with constraints)
     assert helpers.approx_equal(H_kp1.T, H_kp1)
     assert helpers.approx_equal(H_kp1.dot(y_k), s_k)
+
+
+############################
+# Backtracking Line Search
+############################
+def test_steepest_descent_backtracking_line_search():
+    check_optimize_sphere_function(
+        optimize.SteepestDescent(step_size_getter=optimize.BacktrackingLineSearch()))
+
+def test_steepest_descent_momentum_backtracking_line_search():
+    check_optimize_sphere_function(
+        optimize.SteepestDescentMomentum(step_size_getter=optimize.BacktrackingLineSearch()))
+
+############################
+# Wolfe Line Search
+############################
+def test_steepest_descent_wolfe_line_search():
+    check_optimize_sphere_function(
+        optimize.SteepestDescent(step_size_getter=optimize.WolfeLineSearch()))
 
 #########################
 # Wolfe conditions
@@ -164,6 +165,12 @@ def _curvature_test(xk, step_size):
     df = lambda vec: numpy.array([2.0*vec[0], 2.0*vec[1]])
 
     return optimize._curvature_condition(df(xk), -df(xk), df(xk - step_size*df(xk)), 0.1)
+######################
+# InitialStepGetter s
+######################
+# TODO: Test IncrPrevStep
+# TODO: Test FOChangeInitialStep
+# TODO: Test QuadraticInitialStep
 
 ######################
 # Helpers
