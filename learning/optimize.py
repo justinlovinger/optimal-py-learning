@@ -7,6 +7,8 @@ import logging
 
 import numpy
 
+JACOBIAN_NORM_BREAK = 1e-10
+
 ############################
 # Problem
 ############################
@@ -238,6 +240,10 @@ class SteepestDescent(Optimizer):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
+        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
+            logging.info('Optimizer converged with small jacobian')
+            return obj_value, parameters
+
         step_size = self._step_size_getter(parameters, obj_value, self.jacobian,
                                            -self.jacobian, problem)
 
@@ -268,6 +274,10 @@ class SteepestDescentMomentum(Optimizer):
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
+
+        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
+            logging.info('Optimizer converged with small jacobian')
+            return obj_value, parameters
 
         # Setup step for this iteration (step_size*direction)
         step_dir = -self.jacobian
@@ -317,6 +327,11 @@ class BFGS(Optimizer):
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
+
+        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
+            logging.info('Optimizer converged with small jacobian')
+            return obj_value, parameters
+
         approx_inv_hessian = self._get_approx_inv_hessian(parameters, self.jacobian)
 
         step_dir = -(approx_inv_hessian.dot(self.jacobian))
