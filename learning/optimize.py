@@ -578,11 +578,11 @@ def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1, 
 
     step_size = initial_step
     for i in itertools.count(start=1):
-        if i >= 10:
+        if i >= 100:
             # Failsafe for numerical precision errors preventing convergence
             # This can happen if gradient provides very little improvement
             # (or is in the wrong direction)
-            logging.warning('Wolfe line search aborting after 10 iterations')
+            logging.warning('Wolfe line search aborting after 100 iterations')
             return step_size
 
         # Evaluate objective and jacobian for most recent step size
@@ -655,11 +655,11 @@ def _zoom_wolfe(step_size_low, step_size_low_obj, step_size_high, parameters,
         )
         assert step_size >= 0
 
-        if i >= 10:
+        if i >= 100:
             # Failsafe for numerical precision errors preventing convergence
             # This can happen if gradient provides very little improvement
             # (or is in the wrong direction)
-            logging.warning('Wolfe line search (zoom) aborting after 10 iterations')
+            logging.warning('Wolfe line search (zoom) aborting after 100 iterations')
             return step_size
 
         step_obj, step_grad = _step_size_obj_jac_func(
@@ -843,16 +843,21 @@ class FOChangeInitialStep(InitialStepGetter):
         step_dir: p_k; Step direction (ex. jacobian in steepest descent) at x_k.
         problem: Problem; Problem instance passed to Optimizer
         """
-        step_dot_dir = jac_xk.dot(step_dir)
+        jac_dot_dir = jac_xk.dot(step_dir)
 
         if self._prev_step_size is None:
             # Default to 1 for first iteration
             initial_step = 1.0
         else:
-            initial_step = self._prev_step_size * (self._prev_jac_dot_dir / step_dot_dir)
+            # Failsafe for divide by 0
+            if jac_dot_dir == 0.0:
+                logging.warning('jac_dot_dir == 0 in FOChangeInitialStep, defaulting to 1')
+                return 1.0
+
+            initial_step = self._prev_step_size * (self._prev_jac_dot_dir / jac_dot_dir)
 
         # For next iteration
-        self._prev_jac_dot_dir = step_dot_dir
+        self._prev_jac_dot_dir = jac_dot_dir
 
         return initial_step
 
@@ -892,8 +897,14 @@ class QuadraticInitialStep(InitialStepGetter):
             # Default to 1 for first iteration
             initial_step = 1.0
         else:
+            jac_dot_dir = jac_xk.dot(step_dir)
+            # Failsafe for divide by 0
+            if jac_dot_dir == 0.0:
+                logging.warning('jac_dot_dir == 0 in QuadraticInitialStep, defaulting to 1')
+                return 1.0
+
             initial_step = ((2.0 * (obj_xk - self._prev_obj_value))
-                            / (jac_xk.dot(step_dir)))
+                            / jac_dot_dir)
 
         # For next iteration
         self._prev_obj_value = obj_xk
