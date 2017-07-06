@@ -171,7 +171,7 @@ def equal_ignore_order(a, b):
 ############################
 # Gradient checking
 ############################
-def check_gradient(f, df, inputs=None, epsilon=1e-6, f_shape='lin'):
+def check_gradient(f, df, inputs=None, epsilon=1e-6, f_shape='scalar'):
     if inputs is None:
         inputs = numpy.random.rand(random.randint(2, 10))
 

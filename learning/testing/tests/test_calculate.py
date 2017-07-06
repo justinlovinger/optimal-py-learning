@@ -30,7 +30,7 @@ def test_tanh():
                                 [-0.761594, 0.0, 0.462117, 0.761594])
 
 def test_tanh_gradient():
-    helpers.check_gradient(calculate.tanh, lambda x: calculate.dtanh(calculate.tanh(x)))
+    helpers.check_gradient(calculate.tanh, lambda x: calculate.dtanh(calculate.tanh(x)), f_shape='lin')
 
 
 #####################
@@ -44,7 +44,7 @@ def test_gaussian_transfer():
 
 def test_gaussian_gradient():
     helpers.check_gradient(calculate.gaussian,
-                           lambda x: calculate.dgaussian(x, calculate.gaussian(x)))
+                           lambda x: calculate.dgaussian(x, calculate.gaussian(x)), f_shape='lin')
 
 #####################
 # Softmax
@@ -96,8 +96,8 @@ def test_big_relu_derivative():
                                 [0.5, 1.0])
 
 def test_relu_gradient():
-    helpers.check_gradient(calculate.relu, calculate.drelu)
+    helpers.check_gradient(calculate.relu, calculate.drelu, f_shape='lin')
 
 def test_big_relu_gradient():
     helpers.check_gradient(calculate.relu, calculate.drelu,
-                           inputs=numpy.array([0., 1000.]))
+                           inputs=numpy.array([0., 1000.]), f_shape='lin')
