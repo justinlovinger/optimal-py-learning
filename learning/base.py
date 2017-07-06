@@ -160,6 +160,11 @@ class Model(object):
                         and self.avg_mse(input_matrix, target_matrix) <= error_break):
                     return True
 
+                # Skip the rest if we're already out of iterations (optimization)
+                # Useful for situations where we only run 1 iteration
+                if self.iteration == iterations:
+                    return False
+
                 # Break if no progress is made
                 if _all_close(error_history, error, error_stagnant_threshold):
                     # Break if not enough difference between all resent errors
