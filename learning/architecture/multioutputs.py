@@ -110,6 +110,8 @@ class MultiOutputs(Model):
                 if i != 0:
                     print
                 print 'Training Model %d:' % (i+1)
+            else:
+                model.logging = self.logging
             model.train(input_matrix, targets, *args, **kwargs)
 
         self.iteration = sum([model.iteration for model in self._models])
