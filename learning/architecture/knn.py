@@ -1,7 +1,7 @@
 """Layers and functions for a k-nearest-neighbors architecture."""
 import heapq
 
-from pynn import calculate
+from learning import calculate
 
 def select_k_nearest_neighbors(points, center, k):
     """Return the k points in dataset nearest center."""

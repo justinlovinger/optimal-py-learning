@@ -1,4 +1,4 @@
-from pynn import graph
+from learning import graph
 
 def test_reverse_edge():
     edge = ('1', '2')

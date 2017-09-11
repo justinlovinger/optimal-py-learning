@@ -1,6 +1,6 @@
 import numpy
 
-from pynn import Model
+from learning import Model
 
 class Ensemble(Model):
     def __init__(self, networks):

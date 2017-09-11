@@ -2,7 +2,7 @@ import copy
 
 import numpy
 
-from pynn.architecture import knn
+from learning.architecture import knn
 
 ########################
 # Normalization

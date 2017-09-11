@@ -2,8 +2,8 @@
 
 import numpy
 
-from pynn import Model
-from pynn.architecture import transfer
+from learning import Model
+from learning.architecture import transfer
 
 class SOM(Model):
     def __init__(self, attributes, neurons, 

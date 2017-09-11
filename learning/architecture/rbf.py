@@ -1,10 +1,10 @@
 """Radial Basis Function network."""
 import numpy
 
-from pynn import Model
-from pynn import SOM
-from pynn.architecture import mlp
-from pynn.architecture import transfer
+from learning import Model
+from learning import SOM
+from learning.architecture import mlp
+from learning.architecture import transfer
 
 class RBF(Model):
     """Radial Basis Function network."""

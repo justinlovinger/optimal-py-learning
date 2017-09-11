@@ -5,8 +5,9 @@ import pytest
 import numpy
 from scipy import optimize
 
-from pynn.architecture import transfer
-from pynn.testing import helpers
+from learning.architecture import transfer
+
+from learning.testing import helpers
 
 #####################
 # Tanh

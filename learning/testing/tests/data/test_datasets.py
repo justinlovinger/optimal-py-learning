@@ -1,6 +1,6 @@
 import random
 
-from pynn.data import datasets
+from learning.data import datasets
 
 def test_lenses():
     patterns = datasets.get_lenses()

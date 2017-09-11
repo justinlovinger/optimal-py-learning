@@ -2,8 +2,8 @@ import copy
 
 import numpy
 
-from pynn import Model
-from pynn.architecture import pbnn
+from learning import Model
+from learning.architecture import pbnn
 
 class EmptyModel(Model):
     def activate(self, inputs):

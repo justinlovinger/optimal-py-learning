@@ -4,10 +4,10 @@ import copy
 import pytest
 import numpy
 
-from pynn import preprocess
-from pynn.data import datasets
+from learning import preprocess
+from learning.data import datasets
 
-from pynn.testing import helpers
+from learning.testing import helpers
 
 def test_normalize():
     random_matrix = numpy.random.rand(random.randint(2, 10),

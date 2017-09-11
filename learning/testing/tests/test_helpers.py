@@ -2,7 +2,7 @@ import copy
 
 import numpy
 
-from pynn.testing import helpers
+from learning.testing import helpers
 
 def test_SaneEqualityArray():
     assert helpers.sane_equality_array([0, 1, 2]) == helpers.sane_equality_array([0, 1, 2])

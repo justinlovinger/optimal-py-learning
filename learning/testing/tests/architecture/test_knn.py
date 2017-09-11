@@ -1,8 +1,8 @@
 import numpy
 
-from pynn.architecture import knn
+from learning.architecture import knn
 
-from pynn.testing import helpers
+from learning.testing import helpers
 
 def test_select_k_nearest_neighbors():
     points = [((0,), (0,)), ((1,), (0,)), ((2,), (0,))]

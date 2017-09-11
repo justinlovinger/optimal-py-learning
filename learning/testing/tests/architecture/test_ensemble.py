@@ -1,5 +1,6 @@
-from pynn.architecture import ensemble
-from pynn.testing import helpers
+from learning.architecture import ensemble
+
+from learning.testing import helpers
 
 def test_bagger():
     # Create dummy layers that return set outputs

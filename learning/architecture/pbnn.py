@@ -1,7 +1,7 @@
 import numpy
 
-from pynn import Model
-from pynn.architecture import transfer
+from learning import Model
+from learning.architecture import transfer
 
 class PBNN(Model):
     def __init__(self, variance=None, scale_by_similarity=True, scale_by_class=True):

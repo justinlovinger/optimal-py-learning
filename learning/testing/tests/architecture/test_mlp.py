@@ -3,9 +3,9 @@ import copy
 
 import numpy
 
-from pynn.architecture import mlp
+from learning.architecture import mlp
 
-from pynn.testing import helpers
+from learning.testing import helpers
 
 def test_perceptron():
     # Given known inputs, test expected outputs

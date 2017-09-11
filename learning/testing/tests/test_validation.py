@@ -3,8 +3,9 @@ import time
 
 import numpy
 
-from pynn import validation
-from pynn.testing import helpers
+from learning import validation
+
+from learning.testing import helpers
 
 def random_dataset():
     dataset = []

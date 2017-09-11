@@ -3,7 +3,7 @@ import random
 
 import numpy
 
-from pynn.data import process
+from learning.data import process
 
 def filename_relative(name):
     return os.path.join(os.path.dirname(__file__), 'datasets', name)

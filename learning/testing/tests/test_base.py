@@ -4,11 +4,12 @@ import random
 
 import numpy
 
-from pynn import graph
-from pynn import base
-from pynn.data import datasets
-from pynn.architecture import mlp, rbf
-from pynn.testing import helpers
+from learning import graph
+from learning import base
+from learning.data import datasets
+from learning.architecture import mlp, rbf
+
+from learning.testing import helpers
 
 def test_mse():
     # This network will always output 0 for input 0

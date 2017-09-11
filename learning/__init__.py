@@ -1,8 +1,8 @@
 # Add model building
-from pynn.base import Model
+from learning.base import Model
 
 # Add models
-from pynn.architecture.som import SOM
-from pynn.architecture.mlp import MLP
-from pynn.architecture.rbf import RBF
-from pynn.architecture.pbnn import PBNN
+from learning.architecture.som import SOM
+from learning.architecture.mlp import MLP
+from learning.architecture.rbf import RBF
+from learning.architecture.pbnn import PBNN
