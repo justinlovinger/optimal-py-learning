@@ -1,6 +1,9 @@
 import random
+import time
 
 from pynn import validation
+from pynn import network
+from pynn.testing import helpers
 
 def random_dataset():
     dataset = []
@@ -23,7 +26,7 @@ def random_dataset():
 def test_split_dataset():
     dataset = random_dataset()
     num_sets = random.randint(2, 5)
-    sets = validation.split_dataset(dataset, num_sets)
+    sets = validation._split_dataset(dataset, num_sets)
 
     # The right number of sets is created
     assert len(sets) == num_sets
@@ -37,3 +40,60 @@ def test_split_dataset():
             for point1 in sets[i]:
                 for point2 in sets[j]:
                     assert point1 != point2
+
+def test_mean_of_dicts():
+    folds = [{'test': 0.0, 'test2': 1.0},
+             {'test': 1.0, 'test2': 2.0}]
+    assert validation._mean_of_dicts(folds) == {'test': 0.5, 'test2': 1.5}
+
+def test_sd_of_dicts():
+    folds = [{'test': 0.0, 'test2': 1.0},
+             {'test': 1.0, 'test2': 2.0}]
+    means = validation._mean_of_dicts(folds)
+    assert validation._sd_of_dicts(folds, means) == {'test': 0.5,
+                                                     'test2': 0.5}
+
+def test_validate_network():
+    pass
+
+def test_cross_validate(monkeypatch):
+    # Make network that returns set output for a given input
+    patterns = [
+                ([0], [1]),
+                ([1], [1]),
+                ([2], [1])
+               ]
+    inputs_output_dict = {(0,): [1],
+                          (1,): [1],
+                          (2,): [1]}
+    nn = network.Network([helpers.SetOutputPerInputsLayer(inputs_output_dict)])
+
+    # Cross validate with deterministic network, and check output
+    
+    # Patch time.clock so time attribute is deterministic
+    monkeypatch.setattr(time, 'clock', lambda : 0.0)
+
+    # Track patterns for training
+    training_patterns = []
+    def post_pattern_callback(network_, pattern):
+        training_patterns.append(pattern)
+
+    # Validate
+    stats = validation.cross_validate(nn, patterns, num_folds=3,
+                                      iterations=1,
+                                      post_pattern_callback=post_pattern_callback)
+
+    # Check
+    assert stats == {'folds': [{'time': 0.0, 'epochs': 1,
+                                'training_error': 0.0, 'testing_error': 0.0},
+                               {'time': 0.0, 'epochs': 1,
+                                'training_error': 0.0, 'testing_error': 0.0},
+                               {'time': 0.0, 'epochs': 1,
+                                'training_error': 0.0, 'testing_error': 0.0}],
+                     'mean': {'time': 0.0, 'epochs': 1,
+                              'training_error': 0.0, 'testing_error': 0.0},
+                     'sd': {'time': 0.0, 'epochs': 0.0,
+                            'training_error': 0.0, 'testing_error': 0.0}}
+    assert training_patterns == [([1], [1]), ([2], [1]), # First fold
+                                 ([0], [1]), ([2], [1]), # Second fold
+                                 ([0], [1]), ([1], [1])] # Third fold

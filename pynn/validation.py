@@ -1,24 +1,38 @@
 import math
 import time
+import numbers
 
-def validate_set(network, training_set, testing_set, **kwargs):
-    stats = {}
+def _validate_network(network_, training_set, testing_set, **kwargs):
+    """Test the given network on a partitular trainign and testing set."""
+
+    # Temporarily disable logging
+    curr_logging = network_.logging
+    network_.logging = False
 
     # Train network on training set
+    network_.reset()
+
     start = time.clock()
-    network.train(training_set, **kwargs)
+    network_.train(training_set, **kwargs) # Train
     elapsed = time.clock() - start
 
+    network_.logging = curr_logging # Logging back to previous
+
+    # Collect stats
+    stats = {}
     stats['time'] = elapsed
-    stats['epochs'] = network.iteration
+    stats['epochs'] = network_.iteration
 
     # Get error for training and testing set
-    stats['training_error'] = network.get_avg_error(training_set)
-    stats['testing_error'] = network.get_avg_error(testing_set)
+    stats['training_error'] = network_.get_avg_error(training_set)
+    stats['testing_error'] = network_.get_avg_error(testing_set)
 
     return stats
 
-def split_dataset(patterns, num_sets):
+############################
+# Setup for Cross Validation
+############################
+def _split_dataset(patterns, num_sets):
     """Split patterns into num_sets disjoint sets."""
 
     sets = []
@@ -34,10 +48,11 @@ def split_dataset(patterns, num_sets):
         start_pos += set_size
     return sets
 
-def create_train_test_sets(sets):
+
+def _create_train_test_sets(sets):
     """Organize sets into training and testing groups.
 
-    Each group has a train and a test set.
+    Each group has one test set, and all others are training.
     Each group has all patterns between the train and test set.
     """
 
@@ -58,46 +73,84 @@ def create_train_test_sets(sets):
 
     return train_test_sets
 
-def mean_of_folds(stats):
-    num_folds = len(stats.keys())
+#############################
+# Statistics
+#############################
+def _mean(list_):
+    return sum(list_) / len(list_)
+
+def _mean_of_dicts(dicts):
+    """Obtain a mean dict from a list of dicts with the same keys.
+
+    Args:
+        dicts: list : dict; A list of dicts.
+    """
+    first = dicts[0]
 
     mean = {}
-    for key in stats['Fold 0']:
-        mean[key] = sum(fold[key] for fold in stats.values())/float(num_folds)
+    for key in first:
+        # Skip non numberic attributes
+        if isinstance(first[key], numbers.Number):
+            mean[key] = _mean([dict_[key] for dict_ in dicts])
+
     return mean
 
-def std_of_folds(stats, mean):
-    num_folds = len(stats.keys())
+def _sd(list_, mean):
+    return math.sqrt(sum([(val - mean)**2 for val in list_]) / len(list_))
 
-    std = {}
-    for key in stats['Fold 0']:
-        std[key] = math.sqrt(sum((fold[key]-mean[key])**2 for fold in stats.values())/float(num_folds))
-    return std
+def _sd_of_dicts(dicts, means):
+    """Obtain a standard deviation dict from a list of dicts with the same keys.
 
-def add_mean_std_to_stats(stats):
-    mean = mean_of_folds(stats)
-    std = std_of_folds(stats, mean) 
+    Note that this is the population standard deviation,
+    not the sample standard deviation.
 
-    stats['Mean'] = mean
-    stats['STD'] = std
+    Args:
+        dicts: list : dict; A list of dicts.
+        means: dict; dict mapping key to mean of key in dicts
+    """
+    first = dicts[0]
 
-def cross_validate(network, patterns, num_folds=3,
-                   iterations=1000, error_break=0.02):
+    standard_deviation = {}
+    for key in first:
+        # Skip non numberic attributes
+        if isinstance(first[key], numbers.Number):
+            standard_deviation[key] = _sd([dict_[key] for dict_ in dicts], means[key])
+
+    return standard_deviation
+
+
+def _add_mean_sd_to_stats(stats):
+    mean = _mean_of_dicts(stats['folds'])
+    sd = _sd_of_dicts(stats['folds'], mean) 
+
+    stats['mean'] = mean
+    stats['sd'] = sd
+
+
+def cross_validate(network_, patterns, num_folds=3, **kwargs):
     """Split the patterns, then train and test network on each fold."""
 
     # Get our sets, for use in cross validation
-    sets = split_dataset(patterns, num_folds)
-    train_test_sets = create_train_test_sets(sets)
+    sets = _split_dataset(patterns, num_folds)
+    train_test_sets = _create_train_test_sets(sets)
 
     # Get the stats on each set
     stats = {}
 
-    for i, (train_set, test_set) in enumerate(train_test_sets):
-        network.reset()
-        stats['Fold {}'.format(i)] = validate_set(network, train_set, test_set,
-                                                  iterations=iterations, error_break=error_break)
+    folds = []
+    for (train_set, test_set) in train_test_sets:
+        folds.append(_validate_network(network_, train_set, test_set, **kwargs))
+    stats['folds'] = folds
 
-    # Get average and std
-    add_mean_std_to_stats(stats)
+    # Get average and standard deviation
+    _add_mean_sd_to_stats(stats)
 
     return stats
+
+def benchmark(network_, patterns, num_folds=3, runs=30, **kwargs):
+    # TODO: maybe just take a function, and aggregate stats for that function
+    assert 0
+
+def compare((networks, patterns), num_folds, **kwargs):
+    """Compare a set of algorithms on a set of patterns."""
+

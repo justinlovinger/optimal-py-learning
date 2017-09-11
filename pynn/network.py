@@ -409,7 +409,7 @@ class Network(object):
             layer.pre_training(patterns)
 
         # Learn on each pattern for each iteration
-        for self.iteration in range(iterations):
+        for self.iteration in range(1, iterations+1):
 
             # Pre-iteration for each layer
             for layer in self._activation_order:

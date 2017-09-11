@@ -122,6 +122,7 @@ def test_post_pattern_callback():
 ##########################
 # Full architecture tests
 ##########################
+# TODO: use validation methods to more robustly test
 def test_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original

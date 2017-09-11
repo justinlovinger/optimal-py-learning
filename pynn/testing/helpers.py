@@ -1,3 +1,5 @@
+import numpy
+
 from pynn import network
 
 class SetOutputLayer(network.Layer):
@@ -10,6 +12,28 @@ class SetOutputLayer(network.Layer):
         return self.output
 
     def reset(self):
+        pass
+
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
+        pass
+
+    def update(self, inputs, outputs, errors):
+        pass
+
+class SetOutputPerInputsLayer(network.Layer):
+    """Returns a set output for a defined input."""
+    def __init__(self, inputs_output_dict):
+        super(SetOutputPerInputsLayer, self).__init__()
+
+        self._inputs_output_dict = inputs_output_dict
+
+    def activate(self, inputs):
+        return numpy.array(self._inputs_output_dict[tuple(inputs)])
+
+    def reset(self):
+        pass
+
+    def get_prev_errors(self, all_inputs, all_errors, outputs):
         pass
 
     def update(self, inputs, outputs, errors):
