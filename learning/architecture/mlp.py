@@ -1,6 +1,7 @@
 import random
 import copy
 import functools
+import operator
 
 import numpy
 
@@ -44,7 +45,23 @@ class MLP(Model):
 
         # Parameter optimization for training
         if optimizer is None:
-            optimizer = BFGS()
+            # If there are a lot of weights, use an optimizer that doesn't use hessian
+            # TODO (maybe): Default optimizer should work with mini-batches (be robust to changing problem)
+            # optimizers like BFGS, and initial step strategies like FO and quadratic, rely heavily on information from
+            # previous iterations, resulting in poor performance if the problem changes between iterations.
+            # NOTE: Ideally, the Optimizer itself should handle its problem changing.
+
+            # Count number of weights
+            if sum([
+                    reduce(operator.mul, weight_matrix.shape)
+                    for weight_matrix in self._weight_matrices
+            ]) > 500:  # NOTE: Cutoff value could use more testing
+                # Too many weights, don't use hessian
+                optimizer = SteepestDescent()
+            else:
+                # Low enough weights, use hessian
+                optimizer = BFGS()
+
         self._optimizer = optimizer
 
         # Error function for training

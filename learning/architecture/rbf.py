@@ -1,4 +1,6 @@
 """Radial Basis Function network."""
+import operator
+
 import numpy
 
 from learning import Model
@@ -34,7 +36,21 @@ class RBF(Model):
 
         # Optimizer to optimize weight_matrix
         if optimizer is None:
-            optimizer = BFGS()
+            # If there are a lot of weights, use an optimizer that doesn't use hessian
+            # TODO (maybe): Default optimizer should work with mini-batches (be robust to changing problem)
+            # optimizers like BFGS, and initial step strategies like FO and quadratic, rely heavily on information from
+            # previous iterations, resulting in poor performance if the problem changes between iterations.
+            # NOTE: Ideally, the Optimizer itself should handle its problem changing.
+
+            # Count number of weights
+            # NOTE: Cutoff value could use more testing
+            if reduce(operator.mul, self._weight_matrix.shape) > 500:
+                # Too many weights, don't use hessian
+                optimizer = SteepestDescent()
+            else:
+                # Low enough weights, use hessian
+                optimizer = BFGS()
+
         self._optimizer = optimizer
 
         # Error function for training
