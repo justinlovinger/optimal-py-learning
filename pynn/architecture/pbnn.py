@@ -1,92 +1,70 @@
 import numpy
 
 from pynn import network
+from pynn.architecture import transfer
 
-class StoreInputsLayer(network.Layer):
-    requires_prev = (None,)
+class PBNN(network.Model):
+    def __init__(self, variance=None, scale_by_similarity=True, scale_by_class=True):
+        super(PBNN, self).__init__()
 
-    def __init__(self):
-        self.stored_inputs = None
+        if variance is None:
+            # TODO: Adjust it during training
+            self._variance = 1.0
+        else:
+            self._variance = variance
+        self._scale_by_class = scale_by_class
+        self._scale_by_similarity = scale_by_similarity
+
+        self._input_matrix = None # Inputs stored when training
+        self._target_matrix = None # Targets stored when training
+        self._target_totals = None # Sum of rows in target matrix
 
     def reset(self):
-        self.stored_inputs = None
+        """Reset this model."""
+        self._input_matrix = None
+        self._target_matrix = None
+        self._target_totals = None
 
-    def pre_training(self, patterns):
+    def activate(self, inputs):
+        """Return the model outputs for given inputs."""
+        # Calculate similarity between input and each stored input
+        # (gaussian of each distance)
+        similarities = transfer.gaussian(_distances(inputs, self._input_matrix), self._variance)
+        # Then scale each stored target by corresponding similarity, and sum
+        output_vec = _weighted_sum_rows(self._target_matrix, similarities)
+
+        if self._scale_by_similarity:
+            output_vec /= numpy.sum(similarities)
+
+        if self._scale_by_class:
+            # Scale output by number of classes (sum of targets)
+            # This minimizes the effect of unbalanced classes
+            output_vec /= self._target_totals
+
+        # Convert output to probabilities, and return
+        output_vec /= sum(output_vec)
+        return output_vec
+
+    def train(self, patterns):
         # Extract inputs from patterns
+        # And store them to recall later
         inputs = [p[0] for p in patterns]
+        self._input_matrix = numpy.array(inputs)
 
+        # Extract targets from patterns
         # And store them to recall later
-        self.stored_inputs = numpy.array(inputs)
-
-    def activate(self):
-        # NOTE: should this copy the inputs before returning?
-        # it would be less efficient, but less prone to error
-        # Ideally, the recieving layer will make a copy if necessary
-        return self.stored_inputs
-
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return None
-
-    def update(self, inputs, outputs, errors):
-        pass
-
-
-class DistancesLayer(network.Layer):
-    def activate(self, inputs, centers):
-        diffs = inputs - centers
-        distances = [numpy.sqrt(d.dot(d)) for d in diffs]
-        return numpy.array(distances)
-
-    def reset(self):
-        pass
-
-    def update(self, *args, **kwargs):
-        pass
-
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        # TODO
-        return None
-
-
-class StoreTargetsLayer(network.Layer):
-    requires_prev = (None,)
-
-    def __init__(self):
-        self.stored_targets = None
-
-    def reset(self):
-        self.stored_targets = None
-
-    def pre_training(self, patterns):
-        # Extract inputs from patterns
         targets = [p[1] for p in patterns]
+        self._target_matrix = numpy.array(targets)
 
-        # And store them to recall later
-        self.stored_targets = numpy.array(targets)
+        # Calculate target sum now, for efficiency
+        self._target_totals = numpy.sum(self._target_matrix, axis=0)
 
-    def activate(self):
-        # NOTE: should this copy before returning?
-        # it would be less efficient, but less prone to error
-        # Ideally, the recieving layer will make a copy if necessary
-        return self.stored_targets
+def _distances(x_vec, y_matrix):
+    """Return vector of distances between x_vec and each y_matrix row."""
+    diffs = x_vec - y_matrix
+    distances = [numpy.sqrt(d.dot(d)) for d in diffs]
+    return numpy.array(distances)
 
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return None
-
-    def update(self, inputs, outputs, errors):
-        pass
-
-class WeightedSummationLayer(network.Layer):
-    def reset(self):
-        pass
-
-    def activate(self, inputs, targets):
-        # Multiply each target (row of stored targets) by corresponding input element
-        return numpy.sum(targets * inputs[:, numpy.newaxis], axis=0)
-
-    def update(self, inputs, outputs, errors):
-        pass
-
-    def get_prev_errors(self, all_inputs, all_errors, outputs):
-        # TODO
-        return None
+def _weighted_sum_rows(x_matrix, scaling_vector):
+    """Return sum of rows in x_matrix, each row scaled by scalar in scaling_vector."""
+    return numpy.sum(x_matrix * scaling_vector[:, numpy.newaxis], axis=0)

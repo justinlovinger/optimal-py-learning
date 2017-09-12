@@ -60,17 +60,6 @@ class SoftmaxTransfer(Transfer):
         return error_vec
 
 
-class NormalizeTransfer(Transfer):
-    def activate(self, inputs, scaling_inputs):
-        return inputs / numpy.sum(scaling_inputs)
-
-    # TODO: what to do with get_prev_errors?
-    # Look at current gaussian output for inspiration
-    # divide errors by sum scaling inputs?
-    def get_prev_errors(self, input_vec, scaling_inputs, error_vec, output_vec):
-        # errors / sum(scaling_inputs)
-        return error_vec / numpy.sum(scaling_inputs)
-
 def tanh(x):
     """Sigmoid like function using tanh"""
     return numpy.tanh(x)
