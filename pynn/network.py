@@ -129,16 +129,29 @@ def _validate_layers_sequence(layers):
     for i in range(1, len(layers)):
         _validate_requires_prev(layers[i], layers[i-1])
 
-def _validate_graph(graph):
+def _validate_graph(graph_):
     # Graph should have 'I' key
+    assert 'I' in graph_.nodes
+
+    # 'I' should have no incoming edges
+    for edge in graph_.edges:
+        assert edge[1] != 'I'
+
+    # 'O' should have no outgoing edges
+    for edge in graph_.edges:
+        assert edge[0] != 'O'
 
     # Graph should have exactly one 'O' value
-    
-    # All nodes should be able to flow to output
-    #for node in graph:
-        # find path from node to 'O'
+    O_s = 0
+    for edge in graph_.edges:
+        if 'O' in edge:
+            O_s += 1
+    assert O_s == 1
 
-    assert 0
+    # All nodes should be able to flow to output
+    for node in graph_.nodes:
+        # find path from node to 'O'
+        assert graph.find_path(graph_.adjacency, node, 'O') is not None
 
 
 ##############################
@@ -166,12 +179,11 @@ def _reverse_graph(graph):
 
 class Network(object):
     """A composite of layers connected in sequence."""
-    def __init__(self, graph_):
-        #_validate_layers_sequence(layers)
+    def __init__(self, layers_adjacency_dict):
+        self._graph = graph.Graph(layers_adjacency_dict)
+        _validate_graph(self._graph)
+        self._layers = self._graph.nodes - set(['I', 'O'])
 
-        _validate_graph(graph_)
-
-        self._graph = graph.Graph(graph_)
         self._activations = {}
         for layer in self._graph.nodes:
             self._activations[layer] = None
@@ -194,12 +206,12 @@ class Network(object):
         self._activations = {'I': inputs}
         
         open_list = ['I']
-        activated = set()
+        activated = set(['O']) # So we don't try to activate the output
         while len(open_list) > 0:
             key = open_list.pop(0)
             for layer in self._graph.adjacency[key]:
                 if layer not in activated:
-                    ouputs = layer.activate(self._incoming_activations(layer))
+                    ouputs = layer.activate(*self._incoming_activations(layer))
                     activated.add(layer)
 
                     # Track all activations for learning
@@ -208,7 +220,8 @@ class Network(object):
                     # Queue for activation
                     open_list.append(layer)
 
-        return self._activations['O']
+        # Return activation of the only layer that feeds into output
+        return self._activations[self._graph.backwards_adjacency['O'][0]]
 
     def update(self, inputs, targets):
         # TODO: update to graph system
@@ -389,7 +402,12 @@ def make_pbnn():
 
     # Gaussian transfer
     # Weighted summation (weighted by output of guassian transfer), sums targets
-    # Normalize output
-    layers = [distances, transfer.GaussianTransfer(),
-              pbnn.WeightedSummationLayer()]
+    # TODO: Normalize output
+    gaussian_transfer = transfer.GaussianTransfer()
+    weighted_summation = pbnn.WeightedSummationLayer()
+    layers = {'I': [distances],
+              distances: [gaussian_transfer],
+              gaussian_transfer: [weighted_summation],
+              weighted_summation: ['O']}
+
     return Network(layers)

@@ -32,3 +32,7 @@ def test_add_edge_from_node_not_in_graph():
     assert graph_.adjacency == {'1': ['2'], '2': ['3']}
     assert graph_.edges == set([('1', '2'), ('2', '3')])
     assert graph_.nodes == set(['1', '2', '3'])
+
+
+def test_backwards_adjacency():
+    assert 0
