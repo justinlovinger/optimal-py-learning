@@ -16,6 +16,7 @@ def test_lenses():
     assert (input_matrix[8] == numpy.array([0, -1, -1, -1])).all()
     assert (target_matrix[8] == numpy.array([0, 0, 1])).all()
 
+
 def test_get_random_classification_dataset():
     num_points = random.randint(1, 100)
     input_size = random.randint(1, 100)
@@ -42,6 +43,7 @@ def test_get_random_classification_dataset():
                 target_count += 1
         assert target_count == 1
 
+
 def test_get_random_regression_dataset():
     num_points = random.randint(1, 100)
     input_size = random.randint(1, 100)
@@ -64,4 +66,3 @@ def test_get_random_regression_dataset():
         # Target is a random vector
         for val in tar_vec:
             assert -1 <= val <= 1
-
