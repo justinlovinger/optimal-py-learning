@@ -2,6 +2,7 @@ import random
 
 import pytest
 
+from learning import validation
 from learning.architecture import rbf
 from learning.data import datasets
 
@@ -13,23 +14,24 @@ from learning.testing import helpers
 def test_rbf():
     # Run for a couple of iterations
     # assert that new error is less than original
-    nn = rbf.RBF(2, 4, 2, scale_by_similarity=True)
-    pat = datasets.get_xor()
+    model = rbf.RBF(2, 4, 2, scale_by_similarity=True)
+    dataset = datasets.get_xor()
 
-    error = nn.avg_mse(*pat)
-    nn.train(*pat, iterations=10)
-    assert nn.avg_mse(*pat) < error
+    error = validation.get_error(model, *dataset)
+    model.train(*dataset, iterations=10)
+    assert validation.get_error(model, *dataset) < error
 
 
 @pytest.mark.slowtest
 def test_rbf_convergence():
     # Run until convergence
     # assert that network can converge
-    nn = rbf.RBF(2, 4, 2, scale_by_similarity=True)
-    pat = datasets.get_xor()
+    model = rbf.RBF(2, 4, 2, scale_by_similarity=True)
+    dataset = datasets.get_xor()
 
-    nn.train(*pat, retries=5, error_break=0.002)
-    assert nn.avg_mse(*pat) <= 0.02
+    model.train(*dataset, retries=5, error_break=0.002)
+    assert validation.get_error(model, *dataset) <= 0.02
+
 
 def test_rbf_obj_and_obj_jac_match():
     """obj and obj_jac functions should return the same obj value."""
@@ -45,11 +47,14 @@ def test_rbf_obj_and_obj_jac_match():
     assert helpers.approx_equal(model._get_obj(parameters, dataset[0], dataset[1]),
                                 model._get_obj_jac(parameters, dataset[0], dataset[1])[0])
 
+
 def test_rbf_jacobian_scale_by_similarity():
     _check_jacobian(lambda a, n, o: rbf.RBF(a, n, o, scale_by_similarity=True))
 
+
 def test_rbf_jacobian():
     _check_jacobian(lambda a, n, o: rbf.RBF(a, n, o, scale_by_similarity=False))
+
 
 def _check_jacobian(make_model_func):
     attrs = random.randint(1, 10)

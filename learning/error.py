@@ -25,6 +25,7 @@
 
 import numpy
 
+
 class ErrorFunc(object):
     """An error function."""
     def __call__(self, vec_a, vec_b):
@@ -38,6 +39,7 @@ class ErrorFunc(object):
         """Return (error, derivative matrix or vector)."""
         raise NotImplementedError()
 
+
 class MSE(ErrorFunc):
     """Mean squared error."""
     def __call__(self, vec_a, vec_b):
@@ -45,17 +47,18 @@ class MSE(ErrorFunc):
 
         Typically, vec_a with be a model output, and vec_b a target vector.
         """
-        return numpy.mean((vec_a - vec_b)**2)
+        return numpy.mean((numpy.subtract(vec_a, vec_b))**2)
 
     def derivative(self, vec_a, vec_b):
         """Return error, derivative_matrix."""
-        error_vec = vec_a - vec_b
+        error_vec = numpy.subtract(vec_a, vec_b)
         mse = numpy.mean(error_vec**2) # For returning error
 
         # Note that error function is not 0.5*mse, so we multiply by 2
         error_vec *= (2.0/len(vec_b))
 
         return mse, error_vec
+
 
 class CrossEntropy(ErrorFunc):
     """Cross entropy error.

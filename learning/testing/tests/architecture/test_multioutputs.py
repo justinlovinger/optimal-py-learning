@@ -1,10 +1,11 @@
 import numpy
 import pytest
 
-from learning import Model, MLP
+from learning import Model, MLP, validation
 from learning.architecture import multioutputs
 
 from learning.testing import helpers
+
 
 class LearnOutput(Model):
     def __init__(self, learn_rate):
@@ -23,7 +24,8 @@ class LearnOutput(Model):
         return self._output
 
     def train_step(self, inputs, target):
-        self._output += self.learn_rate*(target-self.activate(inputs))
+        self._output += self.learn_rate * (target - self.activate(inputs))
+
 
 def test_multioutputs_list_of_models():
     model = multioutputs.MultiOutputs([LearnOutput(1.0), LearnOutput(1.0)])
@@ -31,9 +33,11 @@ def test_multioutputs_list_of_models():
 
     assert model.activate([]) == [-1, 1]
 
+
 def test_multioutputs_activate():
     model = multioutputs.MultiOutputs(helpers.SetOutputModel(1), 2)
     assert model.activate([None]) == [1, 1]
+
 
 def test_multioutputs_train():
     model = multioutputs.MultiOutputs(LearnOutput(1.0), 2)
@@ -41,16 +45,20 @@ def test_multioutputs_train():
 
     assert model.activate([]) == [-1, 1]
 
+
 def test_nested_multioutputs_train():
-    model = multioutputs.MultiOutputs(multioutputs.MultiOutputs(LearnOutput(1.0), 2), 2)
+    model = multioutputs.MultiOutputs(
+        multioutputs.MultiOutputs(LearnOutput(1.0), 2), 2)
     model.train([None], numpy.array([[[1, 2], [3, 4]]]))
     model.logging = False
 
     assert model.activate([]) == [[1, 2], [3, 4]]
 
+
 def test_get_reward():
     assert multioutputs._get_reward(1.0, 0.0) == 1.0
     assert multioutputs._get_reward(1.0, 0.5) == 0.6
+
 
 ####################
 # Serialization
@@ -59,20 +67,31 @@ def test_serialize_unserialize():
     dataset = (numpy.random.random((10, 10)), numpy.random.random((10, 2, 10)))
 
     model = multioutputs.MultiOutputs(MLP((10, 2, 10)), 2)
-    unserialized_model = multioutputs.MultiOutputs.unserialize(model.serialize())
+    unserialized_model = multioutputs.MultiOutputs.unserialize(
+        model.serialize())
 
     assert isinstance(unserialized_model, multioutputs.MultiOutputs)
-    assert (helpers.fix_numpy_array_equality([model.activate(inp_vec) for inp_vec in dataset[0]])
-            == helpers.fix_numpy_array_equality(
-                [unserialized_model.activate(inp_vec) for inp_vec in dataset[0]]))
+    assert (helpers.fix_numpy_array_equality(
+        [model.activate(inp_vec)
+         for inp_vec in dataset[0]]) == helpers.fix_numpy_array_equality(
+             [unserialized_model.activate(inp_vec) for inp_vec in dataset[0]]))
+
 
 ####################
 # MSE
 ####################
-def test_mse():
-    model = multioutputs.MultiOutputs([helpers.SetOutputModel([1.0]), helpers.SetOutputModel([1.0, 1.0, 1.0])])
-    assert model.mse([], [[1.0], [1.0, 1.0, 1.0]]) == 0.0
-    assert model.mse([], [[1.0], [0.0, 0.0, 0.0]]) == 0.5
+def test_get_error_unusual_targets_shape():
+    from learning import error
+
+    model = multioutputs.MultiOutputs([
+        helpers.SetOutputModel([1.0]),
+        helpers.SetOutputModel([1.0, 1.0, 1.0])
+    ])
+    assert validation.get_error(
+        model, [[]], [[[1.0], [1.0, 1.0, 1.0]]], error_func=error.MSE()) == 0.0
+    assert validation.get_error(
+        model, [[]], [[[1.0], [0.0, 0.0, 0.0]]], error_func=error.MSE()) == 0.5
+
 
 ####################
 # Col getting
@@ -89,6 +108,7 @@ def test_matrix_col_1d(type_func):
         matrix, 1
     ) == 's2t1')
 
+
 @pytest.mark.parametrize('type_func', [numpy.array, lambda x: x])
 def test_matrix_col_2d(type_func):
     matrix = type_func([['s1t1', 's1t2'],
@@ -101,6 +121,7 @@ def test_matrix_col_2d(type_func):
     assert helpers.fix_numpy_array_equality(multioutputs._matrix_col(
         matrix, 1
     ) == helpers.fix_numpy_array_equality(type_func(['s1t2', 's2t2'])))
+
 
 @pytest.mark.parametrize('type_func', [numpy.array, lambda x: x])
 def test_matrix_col_3d(type_func):
@@ -119,6 +140,7 @@ def test_matrix_col_3d(type_func):
     ) == helpers.fix_numpy_array_equality(type_func([['s1t21', 's1t22'],
                                                      ['s2t21', 's2t22']])))
 
+
 def test_matrix_col_2d_list_of_arrays():
     matrix = [numpy.array(['s1t1', 's1t2']),
               numpy.array(['s2t1', 's2t2'])]
@@ -131,14 +153,16 @@ def test_matrix_col_2d_list_of_arrays():
         matrix, 1
     ) == helpers.fix_numpy_array_equality(['s1t2', 's2t2']))
 
+
 @pytest.mark.parametrize('type_func', [numpy.array, lambda x: x])
 def test_transpose_rowcol_1d(type_func):
-    # Should cause no change    
+    # Should cause no change
     matrix = type_func(['s1t1', 's2t1'])
 
     assert helpers.fix_numpy_array_equality(multioutputs._transpose_rowcol(
         matrix
     ) == helpers.fix_numpy_array_equality(type_func(['s1t1', 's2t1'])))
+
 
 @pytest.mark.parametrize('type_func', [numpy.array, lambda x: x])
 def test_transpose_rowcol_2d(type_func):
@@ -149,6 +173,7 @@ def test_transpose_rowcol_2d(type_func):
         matrix
     ) == helpers.fix_numpy_array_equality(type_func([('s1t1', 's2t1'),
                                                      ('s1t2', 's2t2')])))
+
 
 @pytest.mark.parametrize('type_func', [numpy.array, lambda x: x])
 def test_transpose_rowcol_3d(type_func):
@@ -163,6 +188,7 @@ def test_transpose_rowcol_3d(type_func):
                                                       ['s2t11', 's2t12']),
                                                      (['s1t21', 's1t22'],
                                                       ['s2t21', 's2t22'])])))
+
 
 def test_transpose_rowcol_2d_list_of_arrays():
     matrix = [numpy.array(['s1t1', 's1t2']),

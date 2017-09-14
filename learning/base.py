@@ -28,6 +28,8 @@ import numbers
 
 import numpy
 
+from learning import validation
+
 ##############################
 # Pattern selection functions
 ##############################
@@ -129,8 +131,8 @@ class Model(object):
             if success:
                 return
 
-            # TODO: Should we use user provided error function?
-            attempt_error = self.avg_mse(input_matrix, target_matrix)
+            # TODO: Should use user provided error function
+            attempt_error = validation.get_error(self, input_matrix, target_matrix)
 
             # End when out of retries, use best attempt so far
             if attempt >= retries:
@@ -180,8 +182,8 @@ class Model(object):
                 if (error <= error_break
                         # Perform a second test on whole dataset
                         # incase model is training on mini-batches
-                        # TODO: Should we use user provided error function?
-                        and self.avg_mse(input_matrix, target_matrix) <= error_break):
+                        # TODO: Should use user provided error function?
+                        and validation.get_error(self, input_matrix, target_matrix) <= error_break):
                     return True
 
                 # Skip the rest if we're already out of iterations (optimization)
@@ -288,19 +290,6 @@ class Model(object):
         """Print corresponding inputs and outputs from a dataset."""
         for inp_vec, tar_vec in zip(input_matrix, target_matrix):
             print(tar_vec, '->', self.activate(inp_vec))
-
-    def avg_mse(self, input_matrix, target_matrix):
-        """Return the average mean squared error for a dataset."""
-        error = 0.0
-        for input_vec, target_vec in zip(input_matrix, target_matrix):
-            error = error + self.mse(input_vec, target_vec)
-
-        return error/len(input_matrix)
-
-    def mse(self, input_vec, target_vec):
-        """Return the mean squared error (MSE) for a pattern."""
-        # Mean squared error
-        return numpy.mean(numpy.subtract(self.activate(input_vec), target_vec)**2)
 
 
 def _all_close(values, other_value, threshold):

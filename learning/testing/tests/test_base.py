@@ -11,15 +11,6 @@ from learning.architecture import mlp, rbf
 
 from learning.testing import helpers
 
-def test_mse():
-    # This network will always output 0 for input 0
-    nn = helpers.SetOutputModel(0)
-    assert nn.mse([0], [1]) == 1.0
-    assert nn.mse([0], [0.5]) == 0.25
-
-    nn = helpers.SetOutputModel([0, 0])
-    assert nn.mse([0], [1, 1]) == 1.0
-
 
 def test_post_pattern_callback():
     dataset = datasets.get_xor()
