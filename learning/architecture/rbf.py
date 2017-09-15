@@ -68,7 +68,7 @@ class RBF(Model):
 
             # Count number of weights
             # NOTE: Cutoff value could use more testing
-            if reduce(operator.mul, self._weight_matrix.shape) > 500:
+            if reduce(operator.mul, self._weight_matrix.shape) > 2500:
                 # Too many weights, don't use hessian
                 optimizer = SteepestDescent()
             else:

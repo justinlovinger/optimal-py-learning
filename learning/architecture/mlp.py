@@ -79,7 +79,7 @@ class MLP(Model):
             if sum([
                     reduce(operator.mul, weight_matrix.shape)
                     for weight_matrix in self._weight_matrices
-            ]) > 500:  # NOTE: Cutoff value could use more testing
+            ]) > 2500:  # NOTE: Cutoff value could use more testing
                 # Too many weights, don't use hessian
                 optimizer = SteepestDescent()
             else:

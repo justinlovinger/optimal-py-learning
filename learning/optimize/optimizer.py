@@ -30,6 +30,9 @@ import numpy
 from learning.optimize import WolfeLineSearch
 from learning.optimize import IncrPrevStep, FOChangeInitialStep
 
+# TODO: Numerical Optimization uses ||grad_f_k||_inf < 10^-5 (1 + |f_k|) as a stopping criteria
+# Perhaps we should as well
+# It also declares failure after 10000 iterations
 JACOBIAN_NORM_BREAK = 1e-10
 
 
@@ -144,6 +147,11 @@ class BFGS(Optimizer):
 
     Broyden-Fletcher-Goldfarb-Shanno (BFGS)
     Ref: Numerical Optimization pp. 136
+
+    NOTE: Step size should satisfy Wolfe conditions,
+    to ensure curvature condition, y_k^T s_k > 0, is satisfied.
+    Otherwise, the BFGS update rule is invalid, and could give
+    poor performance.
     """
 
     def __init__(self, step_size_getter=None):
@@ -151,7 +159,8 @@ class BFGS(Optimizer):
 
         if step_size_getter is None:
             step_size_getter = WolfeLineSearch(
-                initial_step_getter=IncrPrevStep())
+                # Values recommended by Numerical Optimization 2nd, pp. 161
+                c_1=1e-4, c_2=0.9, initial_step_getter=IncrPrevStep())
         self._step_size_getter = step_size_getter
 
         # BFGS Parameters
