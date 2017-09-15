@@ -365,6 +365,9 @@ def make_train_test_sets(input_matrix, label_matrix, train_per_class):
 
         label_counts[key] = count + 1
 
+    if testing_inputs == []:
+        raise ValueError('train_per_class too high, no testing set')
+
     return ((numpy.array(training_inputs), numpy.array(training_labels)),
             (numpy.array(testing_inputs), numpy.array(testing_labels)))
 
