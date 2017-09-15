@@ -198,16 +198,49 @@ class BFGS(Optimizer):
 
     def _get_approx_inv_hessian(self, parameters, jacobian):
         """Calculate approx inv hessian for this iteration, and return it."""
-        if self._prev_inv_hessian is None:
-            # If first iteration, default to identity for approx inv hessian
+        # If first iteration
+        if self._prev_params is None:
+            # Default to identity for approx inv hessian
             H_kp1 = numpy.identity(parameters.shape[0])
+
+            # Don't save H_kp1, so we can differentiate between first
+            # and second iteration
         else:
-            H_kp1 = _bfgs_eq(self._prev_inv_hessian,
-                             parameters - self._prev_params,
-                             jacobian - self._prev_jacobian)
+            # If second iteration
+            if self._prev_inv_hessian is None:
+                # NOTE: It is recommended to scale the identiy matrix
+                # (Numerical Optimization 2nd, pp. 162)
+                # as follows,
+                # but empirical tests show it is more effective
+                # to not scale identity matrix
+                # TODO: More testing needed (commented out for now)
+
+                # # Scale identity matrix before first update
+                # s_k = parameters - self._prev_params
+                # y_k = jacobian - self._prev_jacobian
+                # H_kp1 = _bfgs_eq(
+                #     # Construct diagonal matrix from scalar,
+                #     # instead of multiplying identity by scalar
+                #     numpy.diag(
+                #         numpy.repeat(
+                #             y_k.dot(s_k) / y_k.dot(y_k), parameters.shape[0])),
+                #     s_k, y_k)
+
+                # And using unscaled identity instead
+                H_kp1 = _bfgs_eq(numpy.identity(parameters.shape[0]),
+                                 parameters - self._prev_params,
+                                 jacobian - self._prev_jacobian)
+
+            # Every iteration > 2
+            else:
+                H_kp1 = _bfgs_eq(self._prev_inv_hessian,
+                                 parameters - self._prev_params,
+                                 jacobian - self._prev_jacobian)
+
+            # Save inv hessian to update next iteration
+            self._prev_inv_hessian = H_kp1
 
         # Save values from current iteration for next iteration
-        self._prev_inv_hessian = H_kp1
         self._prev_params = parameters
         self._prev_jacobian = jacobian
 
