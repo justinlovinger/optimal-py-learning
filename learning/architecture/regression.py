@@ -107,6 +107,8 @@ class RegressionModel(Model):
         Optional.
         Model must either override train_step or implement _train_increment.
         """
+        # Use an Optimizer to move weights in a direction that minimizes
+        # error (as defined by given error function).
         error, flat_weights = self._optimizer.next(
             Problem(
                 obj_func=
@@ -143,16 +145,13 @@ class RegressionModel(Model):
     def _get_sample_jacobian(self, input_vec, target_vec):
         """Return jacobian and error for given sample."""
         output_vec = self.activate(input_vec)
+        if output_vec.shape != target_vec.shape:
+            raise ValueError('target_vec.shape does not match output_vec.shape')
+
         error, error_jac = self._error_func.derivative(output_vec, target_vec)
-        # Each column of equations derivative corresponds to an output,
-        # each row corresponds to an input.
-        # Multiplying corresponding components of each row by the error_jac,
-        # gives us the derivative.
-        # NOTE: For most regression models (such as linear regression),
-        # outputs are independent, and therefore each column will be the same
-        # making this multiplication equivalent to column_vec.dot(error_jac)
-        jacobian = self._equation_derivative(input_vec) * error_jac
-        assert jacobian.shape == self._weight_matrix.shape
+        jacobian = self._equation_derivative(input_vec, error_jac)
+        assert reduce(operator.mul, jacobian.shape) == reduce(
+            operator.mul, self._weight_matrix.shape)
 
         return error, jacobian
 
@@ -160,8 +159,11 @@ class RegressionModel(Model):
         """Return the output of this models equation."""
         raise NotImplementedError()
 
-    def _equation_derivative(self, input_vec):
-        """Return the jacobian of this models equation, with regard to the weight matrix."""
+    def _equation_derivative(self, input_vec, error_jac):
+        """Return the jacobian of this models equation corresponding to the given error.
+
+        Derivative with regard to weights.
+        """
         raise NotImplementedError()
 
 
@@ -172,10 +174,9 @@ class LinearRegressionModel(RegressionModel):
         """Return the output of this models equation."""
         return numpy.dot(input_vec, self._weight_matrix)
 
-    def _equation_derivative(self, input_vec):
-        """Return the jacobian of this models equation, with regard to the weight matrix."""
-        # Jocobian, with regard to each output, is just the input vector
-        # Tile simply repeats the input vector, for each output column
-        # TODO: This should technically return a matrix of shape (num_outputs, num_weights),
-        # instead of (num_outputs, num_inputs), but this will have a lot of 0s, and not be very efficient.
-        return numpy.tile(input_vec[:, None], (1, self._weight_matrix.shape[1]))
+    def _equation_derivative(self, input_vec, error_jac):
+        """Return the jacobian of this models equation corresponding to the given error.
+
+        Derivative with regard to weights.
+        """
+        return input_vec[:, None].dot(error_jac[None, :])
