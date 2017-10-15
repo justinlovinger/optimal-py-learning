@@ -79,7 +79,7 @@ class Model(object):
         """Reset this model."""
         raise NotImplementedError()
 
-    def activate(self, inputs):
+    def activate(self, input_vec):
         """Return the model outputs for given inputs."""
         raise NotImplementedError()
 

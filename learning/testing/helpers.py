@@ -200,9 +200,9 @@ def _approximate_ith(i, f, x, epsilon):
     return ((f(x_plus_i) - f(x_minus_i)) / (2*epsilon))
 
 def _approximate_gradient_jac(f, x, epsilon):
-    jacobian = numpy.zeros((x.shape[0], x.shape[0]))
     # Jocobian has inputs on cols and outputs on rows
-    for j in range(x.shape[0]):
+    jacobian = numpy.zeros((f(x).shape[0], x.shape[0]))
+    for j in range(f(x).shape[0]):
         for i in range(x.shape[0]):
             x_plus_i = x.copy()
             x_plus_i[i] += epsilon
