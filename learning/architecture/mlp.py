@@ -30,10 +30,9 @@ import operator
 import numpy
 
 from learning import calculate
-from learning import Model, LinearTransfer, ReluTransfer
+from learning import Model, LinearTransfer, ReluTransfer, MeanSquaredError
 from learning.transfer import Transfer
 from learning.optimize import Problem, BFGS, SteepestDescent
-from learning.error import MSE
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
@@ -93,7 +92,7 @@ class MLP(Model):
 
         # Error function for training
         if error_func is None:
-            error_func = MSE()
+            error_func = MeanSquaredError()
         self._error_func = error_func
 
         # Setup activation vectors

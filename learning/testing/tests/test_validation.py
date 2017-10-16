@@ -27,7 +27,7 @@ import time
 
 import numpy
 
-from learning import validation, error
+from learning import validation, MeanSquaredError
 from learning.data import datasets
 
 from learning.testing import helpers
@@ -230,23 +230,23 @@ def test_get_error():
     model = helpers.SetOutputModel([1])
     assert validation.get_error(
         model, numpy.array([[1]]), numpy.array([[0]]),
-        error_func=error.MSE()) == 1.0
+        error_func=MeanSquaredError()) == 1.0
     assert validation.get_error(
         model, numpy.array([[1]]), numpy.array([[1]]),
-        error_func=error.MSE()) == 0.0
+        error_func=MeanSquaredError()) == 0.0
     assert validation.get_error(
         model, numpy.array([[1]]), numpy.array([[0.5]]),
-        error_func=error.MSE()) == 0.25
+        error_func=MeanSquaredError()) == 0.25
     assert validation.get_error(
         model,
         numpy.array([[1], [1]]),
         numpy.array([[1], [0]]),
-        error_func=error.MSE()) == 0.5
+        error_func=MeanSquaredError()) == 0.5
     assert validation.get_error(
         model,
         numpy.array([[1], [1]]),
         numpy.array([[0.5], [0.5]]),
-        error_func=error.MSE()) == 0.25
+        error_func=MeanSquaredError()) == 0.25
 
 
 def test_get_accuracy():

@@ -40,8 +40,8 @@ class ErrorFunc(object):
         raise NotImplementedError()
 
 
-class MSE(ErrorFunc):
-    """Mean squared error."""
+class MeanSquaredError(ErrorFunc):
+    """Mean squared error (MSE), defined by mean((vec_a - vec_b)^2)."""
     def __call__(self, vec_a, vec_b):
         """Return the error between two vectors.
 
@@ -60,8 +60,8 @@ class MSE(ErrorFunc):
         return mse, error_vec
 
 
-class CrossEntropy(ErrorFunc):
-    """Cross entropy error.
+class CrossEntropyError(ErrorFunc):
+    """Cross entropy error, defined by -mean(log(vec_a) * vec_b).
 
     Note that this error function is not symmetric.
     vec_a is expected to be the predicted vector,

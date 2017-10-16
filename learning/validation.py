@@ -31,7 +31,7 @@ import collections
 
 import numpy
 
-from learning import error
+from learning import MeanSquaredError
 
 
 def compare(names, models, datasets, num_folds=3, num_runs=30, all_kwargs={}):
@@ -228,7 +228,7 @@ def _validate_model(model,
 ######################
 # Metrics
 ######################
-def get_error(model, input_matrix, target_matrix, error_func=error.MSE()):
+def get_error(model, input_matrix, target_matrix, error_func=MeanSquaredError()):
     """Return mean error of model on given dataset."""
     return numpy.mean([
         error_func(model.activate(input_vec), target_vec)

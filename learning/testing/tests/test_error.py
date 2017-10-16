@@ -36,25 +36,25 @@ def test_cross_entropy_zero_in_vec_a():
 
     Because CE takes log of first vector, it can have issues with vectors containing 0s.
     """
-    error_func = error.CrossEntropy()
+    error_func = error.CrossEntropyError()
     assert error_func(numpy.array([0., 0., 1.]), numpy.array([0., 0., 1.])) == 0
     assert error_func(numpy.array([1., 0., 1.]), numpy.array([0., 0., 1.])) == 0
 
 
 def test_cross_entropy_error_on_negative():
     """CrossEntropy does not take negative values in vec_a."""
-    error_func = error.CrossEntropy()
+    error_func = error.CrossEntropyError()
 
     with pytest.raises(FloatingPointError):
         assert error_func(numpy.array([-1., 1.]), numpy.array([0., 1.]))
 
 
 def test_mse_derivative():
-    check_error_gradient(error.MSE())
+    check_error_gradient(error.MeanSquaredError())
 
 
 def test_cross_entropy_derivative():
-    check_error_gradient(error.CrossEntropy())
+    check_error_gradient(error.CrossEntropyError())
 
 
 def test_cross_entropy_derivative_equals():
@@ -63,7 +63,7 @@ def test_cross_entropy_derivative_equals():
     Because the derivative includes a division, this could occur.
     """
     assert (
-        list(error.CrossEntropy().derivative(
+        list(error.CrossEntropyError().derivative(
             numpy.array([0., 1.]), numpy.array([0., 1.])
         )[1])
         == [0., -0.5]

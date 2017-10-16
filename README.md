@@ -25,12 +25,9 @@ Numerical optimization strategies are also implemented to optimize models:
     copy the "learning" to [python-path]/lib/site-packages
 
 # Usage
-    from learning.data import datasets
-    from learning import validation
-
-    from learning import MLP
+    from learning import datasets, validation, MLP
     from learning import SoftmaxTransfer  # To further customize our MLP
-    from learning import error  # To customize the error function of our MLP
+    from learning import CrossEntropyError  # To customize the error function of our MLP
     from learning import optimize  # To customize the training of our MLP
 
     # Grab the popular iris dataset, from our library of datasets
@@ -49,7 +46,7 @@ Numerical optimization strategies are also implemented to optimize models:
         transfers=SoftmaxTransfer(),
 
         # Cross entropy error will pair nicely with our softmax output.
-        error_func=error.CrossEntropy(),
+        error_func=CrossEntropyError(),
 
         # Lets use the quasi-newton BFGS optimizer for this problem
         # BFGS requires and n^2 operation, where n is the number of weights,
@@ -82,5 +79,8 @@ Numerical optimization strategies are also implemented to optimize models:
 For further usage details, see comprehensive doc strings for public functions and classes.
 
 # Breaking Changes
+## 10/16/2017
+Rename error functions, so that they end with Error, for greater clarity.
+
 ## 10/16/2017
 Renamed Model.test -> Model.print_results

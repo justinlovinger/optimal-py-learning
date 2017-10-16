@@ -22,15 +22,19 @@
 # SOFTWARE.
 ###############################################################################
 
-# Add model building
-from learning.base import Model
-
 # Add datasets
 from learning.data import datasets
 
 # Add transfer functions
 from learning.transfer import (LinearTransfer, TanhTransfer, ReluTransfer,
                                GaussianTransfer, SoftmaxTransfer)
+
+# Add error functions
+from learning.error import (MeanSquaredError, CrossEntropyError, L1Penalty,
+                            L2Penalty)
+
+# Add model building
+from learning.base import Model
 
 # Add models
 from learning.architecture.multioutputs import MultiOutputs

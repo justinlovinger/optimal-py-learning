@@ -25,7 +25,7 @@
 import numpy
 import pytest
 
-from learning import validation, Model, MLP
+from learning import validation, Model, MLP, MeanSquaredError
 from learning.architecture import multioutputs
 
 from learning.testing import helpers
@@ -112,9 +112,9 @@ def test_get_error_unusual_targets_shape():
         helpers.SetOutputModel([1.0, 1.0, 1.0])
     ])
     assert validation.get_error(
-        model, [[]], [[[1.0], [1.0, 1.0, 1.0]]], error_func=error.MSE()) == 0.0
+        model, [[]], [[[1.0], [1.0, 1.0, 1.0]]], error_func=MeanSquaredError()) == 0.0
     assert validation.get_error(
-        model, [[]], [[[1.0], [0.0, 0.0, 0.0]]], error_func=error.MSE()) == 0.5
+        model, [[]], [[[1.0], [0.0, 0.0, 0.0]]], error_func=MeanSquaredError()) == 0.5
 
 
 ####################

@@ -26,9 +26,9 @@ import operator
 
 import numpy
 
-from learning import Model
+from learning import Model, MeanSquaredError
 from learning.optimize import Problem, BFGS, SteepestDescent
-from learning.error import MSE
+
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
@@ -77,7 +77,7 @@ class RegressionModel(Model):
 
         # Error function for training
         if error_func is None:
-            error_func = MSE()
+            error_func = MeanSquaredError()
         self._error_func = error_func
 
         # Penalty function for training
