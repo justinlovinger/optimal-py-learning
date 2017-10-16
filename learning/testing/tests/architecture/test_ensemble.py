@@ -26,6 +26,7 @@ from learning.architecture import ensemble
 
 from learning.testing import helpers
 
+
 def test_bagger():
     # Create dummy layers that return set outputs
     outputs = [[0, 1, 2], [1, 2, 3]]

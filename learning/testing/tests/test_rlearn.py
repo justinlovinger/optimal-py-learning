@@ -28,14 +28,21 @@ import pytest
 
 from learning import rlearn
 
+
 #######################
 # RLTable initial table
 #######################
 def test_rltable_initial_table():
     rl = rlearn.RLTable([0, 1], [0, 1])
     assert rl._reward_table == {
-        0: {0: rl._initial_reward, 1: rl._initial_reward},
-        1: {0: rl._initial_reward, 1: rl._initial_reward}
+        0: {
+            0: rl._initial_reward,
+            1: rl._initial_reward
+        },
+        1: {
+            0: rl._initial_reward,
+            1: rl._initial_reward
+        }
     }
 
 
@@ -99,16 +106,19 @@ def test_rltable_update():
 # RLTable._increment_all
 #########################
 def test_rltable_update_with_reward_growth():
-    rl = rlearn.RLTable([0, 1], [0, 1], initial_reward=1.0,
-                        update_rate=1.0, reward_growth=0.1)
+    rl = rlearn.RLTable(
+        [0, 1], [0, 1], initial_reward=1.0, update_rate=1.0, reward_growth=0.1)
     rl.update(0, 0, 0.0)
     assert rl._reward_table[0][0] == 0.1
     assert rl._reward_table[0][1] == 1.1
     assert rl._reward_table[1][0] == 1.1
     assert rl._reward_table[1][1] == 1.1
 
-    rl = rlearn.RLTable([0, 1], [0, 1], initial_reward=1.0,
-                        update_rate=1.0, reward_growth=-0.1)
+    rl = rlearn.RLTable(
+        [0, 1], [0, 1],
+        initial_reward=1.0,
+        update_rate=1.0,
+        reward_growth=-0.1)
     rl.update(0, 0, 0.0)
     assert rl._reward_table[0][0] == -0.1
     assert rl._reward_table[0][1] == 0.9
@@ -144,13 +154,23 @@ def test_rltable_add_action():
 
     # Old state, new action
     rl.add_action(0, 1)
-    assert rl._reward_table == {0: {0: rl._initial_reward, 1: rl._initial_reward}}
+    assert rl._reward_table == {
+        0: {
+            0: rl._initial_reward,
+            1: rl._initial_reward
+        }
+    }
 
     # New state, new action, after existing state added
     rl.add_action(1, 0)
     assert rl._reward_table == {
-        0: {0: rl._initial_reward, 1: rl._initial_reward},
-        1: {0: rl._initial_reward}
+        0: {
+            0: rl._initial_reward,
+            1: rl._initial_reward
+        },
+        1: {
+            0: rl._initial_reward
+        }
     }
 
 
@@ -181,7 +201,12 @@ def test_rltable_delete_action():
 
     # Old state, new action
     rl.add_action(0, 1)
-    assert rl._reward_table == {0: {0: rl._initial_reward, 1: rl._initial_reward}}
+    assert rl._reward_table == {
+        0: {
+            0: rl._initial_reward,
+            1: rl._initial_reward
+        }
+    }
 
     # Remove one action
     rl.delete_action(0, 1)

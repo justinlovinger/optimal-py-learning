@@ -31,6 +31,7 @@ import numpy
 from learning import Model
 from learning.rlearn import RLTable
 
+
 class MultiOutputs(Model):
     """Ensemble enabling given model to return a higher dimensional output tensor.
 
@@ -48,13 +49,15 @@ class MultiOutputs(Model):
             or Model that is duplicated by num_outputs
         num_outputs: How many components in target vectors.
     """
+
     def __init__(self, models, num_outputs=None):
         super(MultiOutputs, self).__init__()
 
         if isinstance(models, Model):
             # Store copy of model for each output
             if num_outputs is None:
-                raise ValueError('If Model is given, num_outputs must not be None')
+                raise ValueError(
+                    'If Model is given, num_outputs must not be None')
             self._models = [copy.deepcopy(models) for _ in range(num_outputs)]
         else:
             if not isinstance(models, (list, tuple)):
@@ -66,9 +69,10 @@ class MultiOutputs(Model):
                     raise ValueError('models must contain instances of Model')
 
                 # No duplicates
-                for other_model in models[i+1:]:
+                for other_model in models[i + 1:]:
                     if other_model is model:
-                        raise ValueError('models should not contain duplicate instances')
+                        raise ValueError(
+                            'models should not contain duplicate instances')
 
             # Validation done, store it
             self._models = models[:]
@@ -77,15 +81,19 @@ class MultiOutputs(Model):
 
         # Use reinforcement learning to select which output to update
         # We use different between new and old error as reward
-        self._rl_agent = RLTable([None], range(self._num_outputs),
-                                 initial_reward=1.0, update_rate=0.25, reward_growth=0.01)
-        self._errors = [None]*self._num_outputs
+        self._rl_agent = RLTable(
+            [None],
+            range(self._num_outputs),
+            initial_reward=1.0,
+            update_rate=0.25,
+            reward_growth=0.01)
+        self._errors = [None] * self._num_outputs
 
     def reset(self):
         """Reset this model."""
         # Reset RL agent
         self._rl_agent = RLTable([None], range(self._num_outputs))
-        self._errors = [None]*self._num_outputs
+        self._errors = [None] * self._num_outputs
 
         # Reset each stored model
         for model in self._models:
@@ -104,7 +112,9 @@ class MultiOutputs(Model):
         Adjusts each AUTO unit towards its corresponding target vector.
         """
         if len(target_matrix[0]) != self._num_outputs:
-            raise ValueError('Target matrix column does not match expected number of outputs')
+            raise ValueError(
+                'Target matrix column does not match expected number of outputs'
+            )
 
         # Each model learns a single component (column) of the target matrix
         # First iteration, we update all outputs (for baseline)
@@ -126,14 +136,17 @@ class MultiOutputs(Model):
     def train(self, input_matrix, target_matrix, *args, **kwargs):
         """Train model to converge on set of patterns."""
         if len(target_matrix[0]) != self._num_outputs:
-            raise ValueError('Target matrix column does not match expected number of outputs')
+            raise ValueError(
+                'Target matrix column does not match expected number of outputs'
+            )
 
         # Train each stored model
-        for i, (model, targets) in enumerate(zip(self._models, _transpose_rowcol(target_matrix))):
+        for i, (model, targets) in enumerate(
+                zip(self._models, _transpose_rowcol(target_matrix))):
             if self.logging:
                 if i != 0:
                     print
-                print 'Training Model %d:' % (i+1)
+                print 'Training Model %d:' % (i + 1)
             else:
                 model.logging = self.logging
             model.train(input_matrix, targets, *args, **kwargs)
@@ -147,7 +160,8 @@ class MultiOutputs(Model):
             string; A string representing this network.
         """
         # Use serialize on each model, instead of pickle
-        serialized_models = [(type(model), model.serialize()) for model in self._models]
+        serialized_models = [(type(model), model.serialize())
+                             for model in self._models]
 
         # Pickle all other attributes
         attributes = copy.copy(self.__dict__)
@@ -169,21 +183,29 @@ class MultiOutputs(Model):
         model.__dict__ = attributes
 
         # unserialize each model
-        model._models = [class_.unserialize(model_str) for class_, model_str in serialized_models]
+        model._models = [
+            class_.unserialize(model_str)
+            for class_, model_str in serialized_models
+        ]
 
         return model
 
     def mse(self, input_vec, target_vec):
         """Return the mean squared error (MSE) for a pattern."""
-        return numpy.mean([model.mse(input_vec, target)
-                           for model, target in zip(self._models, _transpose_rowcol(target_vec))])
+        return numpy.mean([
+            model.mse(input_vec, target)
+            for model, target in zip(self._models,
+                                     _transpose_rowcol(target_vec))
+        ])
 
     def _update_one_output(self, input_matrix, target_matrix):
         """Update the model that most shows the ability to improve."""
         # Use reinforcement learning to select output to update.
         to_update = self._rl_agent.get_action(None)
-        new_error = self._models[to_update].train_step(
-            input_matrix, _matrix_col(target_matrix, to_update))
+        new_error = self._models[to_update].train_step(input_matrix,
+                                                       _matrix_col(
+                                                           target_matrix,
+                                                           to_update))
 
         # Update RL agent
         self._rl_agent.update(None, to_update,
@@ -194,8 +216,10 @@ class MultiOutputs(Model):
 
     def _update_all_outputs(self, input_matrix, target_matrix):
         """Update all stored models."""
-        for i, (model, targets) in enumerate(zip(self._models, _transpose_rowcol(target_matrix))):
+        for i, (model, targets) in enumerate(
+                zip(self._models, _transpose_rowcol(target_matrix))):
             self._errors[i] = model.train_step(input_matrix, targets)
+
 
 def _get_reward(old_error, new_error):
     """Return RL agent reward.
@@ -203,7 +227,8 @@ def _get_reward(old_error, new_error):
     Reward for RL agent is difference between new and previous error for output.
     Plus small amount for error (prioritize higher error)
     """
-    return (old_error-new_error) + 0.2*new_error
+    return (old_error - new_error) + 0.2 * new_error
+
 
 def _matrix_col(matrix, i):
     """Return the ith column of matrix."""
@@ -217,6 +242,7 @@ def _matrix_col(matrix, i):
         # Only 1d, take row
         return matrix[i]
 
+
 def _np_matrix_col(matrix, i):
     """Return the ith column of matrix."""
     if len(matrix.shape) == 1:
@@ -224,6 +250,7 @@ def _np_matrix_col(matrix, i):
         return matrix[i]
 
     return matrix[:, i]
+
 
 def _transpose_rowcol(matrix):
     """Return matrix with row and col swapped.
@@ -239,6 +266,7 @@ def _transpose_rowcol(matrix):
     else:
         # Only 1d, no change
         return matrix
+
 
 def _np_transpose_rowcol(matrix):
     """Return matrix with row and col swapped.

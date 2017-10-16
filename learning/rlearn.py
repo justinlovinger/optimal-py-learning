@@ -25,6 +25,7 @@
 
 import operator
 
+
 class RLTable(object):
     """Reinforcement learning using a (state, action) -> reward table.
 
@@ -34,7 +35,12 @@ class RLTable(object):
     Each (state, action) pair learns its own reward value, independent
     of other (state, action) pairs.
     """
-    def __init__(self, states, actions, initial_reward=2.0, update_rate=0.5,
+
+    def __init__(self,
+                 states,
+                 actions,
+                 initial_reward=2.0,
+                 update_rate=0.5,
                  reward_growth=0.0):
         if update_rate <= 0.0 or update_rate > 1.0:
             raise ValueError('update_rate must be within (0, 1]')
@@ -55,7 +61,9 @@ class RLTable(object):
         Return action for state with largest reward.
         """
         # TODO: Optionally stochastically select action, weighted by expected reward
-        return max(self._reward_table[state].iteritems(), key=operator.itemgetter(1))[0]
+        return max(
+            self._reward_table[state].iteritems(),
+            key=operator.itemgetter(1))[0]
 
     def update(self, state, action, new_reward):
         """Update reward for given (state, action)."""
@@ -92,9 +100,10 @@ class RLTable(object):
         if self._reward_table[state] == {}:
             self._reward_table.pop(state)
 
+
 def _adjust_value(old_value, new_value, rate):
     """Return old_value, incrementally adjusted towards new_value.
 
     How much it is adjusted is determined by rate.
     """
-    return old_value + rate*(new_value - old_value)
+    return old_value + rate * (new_value - old_value)

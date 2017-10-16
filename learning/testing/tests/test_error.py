@@ -31,6 +31,7 @@ from learning import error
 
 from learning.testing import helpers
 
+
 def test_cross_entropy_zero_in_vec_a():
     """Should not raise error when zeros are in vec_a.
 
@@ -62,12 +63,8 @@ def test_cross_entropy_derivative_equals():
 
     Because the derivative includes a division, this could occur.
     """
-    assert (
-        list(error.CrossEntropyError().derivative(
-            numpy.array([0., 1.]), numpy.array([0., 1.])
-        )[1])
-        == [0., -0.5]
-    )
+    assert (list(error.CrossEntropyError().derivative(
+        numpy.array([0., 1.]), numpy.array([0., 1.]))[1]) == [0., -0.5])
 
 
 def check_error_gradient(error_func):
@@ -78,20 +75,17 @@ def check_error_gradient(error_func):
         lambda X: error_func(X, vec_b),
         lambda X: error_func.derivative(X, vec_b)[1],
         inputs=numpy.random.random(vec_length),
-        f_shape='scalar'
-    )
+        f_shape='scalar')
 
 
 #############################
 # Penalty Functions
 #############################
 def test_L1Penalty_jacobian():
-    penalty_func = error.L1Penalty(
-        penalty_weight=random.uniform(0.0, 2.0))
+    penalty_func = error.L1Penalty(penalty_weight=random.uniform(0.0, 2.0))
     helpers.check_gradient(penalty_func, penalty_func.derivative)
 
 
 def test_L2Penalty_jacobian():
-    penalty_func = error.L2Penalty(
-        penalty_weight=random.uniform(0.0, 2.0))
+    penalty_func = error.L2Penalty(penalty_weight=random.uniform(0.0, 2.0))
     helpers.check_gradient(penalty_func, penalty_func.derivative)

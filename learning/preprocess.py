@@ -29,6 +29,7 @@ import numpy
 
 from learning.architecture import knn
 
+
 def shuffle(dataset):
     """Return shuffled (input_matrix, target_matrix) dataset.
 
@@ -39,6 +40,7 @@ def shuffle(dataset):
     indices = range(len(dataset[0]))
     random.shuffle(indices)
     return dataset[0][indices], dataset[1][indices]
+
 
 def make_onehot(vector):
     """Return a matrix of one-hot vectors from a vector of values.
@@ -57,6 +59,7 @@ def make_onehot(vector):
 
     return numpy.array(matrix)
 
+
 def make_labels(matrix):
     """Return a column vector of unique indices.
 
@@ -70,6 +73,7 @@ def make_labels(matrix):
         vector.append([class_indices[str(row)]])
 
     return numpy.array(vector)
+
 
 def _class_indices(vector):
     """Return dict mapping class -> index.
@@ -88,6 +92,7 @@ def _class_indices(vector):
             index += 1
     return class_indices
 
+
 def _class_indices_to_onehots(class_indices):
     """Return dict mapping class -> onehot_vec."""
     num_classes = len(class_indices)
@@ -98,6 +103,7 @@ def _class_indices_to_onehots(class_indices):
         class_onehots[class_] = onehot
     return class_onehots
 
+
 ########################
 # Normalization
 ########################
@@ -105,14 +111,15 @@ def rescale(matrix):
     """Scale each column to [-1, 1]."""
     scaled_matrix = numpy.array(matrix, dtype='float64')
 
-    scaled_matrix -= numpy.min(scaled_matrix, axis=0) # Each col, min of 0
-    scaled_matrix /= numpy.max(scaled_matrix, axis=0) # Each col, max of 1
+    scaled_matrix -= numpy.min(scaled_matrix, axis=0)  # Each col, min of 0
+    scaled_matrix /= numpy.max(scaled_matrix, axis=0)  # Each col, max of 1
 
     # Scale from [0, 1] to [-1, 1]
     scaled_matrix *= 2.0
     scaled_matrix -= 1.0
 
     return scaled_matrix
+
 
 def normalize(matrix):
     """Normalize matrix to a mean of 0 and standard devaiation of 1, for each dimension.
@@ -140,9 +147,10 @@ def normalize(matrix):
         np_matrix /= numpy.std(np_matrix, axis=0)
 
         # Replace Nan (0 / inf) and inf (x / inf) with 0.0
-        np_matrix[~ numpy.isfinite(np_matrix)] = 0.0
+        np_matrix[~numpy.isfinite(np_matrix)] = 0.0
 
     return np_matrix
+
 
 def softmax_normalize(matrix):
     """Normalize inputs, while reducing the influence of outliers.
@@ -150,6 +158,7 @@ def softmax_normalize(matrix):
     See https://en.wikipedia.org/wiki/Softmax_function
     """
     assert 0
+
 
 ###########################
 # Depuration
@@ -177,7 +186,8 @@ def clean_dataset_depuration(input_matrix, target_matrix, k=3, k_prime=2):
     for i in indices:
         # Find k-NN of patternIi in patterns - {pattern_i}
         # We do this by finding k+1 nearest indices, and ignoring index i
-        k_nearest = knn.select_k_nearest_neighbors(input_matrix, input_matrix[i], k+1)
+        k_nearest = knn.select_k_nearest_neighbors(input_matrix,
+                                                   input_matrix[i], k + 1)
         k_nearest.remove(i)
 
         # if a class has at least k_prime representatives
@@ -207,9 +217,11 @@ def clean_dataset_depuration(input_matrix, target_matrix, k=3, k_prime=2):
     return ((numpy.array(kept_inputs), numpy.array(kept_targets)),
             changed_patterns, removed_patterns)
 
+
 def _list_minus_i(list_, i):
     """Return list without item i."""
-    return list_[:i] + list_[i+1:]
+    return list_[:i] + list_[i + 1:]
+
 
 def _count_classes(target_matrix):
     """Count how many times each class appears in a set of points."""
@@ -225,6 +237,7 @@ def _count_classes(target_matrix):
             class_counts[key] = 1
 
     return class_counts
+
 
 #########################
 # PCA
@@ -243,8 +256,8 @@ def _pca_get_eigenvalues(data_matrix):
     covariance = numpy.cov(data_matrix, rowvar=False)
     return numpy.linalg.eigh(covariance)
 
-def _pca_reduce_dimensions(data_matrix, eigen_vectors,
-                           selected_dimensions):
+
+def _pca_reduce_dimensions(data_matrix, eigen_vectors, selected_dimensions):
     """Use principle component analysis to reduce the dimensionality of a data set.
 
     Args:
@@ -255,7 +268,7 @@ def _pca_reduce_dimensions(data_matrix, eigen_vectors,
             eigenvector.
     """
     if not isinstance(selected_dimensions, (list, numpy.ndarray)):
-        raise TypeError('selected_dimensions must be a list of indexes') 
+        raise TypeError('selected_dimensions must be a list of indexes')
 
     # Key is an array of indexes, each index corresponds to an
     # eigenvalue and eigenvector
@@ -268,6 +281,7 @@ def _pca_reduce_dimensions(data_matrix, eigen_vectors,
     # Perform the reduction using selected eigenvectors
     return numpy.dot(eigen_vectors.T, data_matrix.T).T
 
+
 def pca(data_matrix, desired_num_dimensions=None, select_dimensions_func=None):
     """Use principle component analysis to reduce the dimensionality of a data set.
 
@@ -275,9 +289,11 @@ def pca(data_matrix, desired_num_dimensions=None, select_dimensions_func=None):
           and resulting matrix is normalized before returning.
     """
     if desired_num_dimensions is not None and select_dimensions_func is not None:
-        raise ValueError('Use only desired_num_dimensions or num_dimensions_func')
+        raise ValueError(
+            'Use only desired_num_dimensions or num_dimensions_func')
     if desired_num_dimensions is None and select_dimensions_func is None:
-        raise ValueError('Use either desired_num_dimensions or num_dimensions_func')
+        raise ValueError(
+            'Use either desired_num_dimensions or num_dimensions_func')
 
     # Normalize
     normalized_matrix = normalize(data_matrix)
@@ -287,14 +303,15 @@ def pca(data_matrix, desired_num_dimensions=None, select_dimensions_func=None):
 
     # Select eigenvectors, based on user input
     if desired_num_dimensions is not None:
-        selected_dimensions = numpy.argsort(eigen_values)[::-1][:desired_num_dimensions]
+        selected_dimensions = numpy.argsort(
+            eigen_values)[::-1][:desired_num_dimensions]
 
     if select_dimensions_func is not None:
         selected_dimensions = select_dimensions_func(eigen_values)
 
     # Perform the pca reduction
-    reduced_data_matrix = _pca_reduce_dimensions(normalized_matrix, eigen_vectors,
-                                                 selected_dimensions)
+    reduced_data_matrix = _pca_reduce_dimensions(
+        normalized_matrix, eigen_vectors, selected_dimensions)
     return normalize(reduced_data_matrix)
 
 
@@ -305,6 +322,7 @@ def _pca_select_greater_than_one(eigen_values):
     # TODO: Base on quartile or some kind of average, not 1.0
     return [i for i, v in enumerate(eigen_values) if v > 1]
 
+
 def clean_dataset(input_matrix, target_matrix):
     if not isinstance(input_matrix, numpy.ndarray):
         input_matrix = numpy.array(input_matrix)
@@ -312,14 +330,16 @@ def clean_dataset(input_matrix, target_matrix):
         target_matrix = numpy.array(target_matrix)
 
     # Clean inputs
-    if input_matrix.shape[1] > 1: # More than 1 input dimension
+    if input_matrix.shape[1] > 1:  # More than 1 input dimension
         # Reduce input dimensions
         # And normalize (normalization performed by pca)
-        reduced_inputs = pca(input_matrix, select_dimensions_func=_pca_select_greater_than_one)
+        reduced_inputs = pca(
+            input_matrix, select_dimensions_func=_pca_select_greater_than_one)
     else:
         # Just normalize
         reduced_inputs = normalize(input_matrix)
 
     # Clean erronous targets
-    cleaned_dataset, _, _ = clean_dataset_depuration(reduced_inputs, target_matrix)
+    cleaned_dataset, _, _ = clean_dataset_depuration(reduced_inputs,
+                                                     target_matrix)
     return cleaned_dataset

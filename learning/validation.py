@@ -63,7 +63,8 @@ def compare(names, models, datasets, num_folds=3, num_runs=30, all_kwargs={}):
         raise TypeError('all_kwargs must be dict or list of dict')
 
     stats = {}
-    for (name, model, dataset, kwargs) in zip(names, models, datasets, all_kwargs):
+    for (name, model, dataset, kwargs) in zip(names, models, datasets,
+                                              all_kwargs):
         stats[name] = benchmark(
             model, dataset, num_folds=num_folds, num_runs=num_runs, **kwargs)
 
@@ -111,7 +112,8 @@ def benchmark(model, dataset, num_folds=3, num_runs=30, **kwargs):
     # TODO (maybe): Just take a function, and aggregate stats for that function
     runs = []
     for _ in range(num_runs):
-        runs.append(cross_validate(model, dataset, num_folds=num_folds, **kwargs))
+        runs.append(
+            cross_validate(model, dataset, num_folds=num_folds, **kwargs))
     stats = {'runs': runs}
 
     # Calculate meta stats
@@ -228,7 +230,10 @@ def _validate_model(model,
 ######################
 # Metrics
 ######################
-def get_error(model, input_matrix, target_matrix, error_func=MeanSquaredError()):
+def get_error(model,
+              input_matrix,
+              target_matrix,
+              error_func=MeanSquaredError()):
     """Return mean error of model on given dataset."""
     return numpy.mean([
         error_func(model.activate(input_vec), target_vec)

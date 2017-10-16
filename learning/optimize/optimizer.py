@@ -160,7 +160,9 @@ class BFGS(Optimizer):
         if step_size_getter is None:
             step_size_getter = WolfeLineSearch(
                 # Values recommended by Numerical Optimization 2nd, pp. 161
-                c_1=1e-4, c_2=0.9, initial_step_getter=IncrPrevStep())
+                c_1=1e-4,
+                c_2=0.9,
+                initial_step_getter=IncrPrevStep())
         self._step_size_getter = step_size_getter
 
         # BFGS Parameters
@@ -227,9 +229,10 @@ class BFGS(Optimizer):
                 #     s_k, y_k)
 
                 # And using unscaled identity instead
-                H_kp1 = _bfgs_eq(numpy.identity(parameters.shape[0]),
-                                 parameters - self._prev_params,
-                                 jacobian - self._prev_jacobian)
+                H_kp1 = _bfgs_eq(
+                    numpy.identity(parameters.shape[0]),
+                    parameters - self._prev_params,
+                    jacobian - self._prev_jacobian)
 
             # Every iteration > 2
             else:
@@ -245,6 +248,7 @@ class BFGS(Optimizer):
         self._prev_jacobian = jacobian
 
         return H_kp1
+
 
 def _bfgs_eq(H_k, s_k, y_k):
     """Apply the bfgs update rule to obtain the next approx inverse hessian.
@@ -282,7 +286,7 @@ def _bfgs_eq(H_k, s_k, y_k):
     I = numpy.identity(s_k.shape[0])
 
     # Calculate p_k with failsafe for divide by zero errors
-    y_k_dot_s_k = y_k.dot(s_k) # y_k.dot(s_k) == y_k.dot(s_k[:, None])
+    y_k_dot_s_k = y_k.dot(s_k)  # y_k.dot(s_k) == y_k.dot(s_k[:, None])
     # Failsafe for divide by zero errors
     # y_k and s_k are change in jacobian and parameters respectively
     # If these values did not change, we can re-use previous inv hessian

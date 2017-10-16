@@ -31,6 +31,7 @@ from learning.architecture import rbf
 
 from learning.testing import helpers
 
+
 ########################
 # Integration tests
 ########################
@@ -66,9 +67,10 @@ def test_rbf_obj_and_obj_jac_match():
 
     # Don't use exactly the same parameters, to ensure obj functions are actually
     # using the given parameters
-    parameters = random.uniform(-1.0, 1.0)*model._weight_matrix.ravel()
-    assert helpers.approx_equal(model._get_obj(parameters, dataset[0], dataset[1]),
-                                model._get_obj_jac(parameters, dataset[0], dataset[1])[0])
+    parameters = random.uniform(-1.0, 1.0) * model._weight_matrix.ravel()
+    assert helpers.approx_equal(
+        model._get_obj(parameters, dataset[0], dataset[1]),
+        model._get_obj_jac(parameters, dataset[0], dataset[1])[0])
 
 
 def test_rbf_jacobian_scale_by_similarity():
@@ -76,7 +78,8 @@ def test_rbf_jacobian_scale_by_similarity():
 
 
 def test_rbf_jacobian():
-    _check_jacobian(lambda a, n, o: rbf.RBF(a, n, o, scale_by_similarity=False))
+    _check_jacobian(
+        lambda a, n, o: rbf.RBF(a, n, o, scale_by_similarity=False))
 
 
 def _check_jacobian(make_model_func):
@@ -90,4 +93,5 @@ def _check_jacobian(make_model_func):
     f = lambda xk: model._get_obj(xk, inp_matrix, tar_matrix)
     df = lambda xk: model._get_obj_jac(xk, inp_matrix, tar_matrix)[1]
 
-    helpers.check_gradient(f, df, inputs=model._weight_matrix.ravel(), f_shape='scalar')
+    helpers.check_gradient(
+        f, df, inputs=model._weight_matrix.ravel(), f_shape='scalar')

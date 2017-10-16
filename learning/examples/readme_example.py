@@ -54,8 +54,7 @@ model = MLP(
         # We can even customize the line search method
         step_size_getter=optimize.WolfeLineSearch(
             # And the initial step size for our line search
-            initial_step_getter=optimize.FOChangeInitialStep())
-    ))
+            initial_step_getter=optimize.FOChangeInitialStep())))
 
 # NOTE: For rapid prototyping, we could quickly implement an MLP as follows
 # model = MLP((4, 2, 3))
@@ -63,7 +62,8 @@ model = MLP(
 # Lets train our MLP
 # First, we'll split our dataset into training and testing sets
 # Our training set will contain 30 samples from each class
-training_set, testing_set = validation.make_train_test_sets(*dataset, train_per_class=30)
+training_set, testing_set = validation.make_train_test_sets(
+    *dataset, train_per_class=30)
 
 # We could customize training and stopping criteria through
 # the arguments of train, but the defaults should be sufficient here

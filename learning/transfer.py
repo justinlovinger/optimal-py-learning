@@ -77,6 +77,7 @@ class ReluTransfer(Transfer):
 
     Also known as softplus.
     """
+
     def __call__(self, input_vec):
         return calculate.relu(input_vec)
 

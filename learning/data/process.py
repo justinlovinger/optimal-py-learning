@@ -28,7 +28,12 @@ import numpy
 
 from learning import preprocess
 
-def get_data(file_name, attr_start_pos, attr_end_pos=-1, target_pos=-1, classification=True):
+
+def get_data(file_name,
+             attr_start_pos,
+             attr_end_pos=-1,
+             target_pos=-1,
+             classification=True):
     if classification:
         # Get data from file
         data_file = open(file_name)
@@ -39,7 +44,8 @@ def get_data(file_name, attr_start_pos, attr_end_pos=-1, target_pos=-1, classifi
             class_ = attributes[target_pos].strip()
             classes.add(class_)
         class_dict = {}
-        for i, class_ in enumerate(sorted(classes)): # Sorted for easier validation
+        # Sorted for easier validation
+        for i, class_ in enumerate(sorted(classes)):
             class_dict[class_] = i
 
     # Obtain a data point from each line of the file
@@ -51,13 +57,16 @@ def get_data(file_name, attr_start_pos, attr_end_pos=-1, target_pos=-1, classifi
         attributes = _get_attributes(line)
 
         try:
-            input = [float(value) for value in attributes[attr_start_pos:attr_end_pos]]
+            input = [
+                float(value)
+                for value in attributes[attr_start_pos:attr_end_pos]
+            ]
         except ValueError:
             continue
 
         if classification:
             class_ = attributes[target_pos].strip()
-            output = [0.0]*len(classes)
+            output = [0.0] * len(classes)
             # Class dict maps the name to the position
             # This position is given a value of 1.0
             output[class_dict[class_]] = 1.0
@@ -78,6 +87,7 @@ def get_data(file_name, attr_start_pos, attr_end_pos=-1, target_pos=-1, classifi
         target_matrix = preprocess.rescale(target_matrix)
 
     return input_matrix, target_matrix
+
 
 def _get_attributes(line):
     line_processed = re.sub(r' +', ',', line.strip())

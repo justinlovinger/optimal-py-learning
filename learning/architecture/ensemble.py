@@ -26,6 +26,7 @@ import numpy
 
 from learning import Model
 
+
 class Ensemble(Model):
     def __init__(self, networks):
         super(Ensemble, self).__init__()
@@ -33,8 +34,9 @@ class Ensemble(Model):
         self._networks = networks
         self.reset()
 
+
 class Bagger(Ensemble):
-    requires_prev = (None,)
+    requires_prev = (None, )
 
     def reset(self):
         for network in self._networks:
@@ -49,9 +51,8 @@ class Bagger(Ensemble):
         return output / len(self._networks)
 
     def get_prev_errors(self, all_inputs, all_errors, outputs):
-        return None #TODO
+        return None  #TODO
 
     def update(self, inputs, outputs, errors):
         for network in self._networks:
             network.update(inputs, errors + outputs)
-

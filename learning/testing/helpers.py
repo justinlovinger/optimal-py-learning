@@ -31,6 +31,7 @@ import numpy
 from learning import Model
 from learning.architecture import pbnn
 
+
 class EmptyModel(Model):
     def activate(self, inputs):
         pass
@@ -48,6 +49,7 @@ class EmptyModel(Model):
         if output is not None:
             return numpy.mean((target_vec - output)**2)
 
+
 class SetOutputModel(EmptyModel):
     def __init__(self, output):
         super(SetOutputModel, self).__init__()
@@ -56,6 +58,7 @@ class SetOutputModel(EmptyModel):
 
     def activate(self, inputs):
         return self.output
+
 
 class ManySetOutputsModel(EmptyModel):
     def __init__(self, outputs):
@@ -66,8 +69,10 @@ class ManySetOutputsModel(EmptyModel):
     def activate(self, inputs):
         return self.outputs.pop(0)
 
+
 class RememberPatternsModel(EmptyModel):
     """Returns the output for a given input."""
+
     def __init__(self):
         super(RememberPatternsModel, self).__init__()
 
@@ -78,17 +83,21 @@ class RememberPatternsModel(EmptyModel):
 
     def train(self, input_matrix, target_matrix, *args, **kwargs):
         for input_vec, target_vec in zip(input_matrix, target_matrix):
-            self._inputs_output_dict[tuple(input_vec)] = numpy.array(target_vec)
+            self._inputs_output_dict[tuple(input_vec)] = numpy.array(
+                target_vec)
 
     def activate(self, inputs):
         return numpy.array(self._inputs_output_dict[tuple(inputs)])
+
 
 class SummationModel(EmptyModel):
     def activate(self, inputs):
         return numpy.sum(inputs, axis=1)
 
+
 class WeightedSumModel(Model):
     """Model that returns stored targets weighted by inputs."""
+
     def __init__(self):
         super(WeightedSumModel, self).__init__()
         self._stored_targets = None
@@ -97,10 +106,12 @@ class WeightedSumModel(Model):
         self._stored_targets = None
 
     def activate(self, inputs):
-        return pbnn._weighted_sum_rows(self._stored_targets, numpy.array(inputs))
+        return pbnn._weighted_sum_rows(self._stored_targets,
+                                       numpy.array(inputs))
 
     def train(self, input_matrix, target_matrix, *args, **kwargs):
         self._stored_targets = numpy.copy(target_matrix)
+
 
 def approx_equal(a, b, tol=0.001):
     """Check if two numbers or lists are about the same.
@@ -125,6 +136,7 @@ def approx_equal(a, b, tol=0.001):
     else:
         return _approx_equal(a, b, tol)
 
+
 def _approx_equal(a, b, tol=0.001):
     """Check if two numbers are about the same.
 
@@ -132,17 +144,21 @@ def _approx_equal(a, b, tol=0.001):
     """
     return abs(a - b) < tol
 
+
 class SaneEqualityArray(numpy.ndarray):
     """Numpy array with working == operator."""
+
     def __eq__(self, other):
-        return (isinstance(other, numpy.ndarray) and self.shape == other.shape and
-                numpy.array_equal(self, other))
+        return (isinstance(other, numpy.ndarray) and self.shape == other.shape
+                and numpy.array_equal(self, other))
+
 
 def fix_numpy_array_equality(iterable):
     if isinstance(iterable, numpy.ndarray):
         return sane_equality_array(iterable)
 
-    if isinstance(iterable, str) or not isinstance(iterable, collections.Iterable):
+    if isinstance(iterable,
+                  str) or not isinstance(iterable, collections.Iterable):
         # Not iterable
         return iterable
 
@@ -165,14 +181,17 @@ def fix_numpy_array_equality(iterable):
 
     return new_iterable
 
+
 def sane_equality_array(object):
     array = numpy.array(object)
     return SaneEqualityArray(array.shape, array.dtype, array)
+
 
 def _change_tuple(tuple_, i, new_item):
     list_ = list(tuple_)
     list_[i] = new_item
     return tuple(list_)
+
 
 def equal_ignore_order(a, b):
     """Check if two lists contain the same elements.
@@ -192,6 +211,7 @@ def equal_ignore_order(a, b):
 
     return not copy_b
 
+
 ############################
 # Gradient checking
 ############################
@@ -206,10 +226,12 @@ def check_gradient(f, df, inputs=None, epsilon=1e-6, f_shape='scalar'):
     elif f_shape == 'jac':
         approx_func = _approximate_gradient_jac
     else:
-        raise ValueError("Invalid f_shape. Must be one of ('scalar', 'lin', 'jac').")
+        raise ValueError(
+            "Invalid f_shape. Must be one of ('scalar', 'lin', 'jac').")
 
     try:
-        assert approx_equal(df(inputs), approx_func(f, inputs, epsilon), tol=epsilon)
+        assert approx_equal(
+            df(inputs), approx_func(f, inputs, epsilon), tol=epsilon)
     except AssertionError:
         print 'Actual Gradient:'
         print df(inputs)
@@ -217,18 +239,24 @@ def check_gradient(f, df, inputs=None, epsilon=1e-6, f_shape='scalar'):
         print approx_func(f, inputs, epsilon)
         raise
 
+
 def _approximate_gradient_scalar(f, x, epsilon):
-    return numpy.array([_approximate_ith(i, f, x, epsilon) for i in range(x.shape[0])])
+    return numpy.array(
+        [_approximate_ith(i, f, x, epsilon) for i in range(x.shape[0])])
+
 
 def _approximate_gradient_lin(f, x, epsilon):
-    return numpy.array([_approximate_ith(i, f, x, epsilon)[i] for i in range(x.shape[0])])
+    return numpy.array(
+        [_approximate_ith(i, f, x, epsilon)[i] for i in range(x.shape[0])])
+
 
 def _approximate_ith(i, f, x, epsilon):
     x_plus_i = x.copy()
     x_plus_i[i] += epsilon
     x_minus_i = x.copy()
     x_minus_i[i] -= epsilon
-    return ((f(x_plus_i) - f(x_minus_i)) / (2*epsilon))
+    return (f(x_plus_i) - f(x_minus_i)) / (2 * epsilon)
+
 
 def _approximate_gradient_jac(f, x, epsilon):
     # Jocobian has inputs on cols and outputs on rows
@@ -239,5 +267,6 @@ def _approximate_gradient_jac(f, x, epsilon):
             x_plus_i[i] += epsilon
             x_minus_i = x.copy()
             x_minus_i[i] -= epsilon
-            jacobian[j, i] = (f(x_plus_i)[j] - f(x_minus_i)[j])/(2.0*epsilon)
+            jacobian[j, i] = (f(x_plus_i)[j] - f(x_minus_i)[j]) / (
+                2.0 * epsilon)
     return jacobian

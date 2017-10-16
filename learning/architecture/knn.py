@@ -21,11 +21,11 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-
 """Layers and functions for a k-nearest-neighbors architecture."""
 import heapq
 
 from learning import calculate
+
 
 def select_k_nearest_neighbors(matrix, center, k):
     """Return the k indexes of rows in matrix nearest center."""
@@ -40,6 +40,7 @@ def select_k_nearest_neighbors(matrix, center, k):
     # NOTE: Introselect algorithm, is O(n) instead of O(n log k)
     #   However, the only implementation in python requires converting to a
     #   numpy array.
-    nearest_indices = heapq.nsmallest(k, range(len(distances)), key=distances.__getitem__)
+    nearest_indices = heapq.nsmallest(
+        k, range(len(distances)), key=distances.__getitem__)
 
     return nearest_indices

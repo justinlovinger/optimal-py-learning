@@ -34,6 +34,7 @@ from learning.architecture import mlp
 
 from learning.testing import helpers
 
+
 ############################
 # MLP
 ############################
@@ -111,14 +112,17 @@ def test_mlp_perceptron():
     model._weight_matrices[0][2][0] = 2.0
     assert (model.activate([1, 1]) == [3.0]).all()
 
+
 def test_mean_list_of_list_of_matrices():
-    lol_matrices = [
-        [numpy.array([[1, 2], [3, 4]]), numpy.array([[-1, -2], [-3, -4]])],
-        [numpy.array([[1, 2], [3, 4]]), numpy.array([[1, 2], [3, 4]])]
-    ]
+    lol_matrices = [[
+        numpy.array([[1, 2], [3, 4]]),
+        numpy.array([[-1, -2], [-3, -4]])
+    ], [numpy.array([[1, 2], [3, 4]]),
+        numpy.array([[1, 2], [3, 4]])]]
     assert helpers.approx_equal(
         mlp._mean_list_of_list_of_matrices(lol_matrices),
-        [numpy.array([[1, 2], [3, 4]]), numpy.array([[0, 0], [0, 0]])])
+        [numpy.array([[1, 2], [3, 4]]),
+         numpy.array([[0, 0], [0, 0]])])
 
 
 def test_mlp_obj_and_obj_jac_match_lin_out_mse():
@@ -160,9 +164,11 @@ def _check_obj_and_obj_jac_match(make_model_func, classification=False):
 
     # Don't use exactly the same parameters, to ensure obj functions are actually
     # using the given parameters
-    parameters = random.uniform(-1.0, 1.0)*mlp._flatten(model._weight_matrices)
-    assert helpers.approx_equal(mlp._mlp_obj(model, dataset[0], dataset[1], parameters),
-                                mlp._mlp_obj_jac(model, dataset[0], dataset[1], parameters)[0])
+    parameters = random.uniform(-1.0,
+                                1.0) * mlp._flatten(model._weight_matrices)
+    assert helpers.approx_equal(
+        mlp._mlp_obj(model, dataset[0], dataset[1], parameters),
+        mlp._mlp_obj_jac(model, dataset[0], dataset[1], parameters)[0])
 
 
 def test_mlp_jacobian_lin_out_mse():
@@ -196,7 +202,8 @@ def _check_jacobian(make_model_func):
     f = lambda xk: mlp._mlp_obj(model, inp_matrix, tar_matrix, xk)
     df = lambda xk: mlp._mlp_obj_jac(model, inp_matrix, tar_matrix, xk)[1]
 
-    helpers.check_gradient(f, df, inputs=mlp._flatten(model._weight_matrices), f_shape='scalar')
+    helpers.check_gradient(
+        f, df, inputs=mlp._flatten(model._weight_matrices), f_shape='scalar')
 
 
 ##############################
@@ -220,7 +227,7 @@ def test_dropout_mlp_convergence():
     # Since XOR does not really need dropout, we use high probabilities
     model = mlp.DropoutMLP(
         (2, 8, 2), input_active_probability=1.0, hidden_active_probability=0.9)
-    dataset = datasets.get_and() # Easier and dataset for lienar output
+    dataset = datasets.get_and()  # Easier and dataset for lienar output
 
     # Error break lower than cutoff, since dropout may have different error
     # after training
@@ -266,24 +273,26 @@ def test_dropout_mlp_classifier_convergence():
 
 
 def test_dropout_mlp_dropout():
-    model = mlp.DropoutMLP((2, 4, 3), input_active_probability=0.5,
-                           hidden_active_probability=0.5)
+    model = mlp.DropoutMLP(
+        (2, 4, 3), input_active_probability=0.5, hidden_active_probability=0.5)
 
     # Only bias and active neurons should not be 0
     model.train_step([[1, 1]], [[1, 1, 1]])
 
     # Should still have DropoutTransfers (until activation outside of training)
 
-    _validate_weight_inputs(model._weight_inputs[0], model._input_transfer._active_neurons)
-    for weight_inputs, transfer_func in zip(model._weight_inputs[1:-1], model._transfers[:-1]):
+    _validate_weight_inputs(model._weight_inputs[0],
+                            model._input_transfer._active_neurons)
+    for weight_inputs, transfer_func in zip(model._weight_inputs[1:-1],
+                                            model._transfers[:-1]):
         _validate_weight_inputs(weight_inputs, transfer_func._active_neurons)
 
 
 def test_dropout_mlp_post_training():
     # Post training should happen on first activate after training (train step),
     # and not more than once, unless training begins again
-    model = mlp.DropoutMLP((2, 4, 3), input_active_probability=0.5,
-                           hidden_active_probability=0.5)
+    model = mlp.DropoutMLP(
+        (2, 4, 3), input_active_probability=0.5, hidden_active_probability=0.5)
 
     # Train, modifying active neurons and weights
     model.train_step([[1, 1]], [[1, 1, 1]])
@@ -299,9 +308,10 @@ def test_dropout_mlp_post_training():
 
 
 def _validate_post_training(model, pre_procedure_weights):
-    for weight_matrix, orig_matrix in zip(model._weight_matrices, pre_procedure_weights):
+    for weight_matrix, orig_matrix in zip(model._weight_matrices,
+                                          pre_procedure_weights):
         # Weights should be scaled by active probability
-        assert (weight_matrix == orig_matrix*model._hid_act_prob).all()
+        assert (weight_matrix == orig_matrix * model._hid_act_prob).all()
 
     # All inputs and neurons should be active
     assert not isinstance(model._input_transfer, mlp.DropoutTransfer)
@@ -309,19 +319,20 @@ def _validate_post_training(model, pre_procedure_weights):
         assert not isinstance(transfer_func, mlp.DropoutTransfer)
 
     for weight_inputs in model._weight_inputs:
-        _validate_weight_inputs(weight_inputs, [1.0]*(len(weight_inputs)-1))
+        _validate_weight_inputs(weight_inputs,
+                                [1.0] * (len(weight_inputs) - 1))
 
 
 def _validate_weight_inputs(weight_inputs, active_neurons):
-    assert len(weight_inputs)-1 == len(active_neurons) # -1 for bias
+    assert len(weight_inputs) - 1 == len(active_neurons)  # -1 for bias
 
-    assert weight_inputs[0] == 1.0 # Bias
+    assert weight_inputs[0] == 1.0  # Bias
     for i, active in enumerate(active_neurons):
         # i+1 to offset from bias
         if active == 0.0:
-            assert weight_inputs[i+1] == 0.0
+            assert weight_inputs[i + 1] == 0.0
         elif active == 1.0:
-            assert weight_inputs[i+1] != 0.0
+            assert weight_inputs[i + 1] != 0.0
         else:
             assert 0, 'Invalid active neuron value'
 
@@ -349,4 +360,4 @@ def test_dropout_transfer_probability_zero():
 
     # Should not allow zero active, defaults to 1
     assert list(dropout_transfer._active_neurons).count(1.0) == 1
-    assert list(dropout_transfer._active_neurons).count(0.0) == length-1
+    assert list(dropout_transfer._active_neurons).count(0.0) == length - 1

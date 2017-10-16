@@ -39,6 +39,7 @@ def test_post_pattern_callback():
 
     inp_history = []
     tar_history = []
+
     def callback(model, input_vec, target_vec):
         inp_history.append(input_vec)
         tar_history.append(target_vec)
@@ -60,30 +61,33 @@ def seed_random(request):
     def fin():
         import time
         random.seed(time.time())
+
     request.addfinalizer(fin)
 
 
 def test_select_sample_size_none(seed_random):
     input_matrix, target_matrix = datasets.get_xor()
 
-    new_inp_matrix, new_tar_matrix = base.select_sample(input_matrix, target_matrix)
+    new_inp_matrix, new_tar_matrix = base.select_sample(
+        input_matrix, target_matrix)
     assert new_inp_matrix.shape == input_matrix.shape
     assert new_tar_matrix.shape == target_matrix.shape
 
-    for inp_vec in input_matrix: # all in
+    for inp_vec in input_matrix:  # all in
         assert inp_vec in new_inp_matrix
-    for tar_vec in target_matrix: # all in
+    for tar_vec in target_matrix:  # all in
         assert tar_vec in new_tar_matrix
 
-    assert not (new_inp_matrix == input_matrix).all() # order different
-    assert not (new_tar_matrix == target_matrix).all() # order different
+    assert not (new_inp_matrix == input_matrix).all()  # order different
+    assert not (new_tar_matrix == target_matrix).all()  # order different
 
 
 def test_select_sample(seed_random):
     input_matrix, target_matrix = datasets.get_xor()
 
     # Test size param
-    new_inp_matrix, new_tar_matrix = base.select_sample(input_matrix, target_matrix, size=2)
+    new_inp_matrix, new_tar_matrix = base.select_sample(
+        input_matrix, target_matrix, size=2)
     assert new_inp_matrix.shape[0] == 2
     assert new_tar_matrix.shape[0] == 2
 
@@ -103,35 +107,39 @@ def test_select_sample(seed_random):
 
 def test_select_random_size_none(monkeypatch):
     # Monkeypatch so we know that random returns
-    monkeypatch.setattr(random, 'randint', lambda x, y : 0) # randint always returns 0
+    # randint always returns 0
+    monkeypatch.setattr(random, 'randint', lambda x, y: 0)
 
     input_matrix, target_matrix = datasets.get_xor()
-    new_inp_matrix, new_tar_matrix = base.select_random(input_matrix, target_matrix)
+    new_inp_matrix, new_tar_matrix = base.select_random(
+        input_matrix, target_matrix)
     assert new_inp_matrix.shape == input_matrix.shape
     assert new_tar_matrix.shape == target_matrix.shape
 
     for inp_vec in new_inp_matrix:
-        assert (inp_vec == input_matrix[0]).all() # due to monkeypatch
+        assert (inp_vec == input_matrix[0]).all()  # Due to monkeypatch
     for tar_vec in new_tar_matrix:
-        assert (tar_vec == target_matrix[0]).all() # due to monkeypatch
+        assert (tar_vec == target_matrix[0]).all()  # Due to monkeypatch
 
 
 def test_select_random(monkeypatch):
     # Monkeypatch so we know that random returns
-    monkeypatch.setattr(random, 'randint', lambda x, y : 0) # randint always returns 0
+    # randint always returns 0
+    monkeypatch.setattr(random, 'randint', lambda x, y: 0)
 
     input_matrix, target_matrix = datasets.get_xor()
 
     # Test size param
-    new_inp_matrix, new_tar_matrix = base.select_random(input_matrix, target_matrix, size=2)
+    new_inp_matrix, new_tar_matrix = base.select_random(
+        input_matrix, target_matrix, size=2)
 
     assert new_inp_matrix.shape[0] == 2
     assert new_tar_matrix.shape[0] == 2
 
     for inp_vec in new_inp_matrix:
-        assert (inp_vec == input_matrix[0]).all() # due to monkeypatch
+        assert (inp_vec == input_matrix[0]).all()  # Due to monkeypatch
     for tar_vec in new_tar_matrix:
-        assert (tar_vec == target_matrix[0]).all() # due to monkeypatch
+        assert (tar_vec == target_matrix[0]).all()  # Due to monkeypatch
 
 
 ####################
@@ -145,18 +153,25 @@ def test_break_on_stagnation_completely_stagnant():
 
     # Stop training if error does not change by more than threshold after
     # distance iterations
-    nn.train([[0.0]], [[0.0]], error_stagnant_distance=5, error_stagnant_threshold=0.01)
-    assert nn.iteration == 6 # The 6th is 5 away from the first
+    nn.train(
+        [[0.0]], [[0.0]],
+        error_stagnant_distance=5,
+        error_stagnant_threshold=0.01)
+    assert nn.iteration == 6  # The 6th is 5 away from the first
 
 
 def test_break_on_stagnation_dont_break_if_wrapped_around():
     # Should not break on situations like: 1.0, 0.9, 0.8, 0.7, 1.0
     # Since error did change, even if it happens to be the same after
     # n iterations
-    nn = helpers.ManySetOutputsModel([[1.0], [0.9], [0.8], [0.7], [1.0], [1.0], [1.0], [1.0], [1.0]])
+    nn = helpers.ManySetOutputsModel([[1.0], [0.9], [0.8], [0.7], [1.0], [1.0],
+                                      [1.0], [1.0], [1.0]])
 
     # Should pass wrap around to [1.0], and stop after consecutive [1.0]s
-    nn.train([[0.0]], [[0.0]], error_stagnant_distance=4, error_stagnant_threshold=0.01)
+    nn.train(
+        [[0.0]], [[0.0]],
+        error_stagnant_distance=4,
+        error_stagnant_threshold=0.01)
     assert nn.iteration == 9
 
 
@@ -164,17 +179,24 @@ def test_break_on_no_improvement_completely_stagnant():
     nn = helpers.SetOutputModel(1.0)
 
     # Stop training if error does not improve after 5 iterations
-    nn.train([[0.0]], [[0.0]], error_stagnant_distance=10, error_stagnant_threshold=None,
-             error_improve_iters=5)
-    assert nn.iteration == 6 # The 6th is 5 away from the first
+    nn.train(
+        [[0.0]], [[0.0]],
+        error_stagnant_distance=10,
+        error_stagnant_threshold=None,
+        error_improve_iters=5)
+    assert nn.iteration == 6  # The 6th is 5 away from the first
 
 
 def test_break_on_no_improvement():
-    nn = helpers.ManySetOutputsModel([[1.0], [0.99], [0.98], [0.97], [0.97], [0.97], [0.97], [0.97], [0.97]])
+    nn = helpers.ManySetOutputsModel([[1.0], [0.99], [0.98], [0.97], [0.97],
+                                      [0.97], [0.97], [0.97], [0.97]])
 
     # Stop training if error does not improve after 5 iterations
-    nn.train([[0.0]], [[0.0]], error_stagnant_distance=10, error_stagnant_threshold=None,
-             error_improve_iters=5)
+    nn.train(
+        [[0.0]], [[0.0]],
+        error_stagnant_distance=10,
+        error_stagnant_threshold=None,
+        error_improve_iters=5)
     assert nn.iteration == 9
 
 
@@ -184,12 +206,14 @@ def test_model_train_retry():
     # Train should not calculate avg_mse if it is out of retries
     assert 0
 
+
 ######################
 # Serialization
 ######################
 def test_serialize():
     model = helpers.SetOutputModel(1.0)
-    assert isinstance(model.serialize(), str), 'Model.serialize should return string'
+    assert isinstance(model.serialize(),
+                      str), 'Model.serialize should return string'
 
 
 def test_unserialize():

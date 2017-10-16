@@ -29,9 +29,14 @@ import numpy
 from learning import Model
 from learning import calculate
 
+
 class SOM(Model):
-    def __init__(self, attributes, neurons, 
-                 move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0,
+    def __init__(self,
+                 attributes,
+                 neurons,
+                 move_rate=0.1,
+                 neighborhood=2,
+                 neighbor_move_rate=1.0,
                  initial_weights_range=1.0):
         super(SOM, self).__init__()
 
@@ -49,7 +54,8 @@ class SOM(Model):
     def reset(self):
         """Reset this model."""
         # Randomize weights, between -1 and 1
-        self._weights = (2*numpy.random.random(self._size) - 1)*self.initial_weights_range
+        self._weights = (2 * numpy.random.random(self._size) - 1
+                         ) * self.initial_weights_range
         self._distances = numpy.zeros(self._size)
 
     def activate(self, inputs):
@@ -73,17 +79,19 @@ class SOM(Model):
 
         # Move the winner and neighbors closer
         # The further the neighbor, the less it should move
-        for i in range(closest-self.neighborhood, closest+self.neighborhood+1):
-            if i >= 0 and i < self._size[0]: # if in range
-                neighbor_distance = float(abs(i-closest))
-                move_rate_modifier = calculate.gaussian(neighbor_distance,
-                                                       self.neighbor_move_rate)
-                final_rate = move_rate_modifier*self.move_rate
+        for i in range(closest - self.neighborhood,
+                       closest + self.neighborhood + 1):
+            if i >= 0 and i < self._size[0]:  # if in range
+                neighbor_distance = float(abs(i - closest))
+                move_rate_modifier = calculate.gaussian(
+                    neighbor_distance, self.neighbor_move_rate)
+                final_rate = move_rate_modifier * self.move_rate
 
-                self._weights[i] += final_rate*(input_vec-self._weights[i])
+                self._weights[i] += final_rate * (input_vec - self._weights[i])
 
     def _get_closest(self):
         return _min_index(self._distances)
+
 
 def _min_index(values):
     return min(enumerate(values), key=operator.itemgetter(1))[0]

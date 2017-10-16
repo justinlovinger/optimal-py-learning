@@ -28,6 +28,7 @@ import numpy
 
 class ErrorFunc(object):
     """An error function."""
+
     def __call__(self, vec_a, vec_b):
         """Return the error between two vectors.
 
@@ -42,6 +43,7 @@ class ErrorFunc(object):
 
 class MeanSquaredError(ErrorFunc):
     """Mean squared error (MSE), defined by mean((vec_a - vec_b)^2)."""
+
     def __call__(self, vec_a, vec_b):
         """Return the error between two vectors.
 
@@ -52,10 +54,10 @@ class MeanSquaredError(ErrorFunc):
     def derivative(self, vec_a, vec_b):
         """Return error, derivative_matrix."""
         error_vec = numpy.subtract(vec_a, vec_b)
-        mse = numpy.mean(error_vec**2) # For returning error
+        mse = numpy.mean(error_vec**2)  # For returning error
 
         # Note that error function is not 0.5*mse, so we multiply by 2
-        error_vec *= (2.0/len(vec_b))
+        error_vec *= (2.0 / len(vec_b))
 
         return mse, error_vec
 
@@ -67,6 +69,7 @@ class CrossEntropyError(ErrorFunc):
     vec_a is expected to be the predicted vector,
     while vec_b is the reference vector.
     """
+
     def __call__(self, vec_a, vec_b):
         """Return the error between two vectors.
 
@@ -76,9 +79,11 @@ class CrossEntropyError(ErrorFunc):
         of cross entropy, while avoiding numerical errors.
         """
         # Use mean instead of sum, so magnitude is independent of length of vectors
-        with numpy.errstate(invalid='raise', divide='ignore'): # Do not allow log(-)
+        with numpy.errstate(
+                invalid='raise', divide='ignore'):  # Do not allow log(-)
             log_a = numpy.log(vec_a)
-        log_a = numpy.nan_to_num(log_a) # Change -inf (from log(0)) to -1.79769313e+308
+        # Change -inf (from log(0)) to -1.79769313e+308
+        log_a = numpy.nan_to_num(log_a)
         return -numpy.mean(log_a * vec_b)
 
     def derivative(self, vec_a, vec_b):
@@ -93,7 +98,7 @@ class CrossEntropyError(ErrorFunc):
         # Change nan (0/0) to 0, and inf (x/0) to 1.79769313e+308
         vec_b_div_vec_a = numpy.nan_to_num(vec_b_div_vec_a)
 
-        return self(vec_a, vec_b), vec_b_div_vec_a/(-len(vec_b))
+        return self(vec_a, vec_b), vec_b_div_vec_a / (-len(vec_b))
 
 
 #############################
@@ -128,7 +133,8 @@ class PenaltyFunc(object):
                 # but we want to provide the raw penalty output
                 penalty_output = penalty_output / self._penalty_weight
 
-        return self._penalty_weight * self._derivative(weight_tensor, penalty_output)
+        return self._penalty_weight * self._derivative(weight_tensor,
+                                                       penalty_output)
 
     def _penalty(self, weight_tensor):
         """Return penalty of given weight tensor."""
@@ -144,6 +150,7 @@ class L1Penalty(PenaltyFunc):
 
     Also known as Lasso.
     """
+
     def _penalty(self, weight_tensor):
         """Return penalty of given weight tensor."""
         return numpy.linalg.norm(weight_tensor, ord=1)

@@ -21,13 +21,16 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
+"""Commonly used mathematical functions."""
 
 import numpy
+
 
 def distance(vec_a, vec_b):
     # TODO: fix so it works with matrix inputs
     diff = numpy.subtract(vec_a, vec_b)
     return numpy.sqrt(diff.dot(diff))
+
 
 def protvecdiv(vec_a, vec_b):
     """Divide vec_a by vec_b.
@@ -48,8 +51,9 @@ def protvecdiv(vec_a, vec_b):
                 try:
                     result_vec[i] = vec_a[i] / vec_b[i]
                 except FloatingPointError:
-                    pass # Already 0 from numpy.zeros
+                    pass  # Already 0 from numpy.zeros
             return result_vec
+
 
 #####################################
 # Common math and transfer functions
@@ -58,15 +62,19 @@ def tanh(x):
     """Sigmoid like function using tanh"""
     return numpy.tanh(x)
 
+
 def dtanh(y):
     """Derivative of sigmoid above"""
     return 1.0 - y**2
 
+
 def gaussian(x, variance=1.0):
-    return numpy.exp(-(x**2/variance))
+    return numpy.exp(-(x**2 / variance))
+
 
 def dgaussian(x, y, variance=1.0):
-    return -2.0*x*y / variance
+    return -2.0 * x * y / variance
+
 
 def relu(x):
     """Return ln(1 + e^x) for each input value."""
@@ -96,10 +104,12 @@ def relu(x):
 
     return out
 
+
 def drelu(x):
     """Return the derivative of the softplus relu function for x."""
     # NOTE: Can be optimized by caching numpy.e**(x) and returning e^x / (e^x + 1)
     return 1.0 / (1.0 + numpy.exp(-x))
+
 
 def softmax(x):
     """Return the softmax of vector x."""
@@ -109,17 +119,18 @@ def softmax(x):
     # NOTE: Attempting to subtract max only when overflow would occur
     # (ex. try / except block for overflow with numpy.errstate('over': 'raise'))
     # results in worse performance for both the overflow and no overflow cases
-    exp_ = numpy.exp(x  - numpy.max(x))
+    exp_ = numpy.exp(x - numpy.max(x))
     return exp_ / numpy.sum(exp_)
+
 
 def dsoftmax(y):
     """Return the derivative of the softmax function for y."""
     # see http://stats.stackexchange.com/questions/79454/softmax-layer-in-a-neural-network
     # Compute matrix J, n x n, with y_i(1 - y_j) on the diagonals
     # and - y_i y_j on the non-diagonals
-    # When getting erros multiply by error vector (J \vec{e})
+    # When getting errors multiply by error vector (J \vec{e})
 
     # Start with - y_i y_j matrix, then replace diagonal with y_i(1 - y_j)
     jacobian = -y[:, None] * y
-    jacobian[numpy.diag_indices(y.shape[0])] = y*(1 - y)
+    jacobian[numpy.diag_indices(y.shape[0])] = y * (1 - y)
     return jacobian

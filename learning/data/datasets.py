@@ -74,8 +74,8 @@ def get_cancer_diagnostic():
         institution={University of California, Irvine, School of Information and Computer Sciences}
     }
     """
-    return process.get_data(_filename_relative('wdbc.data'), 2,
-                            attr_end_pos=None, target_pos=1)
+    return process.get_data(
+        _filename_relative('wdbc.data'), 2, attr_end_pos=None, target_pos=1)
 
 
 def get_cancer_original():
@@ -96,7 +96,8 @@ def get_cancer_original():
         institution={University of California, Irvine, School of Information and Computer Sciences}
     }
     """
-    return process.get_data(_filename_relative('breast-cancer-wisconsin.data'), 1)
+    return process.get_data(
+        _filename_relative('breast-cancer-wisconsin.data'), 1)
 
 
 def get_calhousing():
@@ -148,8 +149,8 @@ def get_calhousing():
         year={2006}
     }
     """
-    return process.get_data(_filename_relative('cal_housing.data'), 0,
-                            classification=False)
+    return process.get_data(
+        _filename_relative('cal_housing.data'), 0, classification=False)
 
 
 def get_haberman():
@@ -236,6 +237,7 @@ def get_xor():
         [1.0, 0.0],
         [0.0, 1.0]
     ])
+
 
 def get_and():
     """Return dataset for AND function."""

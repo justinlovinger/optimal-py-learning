@@ -184,7 +184,7 @@ def _bundle_add_split(f_1, f_2, *args, **kwargs):
 
 
 def _tuple_result(func, *args, **kwargs):
-    return func(*args, **kwargs), # , makes tuple
+    return func(*args, **kwargs),  # , makes tuple
 
 
 def _return_none(*args, **kwargs):

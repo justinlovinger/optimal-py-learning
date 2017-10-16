@@ -29,11 +29,11 @@ def _validate_edge(edge):
     if not isinstance(edge, tuple) or len(edge) != 2:
         raise TypeError('edge must be a (from_node, to_node) tuple')
 
-        
+
 def _reverse_edge(edge):
     return (edge[1], edge[0])
-        
-        
+
+
 def _extract_nodes(adjacency_dict):
     """Return the set of all ndoes in this graph."""
     nodes = set()
@@ -65,6 +65,7 @@ def _make_adjacency_dict(nodes, edges):
 
     return adjacency_dict
 
+
 def _shallow_copy(adjacency_dict):
     """Create a copy of every list object, while maintaining items in lists."""
     new_dict = {}
@@ -73,15 +74,20 @@ def _shallow_copy(adjacency_dict):
         new_dict[key] = list_of_values[:]
     return new_dict
 
+
 class Graph(object):
     def __init__(self, adjacency_dict):
         # Maps node to connected nodes
         if not isinstance(adjacency_dict, dict):
-            raise TypeError('adjacency_dict must be a dict mapping node -> list of connected nodes')
+            raise TypeError(
+                'adjacency_dict must be a dict mapping node -> list of connected nodes'
+            )
         for value in adjacency_dict.itervalues():
             if not (isinstance(value, list) or isinstance(value, tuple)):
-                raise TypeError('adjacency_dict must be a dict mapping node -> list of connected nodes')
-        
+                raise TypeError(
+                    'adjacency_dict must be a dict mapping node -> list of connected nodes'
+                )
+
         # Origionally, we deep copied the adjacency dict, to avoid side effects
         # However, when passing an adjacency dict of objects,
         # it is often desirable for the object ids in the graph to match
@@ -89,7 +95,7 @@ class Graph(object):
         # Performing a copy of the list object, with the same elements,
         # is a compromise
         self.adjacency = _shallow_copy(adjacency_dict)
-        
+
         self.nodes = _extract_nodes(self.adjacency)
         self.edges = _extract_edges(self.adjacency)
 
@@ -101,14 +107,14 @@ class Graph(object):
 
     def add_edge(self, edge):
         """Add edge to graph.
-        
+
         Args:
             edge: (from_node, to_node) tuple.
         """
         _validate_edge(edge)
         if edge in self.edges:
             raise ValueError('edge already in graph.')
-        
+
         # Add to adjacency
         try:
             connected_nodes = self.adjacency[edge[0]]
@@ -116,35 +122,36 @@ class Graph(object):
         # from_node in edge is not yet a from_node in graph
         except KeyError:
             self.adjacency[edge[0]] = [edge[1]]
-            
+
         # Add to set of edges, and set of nodes
         self.nodes.add(edge[0])
         self.nodes.add(edge[1])
         self.edges.add(edge)
-        
+
     def remove_edge(self, edge):
         """Remove edge to graph.
-        
+
         Args:
             edge: (from_node, to_node) tuple.
         """
         _validate_edge(edge)
         if not edge in self.edges:
             raise ValueError('edge not in graph.')
-            
+
         # Remove from adjacency
         connected_nodes = self.adjacency[edge[0]]
         connected_nodes.remove(edge[1])
-            
+
         # Remove from set of edges
         # Nodes remain in set of nodes, even if they have no edges left
         self.edges.remove(edge)
 
+
 def find_path(adjacency_dict, start, end, path=[]):
     """Search for a path from start to end.
-    
+
     From: https://www.python.org/doc/essays/graphs/
-    
+
     Returns:
         list / None; If path exists, return list of nodes in path order, otherwise return None.
     """
@@ -160,14 +167,14 @@ def find_path(adjacency_dict, start, end, path=[]):
     return None
 
 
-def traverse_bredth_first(adjacency_dict, start, node_callback):
+def traverse_breadth_first(adjacency_dict, start, node_callback):
     """Perform a breath first search to all reachable nodes, calling callback on each.
-    
+
     Each node is visited only once.
     """
     open_list = [start]
     expanded_nodes = set()
-    
+
     # Expand nodes that haven't been expanded, until we run out
     while len(open_list) > 0:
         # Expand the next node
@@ -176,7 +183,7 @@ def traverse_bredth_first(adjacency_dict, start, node_callback):
 
         # Perform callback on newly expanded node
         node_callback(next_node)
-        
+
         # Expand the open list
         try:
             connected_nodes = adjacency_dict[next_node]
@@ -187,6 +194,7 @@ def traverse_bredth_first(adjacency_dict, start, node_callback):
             if node not in expanded_nodes and node not in open_list:
                 open_list.append(node)
 
+
 def find_reachable_nodes(adjacency_dict, start):
     """Perform a breath first search to discover all reachable nodes.
 
@@ -195,8 +203,9 @@ def find_reachable_nodes(adjacency_dict, start):
     """
     # Add each discovered node to set
     expanded_nodes = set()
+
     def node_callback(node):
         expanded_nodes.add(node)
 
-    traverse_bredth_first(adjacency_dict, start, node_callback)
+    traverse_breadth_first(adjacency_dict, start, node_callback)
     return expanded_nodes

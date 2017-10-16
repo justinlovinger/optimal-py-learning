@@ -44,26 +44,38 @@ class RBF(Model):
         optimizer: Instance of learning.optimize.optimizer.Optimizer.
         error_func: Instance of learning.error.ErrorFunc.
     """
-    def __init__(self, attributes, num_clusters, num_outputs,
-                 optimizer=None, error_func=None,
-                 variance=None, scale_by_similarity=True,
+
+    def __init__(self,
+                 attributes,
+                 num_clusters,
+                 num_outputs,
+                 optimizer=None,
+                 error_func=None,
+                 variance=None,
+                 scale_by_similarity=True,
                  pre_train_clusters=False,
-                 move_rate=0.1, neighborhood=2, neighbor_move_rate=1.0):
+                 move_rate=0.1,
+                 neighborhood=2,
+                 neighbor_move_rate=1.0):
         super(RBF, self).__init__()
 
         # Clustering algorithm
         self._pre_train_clusters = pre_train_clusters
         self._som = SOM(
-            attributes, num_clusters,
-            move_rate=move_rate, neighborhood=neighborhood, neighbor_move_rate=neighbor_move_rate)
+            attributes,
+            num_clusters,
+            move_rate=move_rate,
+            neighborhood=neighborhood,
+            neighbor_move_rate=neighbor_move_rate)
 
         # Variance for gaussian
         if variance is None:
-            variance = 4.0/num_clusters
+            variance = 4.0 / num_clusters
         self._variance = variance
 
         # Weight matrix for output
-        self._weight_matrix = self._random_weight_matrix((num_clusters, num_outputs))
+        self._weight_matrix = self._random_weight_matrix((num_clusters,
+                                                          num_outputs))
 
         # Optimizer to optimize weight_matrix
         if optimizer is None:
@@ -101,7 +113,8 @@ class RBF(Model):
         self._som.reset()
         self._optimizer.reset()
 
-        self._weight_matrix = self._random_weight_matrix(self._weight_matrix.shape)
+        self._weight_matrix = self._random_weight_matrix(
+            self._weight_matrix.shape)
 
         self._similarities = None
         self._total_similarity = None
@@ -109,12 +122,13 @@ class RBF(Model):
     def _random_weight_matrix(self, shape):
         """Return a random weight matrix."""
         # TODO: Random weight matrix should be a function user can pass in
-        return (2*numpy.random.random(shape) - 1)*INITIAL_WEIGHTS_RANGE
+        return (2 * numpy.random.random(shape) - 1) * INITIAL_WEIGHTS_RANGE
 
     def activate(self, inputs):
         """Return the model outputs for given inputs."""
         # Get distance to each cluster center, and apply gaussian for similarity
-        self._similarities = calculate.gaussian(self._som.activate(inputs), self._variance)
+        self._similarities = calculate.gaussian(
+            self._som.activate(inputs), self._variance)
 
         # Get output by weighted summation of similarities, weighted by weights
         output = numpy.dot(self._similarities, self._weight_matrix)
@@ -146,7 +160,6 @@ class RBF(Model):
 
         super(RBF, self).train(*args, **kwargs)
 
-
     def train_step(self, input_matrix, target_matrix):
         """Adjust the model towards the targets for given inputs.
 
@@ -157,10 +170,12 @@ class RBF(Model):
         """
         # Train RBF
         error, flat_weights = self._optimizer.next(
-            Problem(obj_func=lambda xk: self._get_obj(xk, input_matrix, target_matrix),
-                    obj_jac_func=lambda xk: self._get_obj_jac(xk, input_matrix, target_matrix)),
-            self._weight_matrix.ravel()
-        )
+            Problem(
+                obj_func=
+                lambda xk: self._get_obj(xk, input_matrix, target_matrix),
+                obj_jac_func=
+                lambda xk: self._get_obj_jac(xk, input_matrix, target_matrix)),
+            self._weight_matrix.ravel())
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
 
         # Train SOM clusters
@@ -171,8 +186,10 @@ class RBF(Model):
     def _get_obj(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        return numpy.mean([self._error_func(self.activate(inp_vec), tar_vec)
-                           for inp_vec, tar_vec in zip(input_matrix, target_matrix)])
+        return numpy.mean([
+            self._error_func(self.activate(inp_vec), tar_vec)
+            for inp_vec, tar_vec in zip(input_matrix, target_matrix)
+        ])
 
     def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
@@ -182,8 +199,10 @@ class RBF(Model):
 
     def _get_jacobian(self, input_matrix, target_matrix):
         """Return jacobian and error for given dataset."""
-        errors, jacobians = zip(*[self._get_sample_jacobian(input_vec, target_vec)
-                                  for input_vec, target_vec in zip(input_matrix, target_matrix)])
+        errors, jacobians = zip(*[
+            self._get_sample_jacobian(input_vec, target_vec)
+            for input_vec, target_vec in zip(input_matrix, target_matrix)
+        ])
         return numpy.mean(errors), numpy.mean(jacobians, axis=0)
 
     def _get_sample_jacobian(self, input_vec, target_vec):

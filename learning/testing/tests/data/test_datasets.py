@@ -28,6 +28,7 @@ import numpy
 
 from learning.data import datasets
 
+
 def test_lenses():
     input_matrix, target_matrix = datasets.get_lenses()
 

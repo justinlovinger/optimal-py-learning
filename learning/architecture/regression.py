@@ -29,7 +29,6 @@ import numpy
 from learning import Model, MeanSquaredError
 from learning.optimize import Problem, BFGS, SteepestDescent
 
-
 INITIAL_WEIGHTS_RANGE = 0.25
 
 
@@ -165,7 +164,6 @@ class RegressionModel(Model):
         ])
         error = numpy.mean(errors)
         jacobian = numpy.mean(jacobians, axis=0)
-
 
         # Calculate weight penalty
         if self._penalty_func is not None:
