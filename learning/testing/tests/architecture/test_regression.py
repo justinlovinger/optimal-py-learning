@@ -26,9 +26,8 @@ import random
 import numpy
 import pytest
 
-from learning import validation
+from learning import validation, error
 from learning import LinearRegressionModel
-from learning.architecture import regression
 from learning.data import datasets
 from learning.testing import helpers
 
@@ -67,13 +66,13 @@ def test_LinearRegressionModel_jacobian():
 
 def test_LinearRegressionModel_jacobian_l1_penalty():
     _check_jacobian(lambda a, o: LinearRegressionModel(
-        a, o, penalty_func=regression.L1Penalty(
+        a, o, penalty_func=error.L1Penalty(
             penalty_weight=random.uniform(0.0, 2.0))))
 
 
 def test_LinearRegressionModel_jacobian_l2_penalty():
     _check_jacobian(lambda a, o: LinearRegressionModel(
-        a, o, penalty_func=regression.L2Penalty(
+        a, o, penalty_func=error.L2Penalty(
             penalty_weight=random.uniform(0.0, 2.0))))
 
 
@@ -83,29 +82,14 @@ def test_LinearRegressionModel_get_obj_equals_get_obj_jac():
 
 def test_LinearRegressionModel_get_obj_equals_get_obj_jac_l1_penalty():
     _check_get_obj_equals_get_obj_jac(lambda a, o: LinearRegressionModel(
-        a, o, penalty_func=regression.L1Penalty(
+        a, o, penalty_func=error.L1Penalty(
             penalty_weight=random.uniform(0.0, 2.0))))
 
 
 def test_LinearRegressionModel_get_obj_equals_get_obj_jac_l2_penalty():
     _check_get_obj_equals_get_obj_jac(lambda a, o: LinearRegressionModel(
-        a, o, penalty_func=regression.L2Penalty(
+        a, o, penalty_func=error.L2Penalty(
             penalty_weight=random.uniform(0.0, 2.0))))
-
-
-#############################
-# Penalty Functions
-#############################
-def test_L1Penalty_jacobian():
-    penalty_func = regression.L1Penalty(
-        penalty_weight=random.uniform(0.0, 2.0))
-    helpers.check_gradient(penalty_func, penalty_func.derivative)
-
-
-def test_L2Penalty_jacobian():
-    penalty_func = regression.L2Penalty(
-        penalty_weight=random.uniform(0.0, 2.0))
-    helpers.check_gradient(penalty_func, penalty_func.derivative)
 
 
 ######################################

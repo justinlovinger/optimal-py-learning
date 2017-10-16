@@ -17,6 +17,7 @@ def test_cross_entropy_zero_in_vec_a():
     assert error_func(numpy.array([0., 0., 1.]), numpy.array([0., 0., 1.])) == 0
     assert error_func(numpy.array([1., 0., 1.]), numpy.array([0., 0., 1.])) == 0
 
+
 def test_cross_entropy_error_on_negative():
     """CrossEntropy does not take negative values in vec_a."""
     error_func = error.CrossEntropy()
@@ -24,11 +25,14 @@ def test_cross_entropy_error_on_negative():
     with pytest.raises(FloatingPointError):
         assert error_func(numpy.array([-1., 1.]), numpy.array([0., 1.]))
 
+
 def test_mse_derivative():
     check_error_gradient(error.MSE())
 
+
 def test_cross_entropy_derivative():
     check_error_gradient(error.CrossEntropy())
+
 
 def test_cross_entropy_derivative_equals():
     """Should not raise error or return nan, when both inputs match.
@@ -42,6 +46,7 @@ def test_cross_entropy_derivative_equals():
         == [0., -0.5]
     )
 
+
 def check_error_gradient(error_func):
     vec_length = random.randint(1, 10)
 
@@ -52,3 +57,18 @@ def check_error_gradient(error_func):
         inputs=numpy.random.random(vec_length),
         f_shape='scalar'
     )
+
+
+#############################
+# Penalty Functions
+#############################
+def test_L1Penalty_jacobian():
+    penalty_func = error.L1Penalty(
+        penalty_weight=random.uniform(0.0, 2.0))
+    helpers.check_gradient(penalty_func, penalty_func.derivative)
+
+
+def test_L2Penalty_jacobian():
+    penalty_func = error.L2Penalty(
+        penalty_weight=random.uniform(0.0, 2.0))
+    helpers.check_gradient(penalty_func, penalty_func.derivative)

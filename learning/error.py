@@ -94,3 +94,76 @@ class CrossEntropy(ErrorFunc):
         vec_b_div_vec_a = numpy.nan_to_num(vec_b_div_vec_a)
 
         return self(vec_a, vec_b), vec_b_div_vec_a/(-len(vec_b))
+
+
+#############################
+# Penalty Functions
+#############################
+class PenaltyFunc(object):
+    """A penalty function on weights."""
+    derivative_uses_penalty = False
+
+    def __init__(self, penalty_weight=1.0):
+        super(PenaltyFunc, self).__init__()
+
+        self._penalty_weight = penalty_weight
+
+    def __call__(self, weight_tensor):
+        """Return penalty of given weight tensor."""
+        return self._penalty_weight * self._penalty(weight_tensor)
+
+    def derivative(self, weight_tensor, penalty_output=None):
+        """Return jacobian of given weight tensor.
+
+        Output of this penalty function on the given weight_tensor
+        can optionally be given for efficiently.
+        Otherwise, it will be calculated if needed.
+        """
+        if self.derivative_uses_penalty:
+            if penalty_output is None:
+                penalty_output = self._penalty(weight_tensor)
+            else:
+                # Divide by self._penalty_weight,
+                # because penalty_output is already multiplied by self._penalty_weight,
+                # but we want to provide the raw penalty output
+                penalty_output = penalty_output / self._penalty_weight
+
+        return self._penalty_weight * self._derivative(weight_tensor, penalty_output)
+
+    def _penalty(self, weight_tensor):
+        """Return penalty of given weight tensor."""
+        raise NotImplementedError
+
+    def _derivative(self, weight_tensor, penalty_output):
+        """Return jacobian of given weight tensor."""
+        raise NotImplementedError
+
+
+class L1Penalty(PenaltyFunc):
+    """Penalize weights by ||W||_1.
+
+    Also known as Lasso.
+    """
+    def _penalty(self, weight_tensor):
+        """Return penalty of given weight tensor."""
+        return numpy.linalg.norm(weight_tensor, ord=1)
+
+    def _derivative(self, weight_tensor, penalty_output):
+        """Return jacobian of given weight tensor."""
+        return numpy.sign(weight_tensor)
+
+
+class L2Penalty(PenaltyFunc):
+    """Penalize weights by ||W||_2.
+
+    Also known as Lasso.
+    """
+    derivative_uses_penalty = True
+
+    def _penalty(self, weight_tensor):
+        """Return penalty of given weight tensor."""
+        return numpy.linalg.norm(weight_tensor, ord=2)
+
+    def _derivative(self, weight_tensor, penalty_output):
+        """Return jacobian of given weight tensor."""
+        return weight_tensor / penalty_output

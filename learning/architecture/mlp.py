@@ -36,6 +36,8 @@ from learning.error import MSE
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
+
+# TODO: Add support for penalty functions
 class MLP(Model):
     """MultiLayer Perceptron
 

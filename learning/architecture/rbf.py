@@ -21,7 +21,6 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
-
 """Radial Basis Function network."""
 import operator
 
@@ -35,6 +34,8 @@ from learning.error import MSE
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
+
+# TODO: Add support for penalty functions
 class RBF(Model):
     """Radial Basis Function network.
 
