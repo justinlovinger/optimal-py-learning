@@ -52,14 +52,13 @@ def test_LinearRegressionModel():
 def test_LinearRegressionModel_convergence():
     # Run until convergence
     # assert that model can converge
-    model = LinearRegressionModel(2, 1)
-    # NOTE: We use make plus dataset, so linear model can fully converge
-    input_matrix = numpy.random.random((10, 2))
-    target_matrix = numpy.sum(input_matrix, axis=1)[:, None]
+    model = LinearRegressionModel(2, 2)
+    # NOTE: We use and instead of xor, because xor is non-linear
+    dataset = datasets.get_and()
 
-    error = validation.get_error(model, input_matrix, target_matrix)
-    model.train(input_matrix, target_matrix, iterations=10)
-    assert validation.get_error(model, input_matrix, target_matrix) <= 0.02
+    model.train(*dataset)
+    # NOTE: This linear model cannot achieve 0 MSE
+    assert validation.get_error(model, *dataset) <= 0.1
 
 
 def test_LinearRegressionModel_jacobian():

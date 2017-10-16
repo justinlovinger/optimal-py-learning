@@ -53,8 +53,8 @@ class RegressionModel(Model):
         super(RegressionModel, self).__init__()
 
         # Weight matrix, optimized during training
-        self._weight_matrix = self._random_weight_matrix((attributes,
-                                                          num_outputs))
+        self._weight_matrix = self._random_weight_matrix(
+            self._weights_shape(attributes, num_outputs))
 
         # Optimizer to optimize weight_matrix
         if optimizer is None:
@@ -179,7 +179,7 @@ class RegressionModel(Model):
             # Error and jacobian is combination of error and weight penalty
             error += penalty
             jacobian += penalty_jac
-        
+
         return error, jacobian
 
     def _get_sample_jacobian(self, input_vec, target_vec):
@@ -196,6 +196,10 @@ class RegressionModel(Model):
 
         return error, jacobian
 
+    def _weights_shape(self, attributes, num_outputs):
+        """Return shape of this models weight matrix."""
+        raise NotImplementedError()
+
     def _equation_output(self, input_vec):
         """Return the output of this models equation."""
         raise NotImplementedError()
@@ -211,16 +215,24 @@ class RegressionModel(Model):
 class LinearRegressionModel(RegressionModel):
     r"""Regression model with an equation of the form: f(\vec{x}) = W \vec{x}."""
 
+    def _weights_shape(self, attributes, num_outputs):
+        """Return shape of this models weight matrix."""
+        # +1 for bias term
+        return (attributes + 1, num_outputs)
+
     def _equation_output(self, input_vec):
         """Return the output of this models equation."""
-        return numpy.dot(input_vec, self._weight_matrix)
+        # First weight (for each output) is independent of input_vec
+        return self._weight_matrix[0] + numpy.dot(input_vec,
+                                                  self._weight_matrix[1:])
 
     def _equation_derivative(self, input_vec, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
         """
-        return input_vec[:, None].dot(error_jac[None, :])
+        # Add bias term to input_vec
+        return numpy.hstack(([1], input_vec))[:, None].dot(error_jac[None, :])
 
 
 #############################
