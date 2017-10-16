@@ -23,7 +23,7 @@ Numerical optimization strategies are also implemented to optimize models:
 * Quadratic initial step
 
 # Installation
-    copy the "learning" to [python-path]/lib/site-packages
+    Copy the "learning" folder to [python-path]/lib/site-packages
 
 # Usage
     from learning import datasets, validation, MLP
