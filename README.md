@@ -80,3 +80,7 @@ Numerical optimization strategies are also implemented to optimize models:
     print 'Testing accuracy:', validation.get_accuracy(model, *testing_set)
 
 For further usage details, see comprehensive doc strings for public functions and classes.
+
+# Breaking Changes
+## 10/16/2017
+Renamed Model.test -> Model.print_results

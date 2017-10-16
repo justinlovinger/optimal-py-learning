@@ -286,10 +286,10 @@ class Model(object):
     ##################
     # Helper methods
     ##################
-    def test(self, input_matrix, target_matrix):
+    def print_results(self, input_matrix, target_matrix):
         """Print corresponding inputs and outputs from a dataset."""
         for inp_vec, tar_vec in zip(input_matrix, target_matrix):
-            print(tar_vec, '->', self.activate(inp_vec))
+            print inp_vec, '->', self.activate(inp_vec), '(%s)' % tar_vec
 
 
 def _all_close(values, other_value, threshold):
