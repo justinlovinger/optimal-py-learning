@@ -28,6 +28,7 @@ import pytest
 
 from learning import validation
 from learning import LinearRegressionModel
+from learning.architecture import regression
 from learning.data import datasets
 from learning.testing import helpers
 
@@ -62,7 +63,50 @@ def test_LinearRegressionModel_convergence():
 
 
 def test_LinearRegressionModel_jacobian():
-    _check_jacobian(lambda a, o: LinearRegressionModel(a, o,))
+    _check_jacobian(lambda a, o: LinearRegressionModel(a, o))
+
+
+def test_LinearRegressionModel_jacobian_l1_penalty():
+    _check_jacobian(lambda a, o: LinearRegressionModel(
+        a, o, penalty_func=regression.L1Penalty(
+            penalty_weight=random.uniform(0.0, 2.0))))
+
+
+def test_LinearRegressionModel_jacobian_l2_penalty():
+    _check_jacobian(lambda a, o: LinearRegressionModel(
+        a, o, penalty_func=regression.L2Penalty(
+            penalty_weight=random.uniform(0.0, 2.0))))
+
+
+def test_LinearRegressionModel_get_obj_equals_get_obj_jac():
+    _check_get_obj_equals_get_obj_jac(lambda a, o: LinearRegressionModel(a, o))
+
+
+def test_LinearRegressionModel_get_obj_equals_get_obj_jac_l1_penalty():
+    _check_get_obj_equals_get_obj_jac(lambda a, o: LinearRegressionModel(
+        a, o, penalty_func=regression.L1Penalty(
+            penalty_weight=random.uniform(0.0, 2.0))))
+
+
+def test_LinearRegressionModel_get_obj_equals_get_obj_jac_l2_penalty():
+    _check_get_obj_equals_get_obj_jac(lambda a, o: LinearRegressionModel(
+        a, o, penalty_func=regression.L2Penalty(
+            penalty_weight=random.uniform(0.0, 2.0))))
+
+
+#############################
+# Penalty Functions
+#############################
+def test_L1Penalty_jacobian():
+    penalty_func = regression.L1Penalty(
+        penalty_weight=random.uniform(0.0, 2.0))
+    helpers.check_gradient(penalty_func, penalty_func.derivative)
+
+
+def test_L2Penalty_jacobian():
+    penalty_func = regression.L2Penalty(
+        penalty_weight=random.uniform(0.0, 2.0))
+    helpers.check_gradient(penalty_func, penalty_func.derivative)
 
 
 ######################################
@@ -81,3 +125,16 @@ def _check_jacobian(make_model_func):
 
     helpers.check_gradient(
         f, df, inputs=model._weight_matrix.ravel(), f_shape='scalar')
+
+
+def _check_get_obj_equals_get_obj_jac(make_model_func):
+    attrs = random.randint(1, 10)
+    outs = random.randint(1, 10)
+
+    inp_matrix, tar_matrix = datasets.get_random_regression(10, attrs, outs)
+    model = make_model_func(attrs, outs)
+    flat_weights = model._weight_matrix.ravel()
+
+    assert model._get_obj(flat_weights, inp_matrix,
+                          tar_matrix) == model._get_obj_jac(
+                              flat_weights, inp_matrix, tar_matrix)[0]

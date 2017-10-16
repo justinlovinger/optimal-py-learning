@@ -184,7 +184,14 @@ def check_gradient(f, df, inputs=None, epsilon=1e-6, f_shape='scalar'):
     else:
         raise ValueError("Invalid f_shape. Must be one of ('scalar', 'lin', 'jac').")
 
-    assert approx_equal(df(inputs), approx_func(f, inputs, epsilon), tol=epsilon)
+    try:
+        assert approx_equal(df(inputs), approx_func(f, inputs, epsilon), tol=epsilon)
+    except AssertionError:
+        print 'Actual Gradient:'
+        print df(inputs)
+        print 'Expected Gradient:'
+        print approx_func(f, inputs, epsilon)
+        raise
 
 def _approximate_gradient_scalar(f, x, epsilon):
     return numpy.array([_approximate_ith(i, f, x, epsilon) for i in range(x.shape[0])])

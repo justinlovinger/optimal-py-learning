@@ -48,7 +48,8 @@ class RegressionModel(Model):
                  attributes,
                  num_outputs,
                  optimizer=None,
-                 error_func=None):
+                 error_func=None,
+                 penalty_func=None):
         super(RegressionModel, self).__init__()
 
         # Weight matrix, optimized during training
@@ -78,6 +79,9 @@ class RegressionModel(Model):
         if error_func is None:
             error_func = MSE()
         self._error_func = error_func
+
+        # Penalty function for training
+        self._penalty_func = penalty_func
 
     def reset(self):
         """Reset this model."""
@@ -120,14 +124,32 @@ class RegressionModel(Model):
 
         return error
 
+    ######################################
+    # Helper functions for optimizer
+    ######################################
     def _get_obj(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        return numpy.mean([
+        return self._get_objective_value(input_matrix, target_matrix)
+
+    def _get_objective_value(self, input_matrix, target_matrix):
+        """Return error on given dataset."""
+        error = numpy.mean([
             self._error_func(self.activate(inp_vec), tar_vec)
             for inp_vec, tar_vec in zip(input_matrix, target_matrix)
         ])
 
+        if self._penalty_func is not None:
+            # Error is mean of sample errors + weight penalty
+            # NOTE: We ravel the weight matrix, to take vector norm
+            error += self._penalty_func(self._weight_matrix.ravel())
+
+        return error
+
+    ######################################
+    # Differentiation
+    ######################################
+    # for numerical optimization
     def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
@@ -136,17 +158,36 @@ class RegressionModel(Model):
 
     def _get_jacobian(self, input_matrix, target_matrix):
         """Return jacobian and error for given dataset."""
+        # Calculate jacobian, given error function
         errors, jacobians = zip(*[
             self._get_sample_jacobian(input_vec, target_vec)
             for input_vec, target_vec in zip(input_matrix, target_matrix)
         ])
-        return numpy.mean(errors), numpy.mean(jacobians, axis=0)
+        error = numpy.mean(errors)
+        jacobian = numpy.mean(jacobians, axis=0)
+
+
+        # Calculate weight penalty
+        if self._penalty_func is not None:
+            # NOTE: We ravel the weight matrix, to take vector norm
+            flat_weights = self._weight_matrix.ravel()
+            penalty = self._penalty_func(flat_weights)
+            penalty_jac = self._penalty_func.derivative(
+                flat_weights,
+                penalty_output=penalty).reshape(self._weight_matrix.shape)
+
+            # Error and jacobian is combination of error and weight penalty
+            error += penalty
+            jacobian += penalty_jac
+        
+        return error, jacobian
 
     def _get_sample_jacobian(self, input_vec, target_vec):
         """Return jacobian and error for given sample."""
         output_vec = self.activate(input_vec)
         if output_vec.shape != target_vec.shape:
-            raise ValueError('target_vec.shape does not match output_vec.shape')
+            raise ValueError(
+                'target_vec.shape does not match output_vec.shape')
 
         error, error_jac = self._error_func.derivative(output_vec, target_vec)
         jacobian = self._equation_derivative(input_vec, error_jac)
@@ -180,3 +221,76 @@ class LinearRegressionModel(RegressionModel):
         Derivative with regard to weights.
         """
         return input_vec[:, None].dot(error_jac[None, :])
+
+
+#############################
+# Penalty Functions
+#############################
+class PenaltyFunc(object):
+    """A penalty function on weights."""
+    derivative_uses_penalty = False
+
+    def __init__(self, penalty_weight=1.0):
+        super(PenaltyFunc, self).__init__()
+
+        self._penalty_weight = penalty_weight
+
+    def __call__(self, weight_tensor):
+        """Return penalty of given weight tensor."""
+        return self._penalty_weight * self._penalty(weight_tensor)
+
+    def derivative(self, weight_tensor, penalty_output=None):
+        """Return jacobian of given weight tensor.
+
+        Output of this penalty function on the given weight_tensor
+        can optionally be given for efficiently.
+        Otherwise, it will be calculated if needed.
+        """
+        if self.derivative_uses_penalty:
+            if penalty_output is None:
+                penalty_output = self._penalty(weight_tensor)
+            else:
+                # Divide by self._penalty_weight,
+                # because penalty_output is already multiplied by self._penalty_weight,
+                # but we want to provide the raw penalty output
+                penalty_output = penalty_output / self._penalty_weight
+
+        return self._penalty_weight * self._derivative(weight_tensor, penalty_output)
+
+    def _penalty(self, weight_tensor):
+        """Return penalty of given weight tensor."""
+        raise NotImplementedError
+
+    def _derivative(self, weight_tensor, penalty_output):
+        """Return jacobian of given weight tensor."""
+        raise NotImplementedError
+
+
+class L1Penalty(PenaltyFunc):
+    """Penalize weights by ||W||_1.
+
+    Also known as Lasso.
+    """
+    def _penalty(self, weight_tensor):
+        """Return penalty of given weight tensor."""
+        return numpy.linalg.norm(weight_tensor, ord=1)
+
+    def _derivative(self, weight_tensor, penalty_output):
+        """Return jacobian of given weight tensor."""
+        return numpy.sign(weight_tensor)
+
+
+class L2Penalty(PenaltyFunc):
+    """Penalize weights by ||W||_2.
+
+    Also known as Lasso.
+    """
+    derivative_uses_penalty = True
+
+    def _penalty(self, weight_tensor):
+        """Return penalty of given weight tensor."""
+        return numpy.linalg.norm(weight_tensor, ord=2)
+
+    def _derivative(self, weight_tensor, penalty_output):
+        """Return jacobian of given weight tensor."""
+        return weight_tensor / penalty_output
