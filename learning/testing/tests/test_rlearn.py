@@ -14,6 +14,7 @@ def test_rltable_initial_table():
         1: {0: rl._initial_reward, 1: rl._initial_reward}
     }
 
+
 #########################
 # RLTable initial reward
 #########################
@@ -28,6 +29,7 @@ def test_rltable_initial_reward():
     rl.add_action(1, 1)
     assert rl._reward_table == {0: {0: initial_reward}, 1: {1: initial_reward}}
 
+
 #######################
 # RLTable.get_action
 #######################
@@ -38,6 +40,7 @@ def test_rltable_get_action():
 
     rl._reward_table[0][1] = -999999999
     assert rl.get_action(0) == 0
+
 
 #######################
 # RLTable.update_action
@@ -67,6 +70,7 @@ def test_rltable_update():
     rl.update(0, 0, 0.0)
     assert rl._reward_table[0][0] == 0.0
 
+
 #########################
 # RLTable._increment_all
 #########################
@@ -87,6 +91,7 @@ def test_rltable_update_with_reward_growth():
     assert rl._reward_table[1][0] == 0.9
     assert rl._reward_table[1][1] == 0.9
 
+
 def test_rltable_increment_all():
     rl = rlearn.RLTable([0, 1], [0, 1], initial_reward=1.0)
     rl._increment_all(0.1)
@@ -100,6 +105,7 @@ def test_rltable_increment_all():
     assert (rl._reward_table[0][1] - 0.9) < 0.00000001
     assert (rl._reward_table[1][0] - 0.9) < 0.00000001
     assert (rl._reward_table[1][1] - 0.9) < 0.00000001
+
 
 #######################
 # RLTable.add_action
@@ -123,6 +129,7 @@ def test_rltable_add_action():
         1: {0: rl._initial_reward}
     }
 
+
 def test_rltable_add_action_existing():
     rl = rlearn.RLTable([], [])
     assert rl._reward_table == {}
@@ -135,6 +142,7 @@ def test_rltable_add_action_existing():
     with pytest.raises(ValueError):
         rl.add_action(0, 0)
     assert rl._reward_table == {0: {0: rl._initial_reward}}
+
 
 #######################
 # RLTable.delete_action
@@ -155,6 +163,7 @@ def test_rltable_delete_action():
     rl.delete_action(0, 1)
     assert rl._reward_table == {0: {0: rl._initial_reward}}
 
+
 def test_rltable_delete_only_action_for_state():
     rl = rlearn.RLTable([], [])
     assert rl._reward_table == {}
@@ -166,6 +175,7 @@ def test_rltable_delete_only_action_for_state():
     # Remove it
     rl.delete_action(0, 0)
     assert rl._reward_table == {}
+
 
 def test_rltable_delete_action_that_doesnt_exist():
     rl = rlearn.RLTable([], [])

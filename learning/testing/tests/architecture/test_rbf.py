@@ -2,9 +2,8 @@ import random
 
 import pytest
 
-from learning import validation
+from learning import datasets, validation
 from learning.architecture import rbf
-from learning.data import datasets
 
 from learning.testing import helpers
 

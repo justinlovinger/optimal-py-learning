@@ -1,7 +1,7 @@
 import numpy
 import pytest
 
-from learning import Model, MLP, validation
+from learning import validation, Model, MLP
 from learning.architecture import multioutputs
 
 from learning.testing import helpers

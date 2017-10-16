@@ -4,10 +4,7 @@ import random
 
 import numpy
 
-from learning import graph
-from learning import base
-from learning.data import datasets
-from learning.architecture import mlp, rbf
+from learning import base, datasets
 
 from learning.testing import helpers
 
@@ -57,6 +54,7 @@ def test_select_sample_size_none(seed_random):
     assert not (new_inp_matrix == input_matrix).all() # order different
     assert not (new_tar_matrix == target_matrix).all() # order different
 
+
 def test_select_sample(seed_random):
     input_matrix, target_matrix = datasets.get_xor()
 
@@ -93,6 +91,7 @@ def test_select_random_size_none(monkeypatch):
     for tar_vec in new_tar_matrix:
         assert (tar_vec == target_matrix[0]).all() # due to monkeypatch
 
+
 def test_select_random(monkeypatch):
     # Monkeypatch so we know that random returns
     monkeypatch.setattr(random, 'randint', lambda x, y : 0) # randint always returns 0
@@ -110,6 +109,7 @@ def test_select_random(monkeypatch):
     for tar_vec in new_tar_matrix:
         assert (tar_vec == target_matrix[0]).all() # due to monkeypatch
 
+
 ####################
 # Train function
 ####################
@@ -124,6 +124,7 @@ def test_break_on_stagnation_completely_stagnant():
     nn.train([[0.0]], [[0.0]], error_stagnant_distance=5, error_stagnant_threshold=0.01)
     assert nn.iteration == 6 # The 6th is 5 away from the first
 
+
 def test_break_on_stagnation_dont_break_if_wrapped_around():
     # Should not break on situations like: 1.0, 0.9, 0.8, 0.7, 1.0
     # Since error did change, even if it happens to be the same after
@@ -134,6 +135,7 @@ def test_break_on_stagnation_dont_break_if_wrapped_around():
     nn.train([[0.0]], [[0.0]], error_stagnant_distance=4, error_stagnant_threshold=0.01)
     assert nn.iteration == 9
 
+
 def test_break_on_no_improvement_completely_stagnant():
     nn = helpers.SetOutputModel(1.0)
 
@@ -142,6 +144,7 @@ def test_break_on_no_improvement_completely_stagnant():
              error_improve_iters=5)
     assert nn.iteration == 6 # The 6th is 5 away from the first
 
+
 def test_break_on_no_improvement():
     nn = helpers.ManySetOutputsModel([[1.0], [0.99], [0.98], [0.97], [0.97], [0.97], [0.97], [0.97], [0.97]])
 
@@ -149,6 +152,7 @@ def test_break_on_no_improvement():
     nn.train([[0.0]], [[0.0]], error_stagnant_distance=10, error_stagnant_threshold=None,
              error_improve_iters=5)
     assert nn.iteration == 9
+
 
 @pytest.mark.skip(reason='Hard to test, but not hard to implement')
 def test_model_train_retry():
@@ -163,12 +167,14 @@ def test_serialize():
     model = helpers.SetOutputModel(1.0)
     assert isinstance(model.serialize(), str), 'Model.serialize should return string'
 
+
 def test_unserialize():
     model = helpers.SetOutputModel(random.uniform(0, 1))
     model_copy = helpers.SetOutputModel.unserialize(model.serialize())
 
     assert model_copy.__dict__ == model.__dict__, 'Should have same content'
     assert model_copy is not model, 'Should have different id'
+
 
 def test_unserialize_wrong_type():
     """Model.unserialize should raise error if serialized model is of wrong type."""

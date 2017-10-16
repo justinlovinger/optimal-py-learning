@@ -26,9 +26,8 @@ import random
 import numpy
 import pytest
 
-from learning import validation, error
-from learning import LinearRegressionModel
-from learning.data import datasets
+from learning import datasets, validation, error, LinearRegressionModel
+
 from learning.testing import helpers
 
 

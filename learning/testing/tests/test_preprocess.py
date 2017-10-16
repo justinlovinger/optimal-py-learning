@@ -9,6 +9,7 @@ from learning.data import datasets
 
 from learning.testing import helpers
 
+
 def test_shuffle_dataset_does_shuffle():
     dataset = (
         numpy.array(
@@ -31,6 +32,7 @@ def test_shuffle_dataset_does_shuffle():
         if not _eq_dataset(shuffled_dataset, preprocess.shuffle(dataset)):
             return # They don't all match
     assert False, 'Add shuffled sets match'
+
 
 def test_shuffle_dataset_correct_patterns():
     dataset = (
@@ -63,6 +65,7 @@ def test_make_onehot_1d():
     assert (preprocess.make_onehot([1, 2, 3, 1])
             == numpy.array([[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 0, 0]])).all()
 
+
 def test_make_onehot_2d():
     labels = [
         [1, 2, 3],
@@ -72,6 +75,7 @@ def test_make_onehot_2d():
     assert (preprocess.make_onehot(labels)
             == numpy.array([[1, 0], [0, 1], [1, 0]])).all()
 
+
 def make_labels():
     onehot = numpy.array([
         [1, 0],
@@ -80,6 +84,7 @@ def make_labels():
     ])
     assert (preprocess.make_labels(onehot)
             == numpy.array([[0], [1], [0]])).all()
+
 
 #################
 # Normalization
@@ -97,6 +102,7 @@ def test_rescale():
         [0.0, 0.0]
     ])).all()
 
+
 def test_normalize():
     random_matrix = numpy.random.rand(random.randint(2, 10),
                                       random.randint(1, 10))
@@ -109,7 +115,7 @@ def test_normalize():
 
     # Original matrix should be unchanged
     assert not numpy.array_equal(random_matrix, normalized_matrix)
-    
+
     # Normalized matrix should have mean of 0 standard deviation of 1
     # for each dimension
     means = numpy.mean(normalized_matrix, 0)
@@ -129,6 +135,7 @@ def test_normalize():
 
     #assert preprocess.normalize(inputs) == numpy.matrix(expected)
 
+
 def test_normalize_one_row():
     matrix = [[0, 1, 2]]
     with pytest.raises(ValueError):
@@ -145,6 +152,7 @@ def test_list_minus_i():
     assert preprocess._list_minus_i(list_, 0) == [1, 2]
     assert preprocess._list_minus_i(list_, 1) == [0, 2]
     assert preprocess._list_minus_i(list_, 2) == [0, 1]
+
 
 def test_count_classes():
     _, target_matrix = datasets.get_xor()
@@ -164,6 +172,7 @@ def test_count_classes():
     assert len(class_counts) == 2
     assert class_counts[('foo',)] == 1
     assert class_counts[('bar',)] == 2
+
 
 def test_clean_dataset_depuration():
     dataset = [
@@ -221,19 +230,21 @@ def test_clean_dataset_depuration():
     assert changed_points == [3, 6]
     assert removed_points == [4, 5]
 
+
 ######################
 # PCA
 ######################
 def test_pca_using_expected_num_dimensions():
-    data = [[-1, -1], 
+    data = [[-1, -1],
             [1, 1]]
     expected = numpy.matrix([[-1], [1]])
 
     assert numpy.array_equal(preprocess.pca(data, 1),
                              expected)
 
+
 def test_pca_using_num_dimensions_func():
-    data = [[-1, -1], 
+    data = [[-1, -1],
             [1, 1]]
     expected = numpy.matrix([[-1], [1]])
 
@@ -244,13 +255,16 @@ def test_pca_using_num_dimensions_func():
                                             select_dimensions_func=selection_func),
                              expected)
 
+
 def test_pca_no_expected_or_func():
     with pytest.raises(ValueError):
         preprocess.pca([], None, None)
 
+
 def test_pca_both_expected_and_func():
     with pytest.raises(ValueError):
         preprocess.pca([], 1, lambda x: [0])
+
 
 ###########################
 # Default cleaning function
@@ -282,6 +296,7 @@ def test_clean_dataset_no_pca():
     ]
     assert ((numpy.array(preprocess.clean_dataset(*zip(*patterns)))
              == numpy.array(zip(*expected)))).all()
+
 
 def test_clean_dataset_with_pca():
     patterns = [

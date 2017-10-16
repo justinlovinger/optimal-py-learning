@@ -1,5 +1,4 @@
-from learning import PBNN, validation
-from learning.data import datasets
+from learning import datasets, validation, PBNN
 
 
 def test_pbnn_convergence():

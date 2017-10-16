@@ -1,5 +1,6 @@
+from learning import datasets
 from learning.architecture import som
-from learning.data import datasets
+
 
 def test_som_reduces_distances():
     # SOM functions correctly if is moves neurons towards inputs

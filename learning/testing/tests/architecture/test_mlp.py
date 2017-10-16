@@ -4,10 +4,9 @@ import copy
 import pytest
 import numpy
 
+from learning import datasets, validation, SoftmaxTransfer
 from learning.architecture import mlp
 from learning.error import MSE, CrossEntropy
-from learning.data import datasets
-from learning import base, validation
 
 from learning.testing import helpers
 
@@ -40,7 +39,7 @@ def test_mlp_convergence():
 def test_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
-    model = mlp.MLP((2, 2, 2), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy())
+    model = mlp.MLP((2, 2, 2), transfers=SoftmaxTransfer(), error_func=CrossEntropy())
     dataset = datasets.get_xor()
 
     error = validation.get_error(model, *dataset)
@@ -52,7 +51,7 @@ def test_mlp_classifier():
 def test_mlp_classifier_convergence():
     # Run until convergence
     # assert that network can converge
-    model = mlp.MLP((2, 3, 2), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy())
+    model = mlp.MLP((2, 3, 2), transfers=SoftmaxTransfer(), error_func=CrossEntropy())
     dataset = datasets.get_and()
 
     model.train(*dataset, retries=5, error_break=0.002)
@@ -111,13 +110,13 @@ def test_mlp_obj_and_obj_jac_match_relu_out_ce():
 
 def test_mlp_obj_and_obj_jac_match_softmax_out_mse():
     _check_obj_and_obj_jac_match(lambda s1, s2, s3: mlp.MLP(
-        (s1, s2, s3), transfers=mlp.SoftmaxTransfer(), error_func=MSE()))
+        (s1, s2, s3), transfers=SoftmaxTransfer(), error_func=MSE()))
 
 
 def test_mlp_obj_and_obj_jac_match_softmax_out_ce():
     _check_obj_and_obj_jac_match(
         lambda s1, s2, s3: mlp.MLP(
-            (s1, s2, s3), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy()),
+            (s1, s2, s3), transfers=SoftmaxTransfer(), error_func=CrossEntropy()),
         classification=True
     )
 
@@ -152,12 +151,12 @@ def test_mlp_jacobian_relu_out_ce():
 
 def test_mlp_jacobian_softmax_out_mse():
     _check_jacobian(lambda s1, s2, s3: mlp.MLP(
-        (s1, s2, s3), transfers=mlp.SoftmaxTransfer(), error_func=MSE()))
+        (s1, s2, s3), transfers=SoftmaxTransfer(), error_func=MSE()))
 
 
 def test_mlp_jacobian_softmax_out_ce():
     _check_jacobian(lambda s1, s2, s3: mlp.MLP(
-        (s1, s2, s3), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy()))
+        (s1, s2, s3), transfers=SoftmaxTransfer(), error_func=CrossEntropy()))
 
 
 def _check_jacobian(make_model_func):
@@ -209,7 +208,7 @@ def test_dropout_mlp_convergence():
 def test_dropout_mlp_classifier():
     # Run for a couple of iterations
     # assert that new error is less than original
-    model = mlp.DropoutMLP((2, 8, 2), transfers=mlp.SoftmaxTransfer(), error_func=CrossEntropy())
+    model = mlp.DropoutMLP((2, 8, 2), transfers=SoftmaxTransfer(), error_func=CrossEntropy())
     dataset = datasets.get_and()
 
     error = validation.get_error(model, *dataset)
@@ -224,7 +223,7 @@ def test_dropout_mlp_classifier_convergence():
     # Since XOR does not really need dropout, we use high probabilities
     model = mlp.DropoutMLP(
         (2, 8, 2),
-        transfers=mlp.SoftmaxTransfer(),
+        transfers=SoftmaxTransfer(),
         error_func=CrossEntropy(),
         input_active_probability=1.0,
         hidden_active_probability=0.9)
@@ -298,6 +297,7 @@ def _validate_weight_inputs(weight_inputs, active_neurons):
             assert weight_inputs[i+1] != 0.0
         else:
             assert 0, 'Invalid active neuron value'
+
 
 ####################
 # DropoutTransfer

@@ -29,7 +29,7 @@ Numerical optimization strategies are also implemented to optimize models:
     from learning import validation
 
     from learning import MLP
-    from learning.architecture import mlp  # To further customize our MLP
+    from learning import SoftmaxTransfer  # To further customize our MLP
     from learning import error  # To customize the error function of our MLP
     from learning import optimize  # To customize the training of our MLP
 
@@ -46,7 +46,7 @@ Numerical optimization strategies are also implemented to optimize models:
         # Because we are only changing the output transfer, we pass a single
         # Transfer object. We could customize all transfer layers by passing
         # a list of Transfer objects.
-        transfers=mlp.SoftmaxTransfer(),
+        transfers=SoftmaxTransfer(),
 
         # Cross entropy error will pair nicely with our softmax output.
         error_func=error.CrossEntropy(),

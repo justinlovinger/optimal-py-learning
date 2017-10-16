@@ -25,6 +25,13 @@
 # Add model building
 from learning.base import Model
 
+# Add datasets
+from learning.data import datasets
+
+# Add transfer functions
+from learning.transfer import (LinearTransfer, TanhTransfer, ReluTransfer,
+                               GaussianTransfer, SoftmaxTransfer)
+
 # Add models
 from learning.architecture.multioutputs import MultiOutputs
 from learning.architecture.som import SOM

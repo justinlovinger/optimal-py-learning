@@ -48,6 +48,7 @@ def test_validate_network(monkeypatch):
                 'training_error': 0.0,
                 'testing_error': 4.0})
 
+
 def test_cross_validate(monkeypatch):
     # Patch time.clock so time attribute is deterministic
     monkeypatch.setattr(time, 'clock', lambda : 0.0)
@@ -112,6 +113,7 @@ def test_benchmark(monkeypatch):
                                  ([1], [1]), ([2], [1]), # First fold 2
                                  ([0], [1]), ([2], [1]), # Second fold 2
                                  ([0], [1]), ([1], [1])] # Third fold 2
+
 
 ####################
 # Compare

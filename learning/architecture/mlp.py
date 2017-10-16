@@ -29,8 +29,9 @@ import operator
 
 import numpy
 
-from learning import Model
 from learning import calculate
+from learning import Model, LinearTransfer, ReluTransfer
+from learning.transfer import Transfer
 from learning.optimize import Problem, BFGS, SteepestDescent
 from learning.error import MSE
 
@@ -175,7 +176,6 @@ class MLP(Model):
         # NOTE: We don't use numpy.mean(sample_jacobians, axis=0) because it can raise errors
         return numpy.mean(errors), _mean_list_of_list_of_matrices(sample_jacobians)
 
-
     def _get_sample_jacobians(self, input_vec, target_vec):
         """Return jacobian matrix for each weight matrix
 
@@ -215,6 +215,7 @@ class MLP(Model):
 
         return error, jacobians
 
+
 def _dot_diag_or_matrix(vec, matrix):
     """Dot vector with either vector of diagonals or matrix.
 
@@ -227,6 +228,7 @@ def _dot_diag_or_matrix(vec, matrix):
         return vec * matrix
     else:
         return vec.dot(matrix)
+
 
 def _mean_list_of_list_of_matrices(lol_matrices):
     """Return mean of each matrix in list of lists of matrices."""
@@ -243,32 +245,37 @@ def _mean_list_of_list_of_matrices(lol_matrices):
     # Return list of mean matrices
     return mean_matrices
 
+
 def _mlp_obj(model, input_matrix, target_matrix, parameters):
     model._weight_matrices = _unflatten_weights(parameters, model._shape)
-    return numpy.mean([model._error_func(model.activate(inp_vec), tar_vec)
-                       for inp_vec, tar_vec in zip(input_matrix, target_matrix)])
+    return numpy.mean([
+        model._error_func(model.activate(inp_vec), tar_vec)
+        for inp_vec, tar_vec in zip(input_matrix, target_matrix)
+    ])
+
 
 def _mlp_obj_jac(model, input_matrix, target_matrix, parameters):
     # TODO: Refactor so it doesn't need private attributes and methods
     model._weight_matrices = _unflatten_weights(parameters, model._shape)
     # Return error and flattened jacobians
-    return (lambda obj, jac: (obj, _flatten(jac)))(
-        *model._get_jacobians(input_matrix, target_matrix))
+    return (lambda obj, jac: (obj, _flatten(jac)))(*model._get_jacobians(
+        input_matrix, target_matrix))
+
 
 def _flatten(matrices):
     return numpy.hstack([matrix.ravel() for matrix in matrices])
+
 
 def _unflatten_weights(vector, shape):
     matrices = []
     index = 0
     for i, j in zip(shape[:-1], shape[1:]):
-        i += 1 # For bias
-        matrices.append(
-            vector[index:index+(i*j)].reshape((i, j))
-        )
-        index += (i*j)
+        i += 1  # For bias
+        matrices.append(vector[index:index + (i * j)].reshape((i, j)))
+        index += (i * j)
 
     return matrices
+
 
 class DropoutMLP(MLP):
     def __init__(self, shape, transfers=None, optimizer=None, error_func=None,
@@ -358,19 +365,6 @@ class DropoutMLP(MLP):
 ################################################
 # Transfer functions
 ################################################
-class Transfer(object):
-    def __call__(self, input_vec):
-        raise NotImplementedError()
-
-    def derivative(self, input_vec, output_vec):
-        """Return the derivative of this function.
-
-        We take both input and output vector because
-        some derivatives can be more efficiently calculated from
-        the output of this function.
-        """
-        raise NotImplementedError()
-
 class DropoutTransfer(Transfer):
     def __init__(self, transfer_func, active_probability, num_neurons):
         self._transfer = transfer_func
@@ -401,85 +395,3 @@ def _get_active_neurons(active_probability, num_neurons):
         active_neurons[random.randint(0, len(active_neurons)-1)] = 1.0
 
     return numpy.array(active_neurons)
-
-class LinearTransfer(Transfer):
-    def __call__(self, input_vec):
-        return input_vec
-
-    def derivative(self, input_vec, output_vec):
-        """Return the derivative of this function.
-
-        We take both input and output vector because
-        some derivatives can be more efficiently calculated from
-        the output of this function.
-        """
-        return numpy.ones(input_vec.shape)
-
-
-class TanhTransfer(Transfer):
-    def __call__(self, input_vec):
-        return calculate.tanh(input_vec)
-
-    def derivative(self, input_vec, output_vec):
-        """Return the derivative of this function.
-
-        We take both input and output vector because
-        some derivatives can be more efficiently calculated from
-        the output of this function.
-        """
-        return calculate.dtanh(output_vec)
-
-
-class ReluTransfer(Transfer):
-    """Smooth approximation of a rectified linear unit (ReLU).
-
-    Also known as softplus.
-    """
-    def __call__(self, input_vec):
-        return calculate.relu(input_vec)
-
-    def derivative(self, input_vec, output_vec):
-        """Return the derivative of this function.
-
-        We take both input and output vector because
-        some derivatives can be more efficiently calculated from
-        the output of this function.
-        """
-        return calculate.drelu(input_vec)
-
-
-class LogitTransfer(Transfer):
-    pass
-
-
-class GaussianTransfer(Transfer):
-    def __init__(self, variance=1.0):
-        super(GaussianTransfer, self).__init__()
-
-        self._variance = variance
-
-    def __call__(self, input_vec):
-        return calculate.gaussian(input_vec, self._variance)
-
-    def derivative(self, input_vec, output_vec):
-        """Return the derivative of this function.
-
-        We take both input and output vector because
-        some derivatives can be more efficiently calculated from
-        the output of this function.
-        """
-        return calculate.dgaussian(input_vec, output_vec, self._variance)
-
-
-class SoftmaxTransfer(Transfer):
-    def __call__(self, input_vec):
-        return calculate.softmax(input_vec)
-
-    def derivative(self, input_vec, output_vec):
-        """Return the derivative of this function.
-
-        We take both input and output vector because
-        some derivatives can be more efficiently calculated from
-        the output of this function.
-        """
-        return calculate.dsoftmax(output_vec)
