@@ -124,9 +124,13 @@ class SteepestDescentMomentum(Optimizer):
             return obj_value, parameters
 
         # Setup step for this iteration (step_size*direction)
-        # TODO: step_dir for this iteration should be -self.jacobian - self._momentum_rate*self._prev_jacobian
+        # TODO (maybe): step_dir for this iteration should be
+        # -self.jacobian - self._momentum_rate*self._prev_jacobian
         # instead of adding self._momentum_rate * self._prev_step after this step
-        # This allow the step size finder to account for momentum, and more accurately and efficiently converge
+        # This allow the step size finder to account for momentum,
+        # and more accurately and efficiently converge
+        # However, this may negate the primary purpose of momentum
+        # (to prevent convergence to small local optima)
         step_dir = -self.jacobian
         step_size = self._step_size_getter(parameters, obj_value,
                                            self.jacobian, step_dir, problem)
