@@ -146,6 +146,30 @@ class SteepestDescentMomentum(Optimizer):
         return obj_value, next_parameters
 
 
+def initial_hessian_identity(parameters, prev_parameters, jacobian,
+                             previous_jacobian):
+    """Return identity matrix, regardless of arguments."""
+    return numpy.identity(parameters.shape[0])
+
+
+def initial_hessian_scaled_identity(parameters, prev_parameters, jacobian,
+                                    previous_jacobian):
+    """Return identity matrix, scaled by parameter and jacobian differences.
+
+    scalar gamma = (s_{k-1}^T y_{k_1}) / (y_{k-1}^T y_{k-1}),
+    where
+    s_{k-1} = x_k - x_{k-1} (x = parameters)
+    y_{k-1} = jac_f_k - jac_f_{k-1}
+    """
+    # Construct diagonal matrix from scalar,
+    # instead of multiplying identity by scalar
+    return numpy.diag(
+        numpy.repeat(
+            initial_hessian_gamma_scalar(parameters - self._prev_params,
+                                         jacobian - self._prev_jacobian),
+            parameters.shape[0]))
+
+
 class BFGS(Optimizer):
     """Quasi-Newton BFGS optimizer.
 
@@ -158,7 +182,9 @@ class BFGS(Optimizer):
     poor performance.
     """
 
-    def __init__(self, step_size_getter=None):
+    def __init__(self,
+                 step_size_getter=None,
+                 initial_hessian_func=initial_hessian_identity):
         super(BFGS, self).__init__()
 
         if step_size_getter is None:
@@ -168,6 +194,14 @@ class BFGS(Optimizer):
                 c_2=0.9,
                 initial_step_getter=IncrPrevStep())
         self._step_size_getter = step_size_getter
+
+        # NOTE: It is recommended to scale the identiy matrix
+        # (Numerical Optimization 2nd, pp. 162)
+        # as performed in initial_hessian_scaled_identity,
+        # but empirical tests show it is more effective
+        # to not scale identity matrix
+        # TODO: More testing needed
+        self._initial_hessian_func = initial_hessian_func
 
         # BFGS Parameters
         self._prev_params = None
@@ -214,27 +248,9 @@ class BFGS(Optimizer):
         else:
             # If second iteration
             if self._prev_inv_hessian is None:
-                # NOTE: It is recommended to scale the identiy matrix
-                # (Numerical Optimization 2nd, pp. 162)
-                # as follows,
-                # but empirical tests show it is more effective
-                # to not scale identity matrix
-                # TODO: More testing needed (commented out for now)
-
-                # # Scale identity matrix before first update
-                # s_k = parameters - self._prev_params
-                # y_k = jacobian - self._prev_jacobian
-                # H_kp1 = _bfgs_eq(
-                #     # Construct diagonal matrix from scalar,
-                #     # instead of multiplying identity by scalar
-                #     numpy.diag(
-                #         numpy.repeat(
-                #             y_k.dot(s_k) / y_k.dot(y_k), parameters.shape[0])),
-                #     s_k, y_k)
-
-                # And using unscaled identity instead
                 H_kp1 = _bfgs_eq(
-                    numpy.identity(parameters.shape[0]),
+                    self._initial_hessian_func(parameters, self._prev_params,
+                                               jacobian, self._prev_jacobian),
                     parameters - self._prev_params,
                     jacobian - self._prev_jacobian)
 
@@ -305,3 +321,154 @@ def _bfgs_eq(H_k, s_k, y_k):
         .dot(I - (p_k * y_k)[:, None] * (s_k))
         + (p_k_times_s_k[:, None] * s_k)
     )
+
+
+def initial_hessian_one_scalar(param_diff, jac_diff):
+    """Return 1.0, regardless of arguments."""
+    return 1.0
+
+
+def initial_hessian_gamma_scalar(param_diff, jac_diff):
+    """Return identity matrix, scaled by parameter and jacobian differences.
+
+    scalar gamma = (s_{k-1}^T y_{k_1}) / (y_{k-1}^T y_{k-1}),
+    where
+    s_{k-1} = x_k - x_{k-1} (x = parameters)
+    y_{k-1} = jac_f_k - jac_f_{k-1}
+    """
+    # Note that s_{k-1} = self._prev_param_diffs[0]
+    # and y_{k-1} = self._prev_jac_diffs[0]
+    return (param_diff.dot(jac_diff)) / (jac_diff.dot(jac_diff))
+
+
+class LBFGS(Optimizer):
+    """Low-memory quasi-Newton L-BFGS optimizer.
+
+    Limited-memory Broyden-Fletcher-Goldfarb-Shanno (L-BFGS)
+    Ref: Numerical Optimization pp. 177
+
+    NOTE: Step size should satisfy Wolfe conditions,
+    to ensure curvature condition, y_k^T s_k > 0, is satisfied.
+    Otherwise, the BFGS update rule is invalid, and could give
+    poor performance.
+    """
+
+    def __init__(self,
+                 step_size_getter=None,
+                 num_remembered_iterations=5,
+                 initial_hessian_scalar_func=initial_hessian_gamma_scalar):
+        super(LBFGS, self).__init__()
+
+        if step_size_getter is None:
+            step_size_getter = WolfeLineSearch(
+                # Values recommended by Numerical Optimization 2nd, pp. 161
+                c_1=1e-4,
+                c_2=0.9,
+                initial_step_getter=IncrPrevStep())
+        self._step_size_getter = step_size_getter
+
+        self._initial_hessian_scalar_func = initial_hessian_scalar_func
+
+        # L-BFGS Parameters
+        self._num_remembered_iterations = num_remembered_iterations
+
+        self._prev_params = None
+        self._prev_jacobian = None
+
+        self._prev_param_diffs = []  # Previous s_k values
+        self._prev_jac_diffs = []  # Previous y_k values
+
+    def reset(self):
+        """Reset optimizer parameters."""
+        super(LBFGS, self).reset()
+        self._step_size_getter.reset()
+
+        # Reset BFGS Parameters
+        self._prev_params = None
+        self._prev_jacobian = None
+
+        self._prev_param_diffs = []  # Previous s_k values
+        self._prev_jac_diffs = []  # Previous y_k values
+
+    def next(self, problem, parameters):
+        """Return next iteration of this optimizer."""
+        obj_value, self.jacobian = problem.get_obj_jac(parameters)
+
+        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
+            logging.info('Optimizer converged with small jacobian')
+            return obj_value, parameters
+
+        # Add param and jac diffs for this iteration
+        self._update_diffs(parameters, self.jacobian)
+
+        # Approximate step direction, and update parameters
+        step_dir = self._lbfgs_step_dir(problem, parameters, self.jacobian)
+
+        step_size = self._step_size_getter(parameters, obj_value,
+                                           self.jacobian, step_dir, problem)
+
+        return obj_value, parameters + step_size * step_dir
+
+    def _update_diffs(self, parameters, jacobian):
+        """Update stored differences."""
+        if self._prev_params is not None:
+            self._prev_param_diffs.insert(0, parameters - self._prev_params)
+            self._prev_jac_diffs.insert(0, jacobian - self._prev_jacobian)
+
+        # Remove oldest, if over limit
+        if len(self._prev_param_diffs) > self._num_remembered_iterations:
+            self._prev_param_diffs.pop(-1)
+            self._prev_jac_diffs.pop(-1)
+        assert len(self._prev_param_diffs) <= self._num_remembered_iterations
+        assert len(self._prev_param_diffs) == len(self._prev_jac_diffs)
+
+        # Store parameters and jacobian, for next _update_diffs
+        self._prev_params = parameters
+        self._prev_jacobian = jacobian
+
+    def _lbfgs_step_dir(self, problem, parameters, jacobian):
+        """Return step_dir, approximated from previous param and jac differences."""
+        # First pass, backwards pass (from latest to oldest)
+        newton_grad = numpy.copy(jacobian)
+        # 1 / (y_k^T s_k), where y_k^T = jac_diff, and s_k = param_diff
+        rhos = []
+        alphas = []  # rho_i s_i^T q
+        for param_diff, jac_diff in zip(self._prev_param_diffs,
+                                        self._prev_jac_diffs):
+            # alpha_i <- rho_i s_i^T q, where q = newton_grad
+            # q <- q - alpha_i y_i
+            rho = 1.0 / (jac_diff.dot(param_diff))
+            alpha = rho * param_diff.dot(newton_grad)
+            newton_grad -= alpha * jac_diff
+
+            # Save rho and alpha, for second pass
+            rhos.append(rho)
+            alphas.append(alpha)
+
+        # Second pass, forwards pass (from oldest to latest)
+        newton_grad *= self._initial_inv_hessian_scalar()
+        for param_diff, jac_diff, rho, alpha in reversed(
+                zip(self._prev_param_diffs, self._prev_jac_diffs, rhos,
+                    alphas)):
+            # beta <- rho_i y_i^T r, where r = newton_grad
+            # r <- r + s_i (alpha_i - beta)
+            newton_grad += param_diff * (
+                alpha - rho * jac_diff.dot(newton_grad))
+
+        # Step direction is down the gradient
+        return -newton_grad
+
+    def _initial_inv_hessian_scalar(self):
+        """Return scalar of identity matrix, for initial approximate inv-hessian.
+
+        Note that approximate hessian is typically a diagonal matrix,
+        with the same value, gamma, on each diagonal.
+        So we can calculate H_0.dot(vec) as gamma * vec,
+        without requiring the allocation and calculation of a full matrix.
+        """
+        # Handle first iteration (when no previous diffs)
+        if len(self._prev_param_diffs) == 0:
+            return 1.0
+        else:
+            return self._initial_hessian_scalar_func(self._prev_param_diffs[0],
+                                                     self._prev_jac_diffs[0])

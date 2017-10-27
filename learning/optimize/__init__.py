@@ -37,4 +37,4 @@ from learning.optimize.linesearch import (SetStepSize, BacktrackingLineSearch,
 
 # Optimizers
 from learning.optimize.optimizer import (SteepestDescent,
-                                         SteepestDescentMomentum, BFGS)
+                                         SteepestDescentMomentum, BFGS, LBFGS)

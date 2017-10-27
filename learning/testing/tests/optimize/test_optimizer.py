@@ -25,7 +25,7 @@
 import numpy
 
 from learning.optimize import (Problem, BacktrackingLineSearch,
-                               WolfeLineSearch, BFGS, SteepestDescent,
+                               WolfeLineSearch, BFGS, LBFGS, SteepestDescent,
                                SteepestDescentMomentum)
 from learning.optimize import optimizer
 
@@ -35,7 +35,11 @@ from learning.testing import helpers
 #########################
 # BFGS
 #########################
-def test_bfgs_backtracking_line_search():
+def test_BFGS_wolfe_line_search():
+    check_optimize_sphere_function(
+        BFGS(step_size_getter=WolfeLineSearch()))
+
+def test_BFGS_backtracking_line_search():
     check_optimize_sphere_function(
         BFGS(step_size_getter=BacktrackingLineSearch()))
 
@@ -55,6 +59,52 @@ def test_bfgs_eq():
     # TODO: Check minimize condition (use scipy.minimize with constraints)
     assert helpers.approx_equal(H_kp1.T, H_kp1)
     assert helpers.approx_equal(H_kp1.dot(y_k), s_k)
+
+
+#########################
+# L-BFGS
+#########################
+def test_LBFGS_wolfe_line_search():
+    check_optimize_sphere_function(
+        LBFGS(step_size_getter=WolfeLineSearch()))
+
+
+def test_LBFGS_approx_equal_BFGS_infinite_num_remembered_iterations():
+    # When LBFGS has no limit on remembered iterations, it should approximately
+    # equal BFGS, given initial hessian is the same on all iterations
+    # "During its first m - 1 iterations,
+    # Algorithm 7.5 is equivalent to the BFGS algorithm of Chapter 6
+    # if the initial matrix H_0 is the same in both methods,
+    # and if L-BFGS chooses H_0^k = H_0 at each iteration."
+    # ~ Numerical Optimization 2nd pp. 179
+
+    # Rosenbrock function
+    f = lambda vec: 100.0 * (vec[1] - vec[0]**2)**2 + (vec[0] - 1.0)**2
+    df = lambda vec: numpy.array([2.0 * (200.0 * vec[0]**3 - 200.0 * vec[0] * vec[1] + vec[0] - 1.0), 200.0 * (vec[1] - vec[0]**2)])
+
+    problem = Problem(obj_func=f, jac_func=df)
+
+    # Optimize
+    bfgs_vec = numpy.random.random(2)
+    lbfgs_vec = numpy.copy(bfgs_vec)
+
+    # Same identity hessian, for both optimizers
+    bfgs_optimizer = BFGS(
+        step_size_getter=WolfeLineSearch(),
+        initial_hessian_func=optimizer.initial_hessian_identity)
+    lbfgs_optimizer = LBFGS(
+        step_size_getter=WolfeLineSearch(),
+        num_remembered_iterations=float('inf'),
+        initial_hessian_scalar_func=optimizer.initial_hessian_one_scalar)
+
+    for i in range(10):
+        _, bfgs_vec = bfgs_optimizer.next(problem, bfgs_vec)
+        _, lbfgs_vec = lbfgs_optimizer.next(problem, lbfgs_vec)
+
+        print i
+        assert helpers.approx_equal(bfgs_vec, lbfgs_vec, tol=0.01)
+
+
 
 
 ############################

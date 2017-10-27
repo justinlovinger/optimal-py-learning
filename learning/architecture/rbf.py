@@ -27,7 +27,7 @@ import operator
 import numpy
 
 from learning import calculate, Model, SOM, MeanSquaredError
-from learning.optimize import Problem, BFGS, SteepestDescent
+from learning.optimize import Problem, BFGS, LBFGS
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
@@ -87,9 +87,9 @@ class RBF(Model):
 
             # Count number of weights
             # NOTE: Cutoff value could use more testing
-            if reduce(operator.mul, self._weight_matrix.shape) > 2500:
+            if reduce(operator.mul, self._weight_matrix.shape) > 500:
                 # Too many weights, don't use hessian
-                optimizer = SteepestDescent()
+                optimizer = LBFGS()
             else:
                 # Low enough weights, use hessian
                 optimizer = BFGS()

@@ -32,7 +32,7 @@ import numpy
 from learning import calculate
 from learning import Model, LinearTransfer, ReluTransfer, MeanSquaredError
 from learning.transfer import Transfer
-from learning.optimize import Problem, BFGS, SteepestDescent
+from learning.optimize import Problem, SteepestDescent, BFGS, LBFGS
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
@@ -85,9 +85,9 @@ class MLP(Model):
             if sum([
                     reduce(operator.mul, weight_matrix.shape)
                     for weight_matrix in self._weight_matrices
-            ]) > 2500:  # NOTE: Cutoff value could use more testing
+            ]) > 500:  # NOTE: Cutoff value could use more testing
                 # Too many weights, don't use hessian
-                optimizer = SteepestDescent()
+                optimizer = LBFGS()
             else:
                 # Low enough weights, use hessian
                 optimizer = BFGS()
