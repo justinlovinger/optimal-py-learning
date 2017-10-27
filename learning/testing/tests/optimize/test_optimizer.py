@@ -102,7 +102,7 @@ def test_LBFGS_approx_equal_BFGS_infinite_num_remembered_iterations():
         _, lbfgs_vec = lbfgs_optimizer.next(problem, lbfgs_vec)
 
         print i
-        assert helpers.approx_equal(bfgs_vec, lbfgs_vec, tol=0.01)
+        assert helpers.approx_equal(bfgs_vec, lbfgs_vec)
 
 
 

@@ -29,10 +29,10 @@ import operator
 
 import numpy
 
-from learning import calculate
+from learning import calculate, optimize
 from learning import Model, LinearTransfer, ReluTransfer, MeanSquaredError
 from learning.transfer import Transfer
-from learning.optimize import Problem, SteepestDescent, BFGS, LBFGS
+from learning.optimize import Problem, SteepestDescent
 
 INITIAL_WEIGHTS_RANGE = 0.25
 
@@ -75,22 +75,11 @@ class MLP(Model):
 
         # Parameter optimization for training
         if optimizer is None:
-            # If there are a lot of weights, use an optimizer that doesn't use hessian
-            # TODO (maybe): Default optimizer should work with mini-batches (be robust to changing problem)
-            # optimizers like BFGS, and initial step strategies like FO and quadratic, rely heavily on information from
-            # previous iterations, resulting in poor performance if the problem changes between iterations.
-            # NOTE: Ideally, the Optimizer itself should handle its problem changing.
-
-            # Count number of weights
-            if sum([
+            optimizer = optimize.make_optimizer(
+                sum([
                     reduce(operator.mul, weight_matrix.shape)
                     for weight_matrix in self._weight_matrices
-            ]) > 500:  # NOTE: Cutoff value could use more testing
-                # Too many weights, don't use hessian
-                optimizer = LBFGS()
-            else:
-                # Low enough weights, use hessian
-                optimizer = BFGS()
+                ]))
 
         self._optimizer = optimizer
 
