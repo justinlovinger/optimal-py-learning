@@ -159,13 +159,13 @@ class SteepestDescentMomentum(Optimizer):
         return obj_value, next_parameters
 
 
-def initial_hessian_identity(parameters, prev_parameters, jacobian,
+def initial_hessian_identity(param_diff, jacobian,
                              previous_jacobian):
     """Return identity matrix, regardless of arguments."""
-    return numpy.identity(parameters.shape[0])
+    return numpy.identity(jacobian.shape[0])
 
 
-def initial_hessian_scaled_identity(parameters, prev_parameters, jacobian,
+def initial_hessian_scaled_identity(param_diff, jacobian,
                                     previous_jacobian):
     """Return identity matrix, scaled by parameter and jacobian differences.
 
@@ -178,9 +178,9 @@ def initial_hessian_scaled_identity(parameters, prev_parameters, jacobian,
     # instead of multiplying identity by scalar
     return numpy.diag(
         numpy.repeat(
-            initial_hessian_gamma_scalar(parameters - self._prev_params,
+            initial_hessian_gamma_scalar(param_diff,
                                          jacobian - self._prev_jacobian),
-            parameters.shape[0]))
+            jacobian.shape[0]))
 
 
 class BFGS(Optimizer):
@@ -217,7 +217,7 @@ class BFGS(Optimizer):
         self._initial_hessian_func = initial_hessian_func
 
         # BFGS Parameters
-        self._prev_params = None
+        self._prev_step = None
         self._prev_jacobian = None
         self._prev_inv_hessian = None
 
@@ -227,7 +227,7 @@ class BFGS(Optimizer):
         self._step_size_getter.reset()
 
         # Reset BFGS Parameters
-        self._prev_params = None
+        self._prev_step = None
         self._prev_jacobian = None
         self._prev_inv_hessian = None
 
@@ -239,22 +239,25 @@ class BFGS(Optimizer):
             logging.info('Optimizer converged with small jacobian')
             return obj_value, parameters
 
-        approx_inv_hessian = self._get_approx_inv_hessian(
-            parameters, self.jacobian)
+        approx_inv_hessian = self._get_approx_inv_hessian(self.jacobian)
 
         step_dir = -(approx_inv_hessian.dot(self.jacobian))
 
         step_size = self._step_size_getter(parameters, obj_value,
                                            self.jacobian, step_dir, problem)
 
-        return obj_value, parameters + step_size * step_dir
+        # Store this step as parameter diff
+        # parameters - prev_parameters = prev_step
+        self._prev_step = step_size * step_dir
 
-    def _get_approx_inv_hessian(self, parameters, jacobian):
+        return obj_value, parameters + self._prev_step
+
+    def _get_approx_inv_hessian(self, jacobian):
         """Calculate approx inv hessian for this iteration, and return it."""
         # If first iteration
-        if self._prev_params is None:
+        if self._prev_step is None:
             # Default to identity for approx inv hessian
-            H_kp1 = numpy.identity(parameters.shape[0])
+            H_kp1 = numpy.identity(jacobian.shape[0])
 
             # Don't save H_kp1, so we can differentiate between first
             # and second iteration
@@ -262,22 +265,21 @@ class BFGS(Optimizer):
             # If second iteration
             if self._prev_inv_hessian is None:
                 H_kp1 = _bfgs_eq(
-                    self._initial_hessian_func(parameters, self._prev_params,
+                    self._initial_hessian_func(self._prev_step,
                                                jacobian, self._prev_jacobian),
-                    parameters - self._prev_params,
+                    self._prev_step,
                     jacobian - self._prev_jacobian)
 
             # Every iteration > 2
             else:
                 H_kp1 = _bfgs_eq(self._prev_inv_hessian,
-                                 parameters - self._prev_params,
+                                 self._prev_step,
                                  jacobian - self._prev_jacobian)
 
             # Save inv hessian to update next iteration
             self._prev_inv_hessian = H_kp1
 
         # Save values from current iteration for next iteration
-        self._prev_params = parameters
         self._prev_jacobian = jacobian
 
         return H_kp1
@@ -385,7 +387,7 @@ class LBFGS(Optimizer):
         # L-BFGS Parameters
         self._num_remembered_iterations = num_remembered_iterations
 
-        self._prev_params = None
+        self._prev_step = None
         self._prev_jacobian = None
 
         self._prev_param_diffs = []  # Previous s_k values
@@ -397,7 +399,7 @@ class LBFGS(Optimizer):
         self._step_size_getter.reset()
 
         # Reset BFGS Parameters
-        self._prev_params = None
+        self._prev_step = None
         self._prev_jacobian = None
 
         self._prev_param_diffs = []  # Previous s_k values
@@ -412,7 +414,7 @@ class LBFGS(Optimizer):
             return obj_value, parameters
 
         # Add param and jac diffs for this iteration
-        self._update_diffs(parameters, self.jacobian)
+        self._update_diffs(self.jacobian)
 
         # Approximate step direction, and update parameters
         step_dir = self._lbfgs_step_dir(problem, parameters, self.jacobian)
@@ -420,12 +422,16 @@ class LBFGS(Optimizer):
         step_size = self._step_size_getter(parameters, obj_value,
                                            self.jacobian, step_dir, problem)
 
-        return obj_value, parameters + step_size * step_dir
+        # Store this step as parameter diff
+        # parameters - prev_parameters = prev_step
+        self._prev_step = step_size * step_dir
 
-    def _update_diffs(self, parameters, jacobian):
+        return obj_value, parameters + self._prev_step
+
+    def _update_diffs(self, jacobian):
         """Update stored differences."""
-        if self._prev_params is not None:
-            self._prev_param_diffs.insert(0, parameters - self._prev_params)
+        if self._prev_step is not None:
+            self._prev_param_diffs.insert(0, self._prev_step)
             self._prev_jac_diffs.insert(0, jacobian - self._prev_jacobian)
 
         # Remove oldest, if over limit
@@ -435,8 +441,7 @@ class LBFGS(Optimizer):
         assert len(self._prev_param_diffs) <= self._num_remembered_iterations
         assert len(self._prev_param_diffs) == len(self._prev_jac_diffs)
 
-        # Store parameters and jacobian, for next _update_diffs
-        self._prev_params = parameters
+        # Store jacobian, for next _update_diffs
         self._prev_jacobian = jacobian
 
     def _lbfgs_step_dir(self, problem, parameters, jacobian):
