@@ -65,7 +65,9 @@ def seed_random(request):
     request.addfinalizer(fin)
 
 
-def test_select_sample_size_none(seed_random):
+def test_select_sample_size_none_few_samples(seed_random):
+    # When number of samples is low, default to all samples
+
     input_matrix, target_matrix = datasets.get_xor()
 
     new_inp_matrix, new_tar_matrix = base.select_sample(
@@ -78,8 +80,26 @@ def test_select_sample_size_none(seed_random):
     for tar_vec in target_matrix:  # all in
         assert tar_vec in new_tar_matrix
 
-    assert not (new_inp_matrix == input_matrix).all()  # order different
-    assert not (new_tar_matrix == target_matrix).all()  # order different
+    assert not (new_inp_matrix == input_matrix).all()  # Different order
+    assert not (new_tar_matrix == target_matrix).all()  # Different order
+
+
+def test_select_sample_size_none(seed_random):
+    # Default to size smaller than number of samples
+
+    input_matrix, target_matrix = datasets.get_random_classification(
+        1000, 1, 2)
+
+    new_inp_matrix, new_tar_matrix = base.select_sample(
+        input_matrix, target_matrix)
+
+    assert len(new_inp_matrix) < len(input_matrix)
+    assert len(new_inp_matrix) == base._selection_size_heuristic(
+        len(input_matrix))
+
+    assert len(new_tar_matrix) < len(input_matrix)
+    assert len(new_tar_matrix) == base._selection_size_heuristic(
+        len(input_matrix))
 
 
 def test_select_sample(seed_random):
@@ -105,7 +125,9 @@ def test_select_sample(seed_random):
     assert count == 2
 
 
-def test_select_random_size_none(monkeypatch):
+def test_select_random_size_none_few_samples(monkeypatch):
+    # When number of samples is low, default to all samples
+
     # Monkeypatch so we know that random returns
     # randint always returns 0
     monkeypatch.setattr(random, 'randint', lambda x, y: 0)
@@ -120,6 +142,24 @@ def test_select_random_size_none(monkeypatch):
         assert (inp_vec == input_matrix[0]).all()  # Due to monkeypatch
     for tar_vec in new_tar_matrix:
         assert (tar_vec == target_matrix[0]).all()  # Due to monkeypatch
+
+
+def test_select_random_size_none(seed_random):
+    # Default to size smaller than number of samples
+
+    input_matrix, target_matrix = datasets.get_random_classification(
+        1000, 1, 2)
+
+    new_inp_matrix, new_tar_matrix = base.select_random(
+        input_matrix, target_matrix)
+
+    assert len(new_inp_matrix) < len(input_matrix)
+    assert len(new_inp_matrix) == base._selection_size_heuristic(
+        len(input_matrix))
+
+    assert len(new_tar_matrix) < len(input_matrix)
+    assert len(new_tar_matrix) == base._selection_size_heuristic(
+        len(input_matrix))
 
 
 def test_select_random(monkeypatch):

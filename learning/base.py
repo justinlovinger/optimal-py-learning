@@ -23,6 +23,7 @@
 ###############################################################################
 """Base model and functions for learning methods."""
 
+import math
 import random
 import pickle
 import numbers
@@ -43,7 +44,7 @@ def select_sample(input_matrix, target_matrix, size=None):
     """
     num_rows = input_matrix.shape[0]
     if size is None:
-        size = num_rows
+        size = _selection_size_heuristic(input_matrix.shape[0])
 
     selected_rows = random.sample(range(num_rows), size)
     return input_matrix[selected_rows], target_matrix[selected_rows]
@@ -56,11 +57,21 @@ def select_random(input_matrix, target_matrix, size=None):
     """
     num_rows = input_matrix.shape[0]
     if size is None:
-        size = num_rows
+        size = _selection_size_heuristic(input_matrix.shape[0])
 
     max_index = num_rows - 1
     selected_rows = [random.randint(0, max_index) for _ in range(size)]
     return input_matrix[selected_rows], target_matrix[selected_rows]
+
+
+def _selection_size_heuristic(num_samples):
+    """Return size of mini-batch, given size of dataset."""
+    # Incrase size of mini-batch gradually as number of samples increases,
+    # with a soft cap (using log).
+    # But do not return size larger than number of samples
+    return min(num_samples,
+               int(20.0 *
+                   (math.log(num_samples + 10, 2) - math.log(10.0) + 1.0)))
 
 
 class Model(object):
