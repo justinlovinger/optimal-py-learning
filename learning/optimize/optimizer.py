@@ -38,12 +38,6 @@ JACOBIAN_NORM_BREAK = 1e-10
 
 def make_optimizer(num_parameters):
     """Return a new optimizer, using simple heuristics."""
-    # TODO (maybe): Default optimizer should work with mini-batches
-    # (be robust to changing problem) optimizers like BFGS,
-    # and initial step strategies like FO and quadratic, rely heavily on information from
-    # previous iterations, resulting in poor performance if the problem changes between iterations.
-    # NOTE: Ideally, the Optimizer itself should handle its problem changing.
-
     # TODO: More heuristics
 
     # If there are too many parameters, use an optimizer that doesn't use hessian matrix

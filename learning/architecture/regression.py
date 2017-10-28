@@ -111,6 +111,14 @@ class RegressionModel(Model):
 
         return error
 
+    def _post_train(self):
+        """Call after Model.train.
+
+        Optional.
+        """
+        # Reset optimizer, because problem may change on next train call
+        self._optimizer.reset()
+
     ######################################
     # Helper functions for optimizer
     ######################################

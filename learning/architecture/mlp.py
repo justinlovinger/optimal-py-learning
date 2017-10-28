@@ -158,6 +158,14 @@ class MLP(Model):
 
         return error
 
+    def _post_train(self):
+        """Call after Model.train.
+
+        Optional.
+        """
+        # Reset optimizer, because problem may change on next train call
+        self._optimizer.reset()
+
     def _get_jacobians(self, input_matrix, target_matrix):
         """Return mean jacobian matrix for each weight matrix.
 

@@ -142,8 +142,32 @@ def test_select_random(monkeypatch):
         assert (tar_vec == target_matrix[0]).all()  # Due to monkeypatch
 
 
+#############################
+# Model.stochastic_train
+#############################
+def test_Model_stochastic_train():
+    """Train with stochastic gradient descent."""
+    from learning import transfer, error, validation, MLP
+
+    dataset = datasets.get_iris()
+
+    model = MLP(
+        (len(dataset[0][0]), 2, len(dataset[1][0])),
+        transfers=transfer.SoftmaxTransfer(),
+        error_func=error.CrossEntropyError())
+
+    # Model should be able to converge with mini-batches
+    model.stochastic_train(
+        *dataset,
+        error_break=0.02,
+        pattern_selection_func=lambda X, Y: base.select_sample(X, Y, size=30),
+        train_kwargs={'iterations': 100, 'error_break': 0.02})
+
+    assert validation.get_error(model, *dataset) <= 0.03
+
+
 ####################
-# Train function
+# Model.train
 ####################
 def test_break_on_stagnation_completely_stagnant():
     # If error doesn't change by enough after enough iterations

@@ -127,27 +127,6 @@ class RBF(Model):
 
         return output
 
-    def train(self, *args, **kwargs):
-        """Train model to converge on a dataset.
-
-        Note: Override this method for batch learning models.
-
-        Args:
-            input_matrix: A matrix with samples in rows and attributes in columns.
-            target_matrix: A matrix with samples in rows and target values in columns.
-            iterations: Max iterations to train model.
-            retries: Number of times to reset model and retries if it does not converge.
-                Convergence is defined as reaching error_break.
-            error_break: Training will end once error is less than this.
-            pattern_select_func: Function that takes (input_matrix, target_matrix),
-                and returns a selection of rows. Use partial function to embed arguments.
-        """
-        if self._pre_train_clusters:
-            # Train SOM first
-            self._som.train(*args, **kwargs)
-
-        super(RBF, self).train(*args, **kwargs)
-
     def train_step(self, input_matrix, target_matrix):
         """Adjust the model towards the targets for given inputs.
 
@@ -170,6 +149,24 @@ class RBF(Model):
         self._som.train_step(input_matrix, target_matrix)
 
         return error
+
+    def _pre_train(self):
+        """Call before Model.train.
+
+        Optional.
+        """
+        if self._pre_train_clusters:
+            # Train SOM first
+            # TODO: RBF init should include dict for som train arguments
+            self._som.train()
+
+    def _post_train(self):
+        """Call after Model.train.
+
+        Optional.
+        """
+        # Reset optimizer, because problem may change on next train call
+        self._optimizer.reset()
 
     def _get_obj(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""

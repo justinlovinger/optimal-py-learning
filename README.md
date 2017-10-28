@@ -82,8 +82,14 @@ print 'Testing accuracy:', validation.get_accuracy(model, *testing_set)
 For further usage details, see comprehensive doc strings for public functions and classes.
 
 # Breaking Changes
+## 10/27/2017
+Move Model.train pattern\_select\_func functionality to new Model.stochastic\_train method.
+This improves compatibility with optimizers, by ensuring the optimizer is reset before pattern selection changes the optimization problem.
+
+Also remove base.select_iterative function, because it no longer serves a purpose.
+
 ## 10/16/2017
 Rename error functions, so that they end with Error, for greater clarity.
 
 ## 10/16/2017
-Renamed Model.test -> Model.print_results
+Rename Model.test -> Model.print_results
