@@ -17,6 +17,7 @@ Numerical optimization strategies are also implemented to optimize models:
 * Steepest descent
 * Steepest descent with momentum
 * Broyden–Fletcher–Goldfarb-Shanno (BFGS)
+* Limited-memory Broyden–Fletcher–Goldfarb-Shanno (L-BFGS)
 * Backtracking line search
 * Wolfe line search
 * First order change initial step
