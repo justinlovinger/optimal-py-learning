@@ -38,7 +38,7 @@ def get_iris():
 
     Type: Classification
     Samples: 150
-    Attributes: 8
+    Attributes: 4
     Classes: 3
 
     Source: http://archive.ics.uci.edu/ml/datasets/Iris
