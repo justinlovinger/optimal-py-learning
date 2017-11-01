@@ -215,7 +215,16 @@ def equal_ignore_order(a, b):
 ############################
 # Gradient checking
 ############################
-def check_gradient(f, df, inputs=None, epsilon=1e-6, f_shape='scalar'):
+# Numerical precision error of IEEE double precision floating-point numbers
+# On forward difference gradient approximation, sqrt(ieee_double_error) is theoretically optimal.
+# On central different gradient approximation, cube_root(ieee_double_error) is theoretically optimal.
+# ~Numerical Optimization 2nd, pp. 196-197
+IEEE_DOUBLE_ERROR = 1.1e-16  # u
+FORWARD_DIFF_EPSILON = IEEE_DOUBLE_ERROR**0.5  # sqrt(u)
+CENTRAL_DIFF_EPSILON = IEEE_DOUBLE_ERROR**(1. / 3) # cube_root(u)
+
+
+def check_gradient(f, df, inputs=None, epsilon=CENTRAL_DIFF_EPSILON, f_shape='scalar'):
     if inputs is None:
         inputs = numpy.random.rand(random.randint(2, 10))
 
