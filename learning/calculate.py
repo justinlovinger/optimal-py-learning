@@ -58,13 +58,24 @@ def protvecdiv(vec_a, vec_b):
 #####################################
 # Common math and transfer functions
 #####################################
+def logit(x):
+    """Return logistic function, f(x) = 1 / (1 + e^{-x})."""
+    return 1.0 / (1.0 + numpy.exp(-x))
+
+
+def dlogit(x):
+    """Return derivative of logistic function."""
+    e_pow_x = numpy.exp(x)
+    return e_pow_x / (e_pow_x + 1.0)**2
+
+
 def tanh(x):
-    """Sigmoid like function using tanh"""
+    """Sigmoid like function using tanh."""
     return numpy.tanh(x)
 
 
 def dtanh(y):
-    """Derivative of sigmoid above"""
+    """Derivative of tanh."""
     return 1.0 - y**2
 
 

@@ -42,4 +42,4 @@ from learning.architecture.som import SOM
 from learning.architecture.mlp import MLP, DropoutMLP
 from learning.architecture.rbf import RBF
 from learning.architecture.pbnn import PBNN
-from learning.architecture.regression import LinearRegressionModel
+from learning.architecture.regression import LinearRegressionModel, LogisticRegressionModel

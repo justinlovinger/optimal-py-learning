@@ -27,7 +27,8 @@ import random
 import numpy
 import pytest
 
-from learning import datasets, validation, error, LinearRegressionModel
+from learning import (datasets, validation, error, LinearRegressionModel,
+                      LogisticRegressionModel)
 
 from learning.testing import helpers
 
@@ -90,6 +91,38 @@ def test_LinearRegressionModel_get_obj_equals_get_obj_jac_l2_penalty():
     _check_get_obj_equals_get_obj_jac(lambda a, o: LinearRegressionModel(
         a, o, penalty_func=error.L2Penalty(
             penalty_weight=random.uniform(0.0, 2.0))))
+
+
+######################################
+# LogisticRegressionModel
+######################################
+def test_LogisticRegressionModel():
+    # Run for a couple of iterations
+    # assert that new error is less than original
+    model = LogisticRegressionModel(2, 2)
+    # NOTE: We use and instead of xor, because xor is non-linear
+    dataset = datasets.get_and()
+
+    error = validation.get_error(model, *dataset)
+    model.train(*dataset, iterations=10)
+    assert validation.get_error(model, *dataset) < error
+
+
+@pytest.mark.slowtest
+def test_LogisticRegressionModel_convergence():
+    # Run until convergence
+    # assert that model can converge
+    model = LogisticRegressionModel(2, 2)
+    # NOTE: We use and instead of xor, because xor is non-linear
+    dataset = datasets.get_and()
+
+    model.train(*dataset)
+    # NOTE: This linear model cannot achieve 0 MSE
+    assert validation.get_error(model, *dataset) <= 0.1
+
+
+def test_LogisticRegressionModel_jacobian():
+    _check_jacobian(lambda a, o: LogisticRegressionModel(a, o))
 
 
 ######################################

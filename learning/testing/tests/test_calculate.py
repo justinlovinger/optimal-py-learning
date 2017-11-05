@@ -51,6 +51,32 @@ def test_protvecdiv_zero_den():
 # Transfers
 #######################
 #####################
+# Logit
+#####################
+def test_logit():
+    assert calculate.logit(0) == 0.5
+    assert helpers.approx_equal(
+        calculate.logit(numpy.array([-1.0, 0.0, 0.5, 1.0])), [
+            0.26894142,
+            0.5,
+            0.6224593,
+            0.73105857,
+        ])
+
+
+def test_big_logit():
+    assert calculate.logit(-1000.) == 0.0
+    assert calculate.logit(1000.) == 1.0
+
+
+def test_dlogit():
+    helpers.check_gradient(
+        calculate.logit,
+        calculate.dlogit,
+        f_shape='lin')
+
+
+#####################
 # Tanh
 #####################
 def test_tanh():
@@ -59,7 +85,7 @@ def test_tanh():
         [-0.761594, 0.0, 0.462117, 0.761594])
 
 
-def test_tanh_gradient():
+def test_dtanh():
     helpers.check_gradient(
         calculate.tanh,
         lambda x: calculate.dtanh(calculate.tanh(x)),
@@ -78,7 +104,7 @@ def test_gaussian_transfer():
         [0.135335, 1.0, 0.606531, 0.135335])
 
 
-def test_gaussian_gradient():
+def test_dgaussian():
     helpers.check_gradient(
         calculate.gaussian,
         lambda x: calculate.dgaussian(x, calculate.gaussian(x)),
@@ -109,7 +135,7 @@ def test_softmax_large_input():
     ]
 
 
-def test_softmax_jacobian():
+def test_dsoftmax():
     helpers.check_gradient(
         calculate.softmax,
         lambda x: calculate.dsoftmax(calculate.softmax(x)),
@@ -132,24 +158,24 @@ def test_big_relu():
         calculate.relu(numpy.array([0., 1000.])), [0.6931471805, 1000])
 
 
-def test_relu_derivative():
+def test_drelu_simple():
     assert helpers.approx_equal(
         calculate.drelu(numpy.array([0, 1])), [0.5, 0.73105857])
     assert helpers.approx_equal(
         calculate.drelu(numpy.array([-1.5, 10])), [0.182426, 0.9999546])
 
 
-def test_big_relu_derivative():
+def test_big_drelu_simple():
     """Naive relu can overflow with large input values."""
     assert helpers.approx_equal(
         calculate.drelu(numpy.array([0., 1000.])), [0.5, 1.0])
 
 
-def test_relu_gradient():
+def test_drelu():
     helpers.check_gradient(calculate.relu, calculate.drelu, f_shape='lin')
 
 
-def test_big_relu_gradient():
+def test_big_drelu():
     helpers.check_gradient(
         calculate.relu,
         calculate.drelu,

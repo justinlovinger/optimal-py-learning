@@ -26,7 +26,7 @@ import operator
 
 import numpy
 
-from learning import optimize, Model, MeanSquaredError
+from learning import calculate, optimize, Model, MeanSquaredError
 from learning.optimize import Problem
 
 INITIAL_WEIGHTS_RANGE = 0.25
@@ -227,3 +227,46 @@ class LinearRegressionModel(RegressionModel):
         """
         # Add bias term to input_vec
         return numpy.hstack(([1], input_vec))[:, None].dot(error_jac[None, :])
+
+
+# TODO: Logistic regression is expected to be paried with a specific
+# error function, which should be implemented and set as the default
+# error function.
+# L(W) = prod_i (y_i^{t_i} (1 - y_i)^{1 - t_i})
+# maximize_W L(W)
+# where, y_i is the model output for sample i, and t_i is the target of sample i
+# Note that the above is for a dataset with a single target value.
+# Log likelihood is often used instead, maximize N^{-1} log(L(W))
+# Also, note that this is given as a maximization problem,
+# and should be implemented as -N^{-1} log(L(W)), so it is a minimization problem
+class LogisticRegressionModel(RegressionModel):
+    r"""Regression model with an equation of the form: f(\vec{x}) = 1 / (1 + e^{- W \vec{x}})."""
+
+    def _weights_shape(self, attributes, num_outputs):
+        """Return shape of this models weight matrix."""
+        # +1 for bias term
+        return (attributes + 1, num_outputs)
+
+    def _equation_output(self, input_vec):
+        """Return the output of this models equation."""
+        # Logistic regression is simply lienar regression passed through
+        # a logit function
+        # First weight (for each output) is independent of input_vec
+        return calculate.logit(self._weight_matrix[0] + numpy.dot(
+            input_vec, self._weight_matrix[1:]))
+
+    def _equation_derivative(self, input_vec, error_jac):
+        """Return the jacobian of this models equation corresponding to the given error.
+
+        Derivative with regard to weights.
+        """
+        # Add bias term to input_vec
+        bias_vec = numpy.hstack(([1], input_vec))
+
+        # For a given output o
+        # Simply, w * dlogic_o * error_func_o
+        # Shaped to efficiently multiply all weights,
+        # with corresponding outputs
+        return bias_vec[:, None].dot(
+            (calculate.dlogit(bias_vec.dot(self._weight_matrix)) *
+             error_jac)[None, :])

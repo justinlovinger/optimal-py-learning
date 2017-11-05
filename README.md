@@ -6,7 +6,7 @@ Warning: Learning is in beta. API may change. Breaking changes may be noted in t
 Currently supported models:
 
 * Multilayer perceptron (MLP). Commonly known as a neural network.
-* Linear regression, including Ridge and Lasso.
+* Linear and logistic regression, including Ridge and Lasso.
 * Radial basis function network (RBF)
 * Probabilistic neural network (PBNN)
 * Self organizing map (SOM)

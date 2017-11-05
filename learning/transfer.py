@@ -72,6 +72,7 @@ class TanhTransfer(Transfer):
         return calculate.dtanh(output_vec)
 
 
+# TODO: Rename to SoftplusTransfer, and add proper ReLU (same for calculate.relu)
 class ReluTransfer(Transfer):
     """Smooth approximation of a rectified linear unit (ReLU).
 
