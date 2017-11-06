@@ -68,12 +68,27 @@ def test_big_logit():
     assert calculate.logit(-1000.) == 0.0
     assert calculate.logit(1000.) == 1.0
 
+    assert calculate.logit(-1000000.) == 0.0
+    assert calculate.logit(1000000.) == 1.0
+
 
 def test_dlogit():
     helpers.check_gradient(
         calculate.logit,
         calculate.dlogit,
         f_shape='lin')
+
+
+def test_big_dlogit():
+    assert calculate.dlogit(-1000.) == 0.0
+    assert calculate.dlogit(1000.) == 1.0
+
+    assert calculate.dlogit(-1000000.) == 0.0
+    assert calculate.dlogit(1000000.) == 1.0
+
+    assert list(calculate.dlogit(numpy.array([-1000., 0., 1000.]))) == [
+        0., 0.25, 1.
+    ]
 
 
 #####################

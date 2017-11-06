@@ -26,6 +26,9 @@
 import numpy
 
 
+INFINITY = float('inf')
+
+
 def distance(vec_a, vec_b):
     # TODO: fix so it works with matrix inputs
     diff = numpy.subtract(vec_a, vec_b)
@@ -66,7 +69,23 @@ def logit(x):
 def dlogit(x):
     """Return derivative of logistic function."""
     e_pow_x = numpy.exp(x)
-    return e_pow_x / (e_pow_x + 1.0)**2
+    try:
+        # Replace inf's with 1, because with infinite precision,
+        # output will be approximately 1
+        # inf is caused by overflow in exp
+        # NOTE: More efficient to replace non-infs
+        out = numpy.ones(x.shape)
+        not_infs = e_pow_x != numpy.Infinity
+        out[not_infs] = e_pow_x[not_infs] / (e_pow_x[not_infs] + 1.0)**2
+        return out
+    except AttributeError:  # Scalar
+        # Check for overflow
+        if e_pow_x == INFINITY:
+            # Return 1 if overflow, because with infinite precision,
+            # output will be approximately 1
+            return 1.0
+        else:  # No overflow
+            return e_pow_x / (e_pow_x + 1.0)**2
 
 
 def tanh(x):
