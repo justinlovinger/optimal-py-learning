@@ -244,7 +244,9 @@ def check_gradient(f, df, f_arg_tensor=None, epsilon=CENTRAL_DIFF_EPSILON, f_sha
 
     try:
         assert approx_equal(
-            df(f_arg_tensor), approx_func(f, f_arg_tensor, epsilon), tol=epsilon)
+            df(f_arg_tensor),
+            approx_func(f, f_arg_tensor, epsilon),
+            tol=10 * epsilon)
     except AssertionError:
         print 'Actual Gradient:'
         print df(f_arg_tensor)
