@@ -129,11 +129,9 @@ class RegressionModel(Model):
 
     def _get_objective_value(self, input_matrix, target_matrix):
         """Return error on given dataset."""
-        error = numpy.mean([
-            self._error_func(self.activate(inp_vec), tar_vec)
-            for inp_vec, tar_vec in zip(input_matrix, target_matrix)
-        ])
+        error = self._error_func(self.activate(input_matrix), target_matrix)
 
+        # Calculate and add weight penalty
         if self._penalty_func is not None:
             # Error is mean of sample errors + weight penalty
             # NOTE: We ravel the weight matrix, to take vector norm
@@ -154,14 +152,9 @@ class RegressionModel(Model):
     def _get_jacobian(self, input_matrix, target_matrix):
         """Return jacobian and error for given dataset."""
         # Calculate jacobian, given error function
-        errors, jacobians = zip(*[
-            self._get_sample_jacobian(input_vec, target_vec)
-            for input_vec, target_vec in zip(input_matrix, target_matrix)
-        ])
-        error = numpy.mean(errors)
-        jacobian = numpy.mean(jacobians, axis=0)
+        error, jacobian = self._get_error_jacobian(input_matrix, target_matrix)
 
-        # Calculate weight penalty
+        # Calculate weight penalty, and add it to error and jacobian
         if self._penalty_func is not None:
             # NOTE: We ravel the weight matrix, to take vector norm
             flat_weights = self._weight_matrix.ravel()
@@ -176,15 +169,16 @@ class RegressionModel(Model):
 
         return error, jacobian
 
-    def _get_sample_jacobian(self, input_vec, target_vec):
-        """Return jacobian and error for given sample."""
-        output_vec = self.activate(input_vec)
-        if output_vec.shape != target_vec.shape:
+    def _get_error_jacobian(self, input_matrix, target_matrix):
+        """Return error and jacobian derived from model error."""
+        output_matrix = self.activate(input_matrix)
+        if output_matrix.shape != target_matrix.shape:
             raise ValueError(
-                'target_vec.shape does not match output_vec.shape')
+                'target_matrix.shape does not match output_matrix.shape')
 
-        error, error_jac = self._error_func.derivative(output_vec, target_vec)
-        jacobian = self._equation_derivative(input_vec, error_jac)
+        error, error_jac = self._error_func.derivative(output_matrix, target_matrix)
+        jacobian = self._equation_derivative(input_matrix, error_jac)
+        
         assert reduce(operator.mul, jacobian.shape) == reduce(
             operator.mul, self._weight_matrix.shape)
 
@@ -194,11 +188,11 @@ class RegressionModel(Model):
         """Return shape of this models weight matrix."""
         raise NotImplementedError()
 
-    def _equation_output(self, input_vec):
+    def _equation_output(self, input_tensor):
         """Return the output of this models equation."""
         raise NotImplementedError()
 
-    def _equation_derivative(self, input_vec, error_jac):
+    def _equation_derivative(self, input_matrix, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
@@ -214,19 +208,21 @@ class LinearRegressionModel(RegressionModel):
         # +1 for bias term
         return (attributes + 1, num_outputs)
 
-    def _equation_output(self, input_vec):
+    def _equation_output(self, input_tensor):
         """Return the output of this models equation."""
-        # First weight (for each output) is independent of input_vec
-        return self._weight_matrix[0] + numpy.dot(input_vec,
+        # First weight (for each output) is independent of input_tensor
+        return self._weight_matrix[0] + numpy.dot(input_tensor,
                                                   self._weight_matrix[1:])
 
-    def _equation_derivative(self, input_vec, error_jac):
+    def _equation_derivative(self, input_matrix, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
         """
-        # Add bias term to input_vec
-        return numpy.hstack(([1], input_vec))[:, None].dot(error_jac[None, :])
+        # Add bias term to input_matrix
+        return numpy.hstack(([[1]]*input_matrix.shape[0], input_matrix)
+            # Multiply by error jacobian
+            ).T.dot(error_jac)
 
 
 # TODO: Logistic regression is expected to be paried with a specific
@@ -247,26 +243,26 @@ class LogisticRegressionModel(RegressionModel):
         # +1 for bias term
         return (attributes + 1, num_outputs)
 
-    def _equation_output(self, input_vec):
+    def _equation_output(self, input_tensor):
         """Return the output of this models equation."""
         # Logistic regression is simply lienar regression passed through
         # a logit function
-        # First weight (for each output) is independent of input_vec
+        # First weight (for each output) is independent of input_tensor
         return calculate.logit(self._weight_matrix[0] + numpy.dot(
-            input_vec, self._weight_matrix[1:]))
+            input_tensor, self._weight_matrix[1:]))
 
-    def _equation_derivative(self, input_vec, error_jac):
+    def _equation_derivative(self, input_matrix, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
         """
-        # Add bias term to input_vec
-        bias_vec = numpy.hstack(([1], input_vec))
+        # Add bias term to input_matrix
+        biased_matrix = numpy.hstack(([[1]]*input_matrix.shape[0], input_matrix))
 
         # For a given output o
         # Simply, w * dlogic_o * error_func_o
         # Shaped to efficiently multiply all weights,
         # with corresponding outputs
-        return bias_vec[:, None].dot(
-            (calculate.dlogit(bias_vec.dot(self._weight_matrix)) *
-             error_jac)[None, :])
+        return biased_matrix.T.dot(
+            (calculate.dlogit(biased_matrix.dot(self._weight_matrix)) *
+             error_jac))
