@@ -74,7 +74,7 @@ def check_error_gradient(error_func):
     helpers.check_gradient(
         lambda X: error_func(X, vec_b),
         lambda X: error_func.derivative(X, vec_b)[1],
-        inputs=numpy.random.random(vec_length),
+        f_arg_tensor=numpy.random.random(vec_length),
         f_shape='scalar')
 
 

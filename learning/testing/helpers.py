@@ -25,6 +25,7 @@
 import copy
 import collections
 import random
+import operator
 
 import numpy
 
@@ -124,6 +125,9 @@ def approx_equal(a, b, tol=0.001):
         b = list(b)
 
     if isinstance(a, (list, tuple)):
+        if not isinstance(b, (list, tuple)):
+            return False
+
         # Check that each element is approx equal
         if len(a) != len(b):
             return False
@@ -224,9 +228,9 @@ FORWARD_DIFF_EPSILON = IEEE_DOUBLE_ERROR**0.5  # sqrt(u)
 CENTRAL_DIFF_EPSILON = IEEE_DOUBLE_ERROR**(1. / 3) # cube_root(u)
 
 
-def check_gradient(f, df, inputs=None, epsilon=CENTRAL_DIFF_EPSILON, f_shape='scalar'):
-    if inputs is None:
-        inputs = numpy.random.rand(random.randint(2, 10))
+def check_gradient(f, df, f_arg_tensor=None, epsilon=CENTRAL_DIFF_EPSILON, f_shape='scalar'):
+    if f_arg_tensor is None:
+        f_arg_tensor = numpy.random.rand(random.randint(2, 10))
 
     if f_shape == 'scalar':
         approx_func = _approximate_gradient_scalar
@@ -240,42 +244,56 @@ def check_gradient(f, df, inputs=None, epsilon=CENTRAL_DIFF_EPSILON, f_shape='sc
 
     try:
         assert approx_equal(
-            df(inputs), approx_func(f, inputs, epsilon), tol=epsilon)
+            df(f_arg_tensor), approx_func(f, f_arg_tensor, epsilon), tol=epsilon)
     except AssertionError:
         print 'Actual Gradient:'
-        print df(inputs)
+        print df(f_arg_tensor)
         print 'Expected Gradient:'
-        print approx_func(f, inputs, epsilon)
+        print approx_func(f, f_arg_tensor, epsilon)
         raise
 
 
 def _approximate_gradient_scalar(f, x, epsilon):
-    return numpy.array(
-        [_approximate_ith(i, f, x, epsilon) for i in range(x.shape[0])])
+    return numpy.array([
+        _approximate_ith(i, f, x, epsilon)
+        for i in range(reduce(operator.mul, x.shape))
+    ]).reshape(x.shape)
 
 
 def _approximate_gradient_lin(f, x, epsilon):
-    return numpy.array(
-        [_approximate_ith(i, f, x, epsilon)[i] for i in range(x.shape[0])])
+    return numpy.array([
+        _approximate_ith(i, f, x, epsilon).ravel()[i]
+        for i in range(reduce(operator.mul, x.shape))
+    ]).reshape(x.shape)
 
 
 def _approximate_ith(i, f, x, epsilon):
-    x_plus_i = x.copy()
+    # Ravel in case x is not a vector
+    x_plus_i = x.copy().ravel()
     x_plus_i[i] += epsilon
-    x_minus_i = x.copy()
+    x_plus_i = x_plus_i.reshape(x.shape)
+
+    x_minus_i = x.copy().ravel()
     x_minus_i[i] -= epsilon
+    x_minus_i = x_minus_i.reshape(x.shape)
+
     return (f(x_plus_i) - f(x_minus_i)) / (2 * epsilon)
 
 
 def _approximate_gradient_jac(f, x, epsilon):
     # Jocobian has inputs on cols and outputs on rows
-    jacobian = numpy.zeros((f(x).shape[0], x.shape[0]))
+    jacobian = numpy.zeros((f(x).shape[0], reduce(operator.mul, x.shape)))
     for j in range(f(x).shape[0]):
-        for i in range(x.shape[0]):
-            x_plus_i = x.copy()
+        for i in range(reduce(operator.mul, x.shape)):
+            # Ravel in case x is not a vector
+            x_plus_i = x.copy().ravel()
             x_plus_i[i] += epsilon
-            x_minus_i = x.copy()
+            x_plus_i = x_plus_i.reshape(x.shape)
+
+            x_minus_i = x.copy().ravel()
             x_minus_i[i] -= epsilon
+            x_minus_i = x_minus_i.reshape(x.shape)
+
             jacobian[j, i] = (f(x_plus_i)[j] - f(x_minus_i)[j]) / (
                 2.0 * epsilon)
-    return jacobian
+    return jacobian.reshape((f(x).shape[0], ) + x.shape)

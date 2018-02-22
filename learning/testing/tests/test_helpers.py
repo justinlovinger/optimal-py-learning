@@ -24,6 +24,7 @@
 
 import copy
 import math
+import random
 
 import numpy
 
@@ -55,22 +56,105 @@ def test_fix_numpy_array_equality():
 ###########################
 # Gradient checking
 ###########################
-def test_check_gradient_scalar():
+def test_check_gradient_scalar_vector_arg():
     helpers.check_gradient(
-        lambda x: numpy.sum(x**2), lambda x: 2.0 * x, f_shape='scalar')
+        lambda x: numpy.sum(x**2),
+        lambda x: 2.0 * x,
+        f_arg_tensor=numpy.random.random(random.randint(1, 10)),
+        f_shape='scalar')
 
 
-def test_check_gradient_lin():
-    helpers.check_gradient(lambda x: x**2, lambda x: 2 * x, f_shape='lin')
+def test_check_gradient_scalar_matrix_arg():
+    helpers.check_gradient(
+        lambda x: numpy.sum(x**2),
+        lambda x: 2.0 * x,
+        f_arg_tensor=numpy.random.random(
+            (random.randint(1, 10), random.randint(1, 10))),
+        f_shape='scalar')
+
+
+def test_check_gradient_scalar_3tensor_arg():
+    helpers.check_gradient(
+        lambda x: numpy.sum(x**2),
+        lambda x: 2.0 * x,
+        f_arg_tensor=numpy.random.random(
+            (random.randint(1, 10), random.randint(1, 10), random.randint(1, 10))),
+        f_shape='scalar')
+
+
+def test_check_gradient_lin_vector_arg():
+    helpers.check_gradient(
+        lambda x: x**2,
+        lambda x: 2.0 * x,
+        f_arg_tensor=numpy.random.random(random.randint(1, 10)),
+        f_shape='lin')
     helpers.check_gradient(
         lambda x: numpy.sqrt(x),
         lambda x: 1.0 / (2 * numpy.sqrt(x)),
+        f_arg_tensor=numpy.random.random(random.randint(1, 10)),
         f_shape='lin')
 
 
-def test_check_gradient_jacobian():
+def test_check_gradient_lin_matrix_arg():
+    helpers.check_gradient(
+        lambda x: x**2,
+        lambda x: 2.0 * x,
+        f_arg_tensor=numpy.random.random(
+            (random.randint(1, 10), random.randint(1, 10))),
+        f_shape='lin')
+    helpers.check_gradient(
+        lambda x: numpy.sqrt(x),
+        lambda x: 1.0 / (2 * numpy.sqrt(x)),
+        f_arg_tensor=numpy.random.random(
+            (random.randint(1, 10), random.randint(1, 10))),
+        f_shape='lin')
+
+
+def test_check_gradient_lin_3tensor_arg():
+    helpers.check_gradient(
+        lambda x: x**2,
+        lambda x: 2.0 * x,
+        f_arg_tensor=numpy.random.random(
+            (random.randint(1, 10), random.randint(1, 10), random.randint(1, 10))),
+        f_shape='lin')
+    helpers.check_gradient(
+        lambda x: numpy.sqrt(x),
+        lambda x: 1.0 / (2 * numpy.sqrt(x)),
+        f_arg_tensor=numpy.random.random(
+            (random.randint(1, 10), random.randint(1, 10), random.randint(1, 10))),
+        f_shape='lin')
+
+
+def test_check_gradient_jacobian_vector_arg():
     helpers.check_gradient(lambda x: numpy.array([x[0]**2*x[1], 5*x[0]+math.sin(x[1])]),
                            lambda x: numpy.array([[2*x[0]*x[1], x[0]**2       ],
                                                   [5.0,         math.cos(x[1])]]),
-                           inputs=numpy.random.rand(2),
+                           f_arg_tensor=numpy.random.random(2),
+                           f_shape='jac')
+
+
+def test_check_gradient_jacobian_matrix_arg():
+    helpers.check_gradient(lambda x: numpy.array([x[0][0]**2 + x[1][0]**2, x[0][1]**2 + x[1][1]**2]),
+                           lambda x: numpy.array(
+                                [
+                                    [[2 * x[0][0], 0],
+                                     [2 * x[1][0], 0]],
+                                    [[0, 2 * x[0][1]],
+                                     [0, 2 * x[1][1]]]
+                                ]),
+                           f_arg_tensor=numpy.random.random((2, 2)),
+                           f_shape='jac')
+
+    helpers.check_gradient(lambda x: numpy.array([numpy.sum(x**2), numpy.sum(x**3)]),
+                           lambda x: numpy.array([2 * x, 3 * x**2]),
+                           f_arg_tensor=numpy.random.random(
+                               (random.randint(1, 10), random.randint(1, 10))),
+                           f_shape='jac')
+
+
+def test_check_gradient_jacobian_3tensor_arg():
+    helpers.check_gradient(lambda x: numpy.array([numpy.sum(x**2), numpy.sum(x**3)]),
+                           lambda x: numpy.array([2 * x, 3 * x**2]),
+                           f_arg_tensor=numpy.random.random(
+                               (random.randint(1, 10), random.randint(1, 10), random.randint(1, 10))),
                            f_shape='jac')

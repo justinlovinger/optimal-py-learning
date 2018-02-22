@@ -194,5 +194,5 @@ def test_big_drelu():
     helpers.check_gradient(
         calculate.relu,
         calculate.drelu,
-        inputs=numpy.array([0., 1000.]),
+        f_arg_tensor=numpy.array([0., 1000.]),
         f_shape='lin')

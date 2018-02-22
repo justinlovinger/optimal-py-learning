@@ -203,7 +203,7 @@ def _check_jacobian(make_model_func):
     df = lambda xk: mlp._mlp_obj_jac(model, inp_matrix, tar_matrix, xk)[1]
 
     helpers.check_gradient(
-        f, df, inputs=mlp._flatten(model._weight_matrices), f_shape='scalar')
+        f, df, f_arg_tensor=mlp._flatten(model._weight_matrices), f_shape='scalar')
 
 
 ##############################

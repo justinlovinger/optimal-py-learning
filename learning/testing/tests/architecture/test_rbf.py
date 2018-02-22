@@ -94,4 +94,4 @@ def _check_jacobian(make_model_func):
     df = lambda xk: model._get_obj_jac(xk, inp_matrix, tar_matrix)[1]
 
     helpers.check_gradient(
-        f, df, inputs=model._weight_matrix.ravel(), f_shape='scalar')
+        f, df, f_arg_tensor=model._weight_matrix.ravel(), f_shape='scalar')
