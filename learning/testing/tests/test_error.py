@@ -70,16 +70,16 @@ def test_cross_entropy_vector():
     assert error.CrossEntropyError()(numpy.array([0.1, 1.]),
                                      numpy.array([0., 1.])) == 0
     assert error.CrossEntropyError()(numpy.array([0.1, 1. / numpy.e]),
-                                     numpy.array([0., 1.])) == 0.5
+                                     numpy.array([0., 1.])) == 1
 
 
 def test_cross_entropy_matrix():
     assert error.CrossEntropyError()(numpy.array([[0.1, 1.], [1., 0.1]]),
                                      numpy.array([[0., 1.], [1., 0.]])) == 0
     assert error.CrossEntropyError()(numpy.array([[0.1, 1. / numpy.e], [1. / numpy.e, 0.1]]),
-                                     numpy.array([[0., 1.], [1., 0.]])) == 0.5
+                                     numpy.array([[0., 1.], [1., 0.]])) == 1
     assert error.CrossEntropyError()(numpy.array([[0.1, 1.], [1. / numpy.e, 0.1]]),
-                                     numpy.array([[0., 1.], [1., 0.]])) == 0.25
+                                     numpy.array([[0., 1.], [1., 0.]])) == 0.5
 
 
 def test_cross_entropy_zero_in_tensor_a():
@@ -90,7 +90,7 @@ def test_cross_entropy_zero_in_tensor_a():
     error_func = error.CrossEntropyError()
     assert error_func(numpy.array([0., 0., 1.]), numpy.array([0., 0., 1.])) == 0
     assert error_func(numpy.array([1., 0., 1.]), numpy.array([0., 0., 1.])) == 0
-    assert error_func(numpy.array([0., 1. / numpy.e]), numpy.array([0., 1.])) == 0.5
+    assert error_func(numpy.array([0., 1. / numpy.e]), numpy.array([0., 1.])) == 1
 
 
 def test_cross_entropy_error_on_negative():
@@ -115,7 +115,7 @@ def test_cross_entropy_derivative_equals():
     Because the derivative includes a division, this could occur.
     """
     assert (list(error.CrossEntropyError().derivative(
-        numpy.array([0., 1.]), numpy.array([0., 1.]))[1]) == [0., -0.5])
+        numpy.array([0., 1.]), numpy.array([0., 1.]))[1]) == [0., -1])
 
 
 #############################

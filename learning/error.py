@@ -85,21 +85,20 @@ class CrossEntropyError(ErrorFunc):
         log(0) in tensor_a is changed to very negative value, to keep the spirit
         of cross entropy, while avoiding numerical errors.
         """
-        # Use mean instead of sum, so magnitude is independent of length of vectors
-        # TODO (maybe): sum across columns, mean across rows,
-        # because tensor_b is typically one-hot, and in this case,
-        # mean will result in lower error as length increases.
+        # Log tensor_a, allowing for log(0)
         with numpy.errstate(
                 invalid='raise', divide='ignore'):  # Do not allow log(-)
             log_a = numpy.log(tensor_a)
         # Change -inf (from log(0)) to -1.79769313e+308
         log_a = numpy.nan_to_num(log_a)
-        return -numpy.mean(log_a * tensor_b)
+
+        # If matrix, sum elements corresponding to each pattern,
+        # and mean sums corresponding to patterns.
+        # If vector, just sum
+        return -numpy.mean(numpy.sum(log_a * tensor_b, axis=-1))
 
     def derivative(self, tensor_a, tensor_b):
         """Return (error, derivative tensor)."""
-        # NOTE: If CE uses sum instead of mean, this would be -(tensor_b / tensor_a)
-
         # Ignore 0/0 (handled in next line), warn for (x/0),
         # because this is less likely in practice, and may indicate a problem
         with numpy.errstate(invalid='ignore', divide='warn'):
@@ -108,8 +107,12 @@ class CrossEntropyError(ErrorFunc):
         # Change nan (0/0) to 0, and inf (x/0) to 1.79769313e+308
         tensor_b_div_tensor_a = numpy.nan_to_num(tensor_b_div_tensor_a)
 
-        return self(tensor_a, tensor_b), tensor_b_div_tensor_a / (
-            -reduce(operator.mul, tensor_a.shape))
+        error = self(tensor_a, tensor_b)
+        if len(tensor_a.shape) == 1:  # Vector
+            return error, -tensor_b_div_tensor_a
+        else:  # Matrix or tensor
+            return error, tensor_b_div_tensor_a / (
+                -reduce(operator.mul, tensor_a.shape[:-1]))
 
 
 #############################
