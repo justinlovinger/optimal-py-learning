@@ -63,6 +63,16 @@ def test_mse_derivative_matrix():
     check_error_gradient(error.MeanSquaredError(), tensor_d=2)
 
 
+def test_mse_derivative_error_equals_call_error_vec():
+    check_derivative_error_equals_call_error(
+        error.MeanSquaredError(), tensor_d=1)
+
+
+def test_mse_derivative_error_equals_call_error_matrix():
+    check_derivative_error_equals_call_error(
+        error.MeanSquaredError(), tensor_d=2)
+
+
 #########################
 # Cross Entropy
 #########################
@@ -109,13 +119,23 @@ def test_cross_entropy_derivative_matrix():
     check_error_gradient(error.CrossEntropyError(), tensor_d=2)
 
 
-def test_cross_entropy_derivative_equals():
+def test_cross_entropy_derivative_equal_tensors():
     """Should not raise error or return nan, when both inputs match.
 
     Because the derivative includes a division, this could occur.
     """
     assert (list(error.CrossEntropyError().derivative(
         numpy.array([0., 1.]), numpy.array([0., 1.]))[1]) == [0., -1])
+
+
+def test_cross_entropy_derivative_error_equals_call_error_vec():
+    check_derivative_error_equals_call_error(
+        error.CrossEntropyError(), tensor_d=1)
+
+
+def test_cross_entropy_derivative_error_equals_call_error_matrix():
+    check_derivative_error_equals_call_error(
+        error.CrossEntropyError(), tensor_d=2)
 
 
 #############################
@@ -143,3 +163,11 @@ def check_error_gradient(error_func, tensor_d=1):
         lambda X: error_func.derivative(X, tensor_b)[1],
         f_arg_tensor=numpy.random.random(tensor_shape),
         f_shape='scalar')
+
+
+def check_derivative_error_equals_call_error(error_func, tensor_d=1):
+    tensor_shape = [random.randint(1, 10) for _ in range(tensor_d)]
+    tensor_a = numpy.random.random(tensor_shape)
+    tensor_b = numpy.random.random(tensor_shape)
+
+    assert error_func(tensor_a, tensor_b) == error_func.derivative(tensor_a, tensor_b)[0]
