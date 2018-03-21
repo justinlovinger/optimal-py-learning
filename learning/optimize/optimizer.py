@@ -430,15 +430,17 @@ class LBFGS(Optimizer):
 
     def _update_diffs(self, jacobian):
         """Update stored differences."""
-        # TODO: Reverse so 0 is oldest and -1 is newest
-        if self._prev_step is not None:
-            self._prev_param_diffs.insert(0, self._prev_step)
-            self._prev_jac_diffs.insert(0, jacobian - self._prev_jacobian)
+        # Remove oldest, if over limit (after adding)
+        # Pop first to minimize how many elements are shifted
+        if len(self._prev_param_diffs) >= self._num_remembered_iterations:
+            self._prev_param_diffs.pop(0)
+            self._prev_jac_diffs.pop(0)
 
-        # Remove oldest, if over limit
-        if len(self._prev_param_diffs) > self._num_remembered_iterations:
-            self._prev_param_diffs.pop(-1)
-            self._prev_jac_diffs.pop(-1)
+        # Add newest
+        if self._prev_step is not None:
+            self._prev_param_diffs.append(self._prev_step)
+            self._prev_jac_diffs.append(jacobian - self._prev_jacobian)
+
         assert len(self._prev_param_diffs) <= self._num_remembered_iterations
         assert len(self._prev_param_diffs) == len(self._prev_jac_diffs)
 
@@ -447,13 +449,14 @@ class LBFGS(Optimizer):
 
     def _lbfgs_step_dir(self, jacobian):
         """Return step_dir, approximated from previous param and jac differences."""
-        # First pass, backwards pass (from latest to oldest)
         newton_grad = numpy.copy(jacobian)
-        # 1 / (y_k^T s_k), where y_k^T = jac_diff, and s_k = param_diff
+        
+        # First pass, backwards pass (from newest to oldest)
+        # rho = 1 / (y_k^T s_k), where y_k^T = jac_diff, and s_k = param_diff
         rhos = []
         alphas = []  # rho_i s_i^T q
-        for param_diff, jac_diff in zip(self._prev_param_diffs,
-                                        self._prev_jac_diffs):
+        for param_diff, jac_diff in reversed(
+                zip(self._prev_param_diffs, self._prev_jac_diffs)):
             # alpha_i <- rho_i s_i^T q, where q = newton_grad
             # q <- q - alpha_i y_i
             rho = 1.0 / (jac_diff.dot(param_diff))
@@ -461,14 +464,17 @@ class LBFGS(Optimizer):
             newton_grad -= alpha * jac_diff
 
             # Save rho and alpha, for second pass
+            # Lists will be revered later (more efficient than insert 0)
             rhos.append(rho)
             alphas.append(alpha)
+        # Reverse new lists so ordered from oldest to newest
+        rhos = reversed(rhos)
+        alphas = reversed(alphas)
 
-        # Second pass, forwards pass (from oldest to latest)
+        # Second pass, forwards pass (from oldest to newest)
         newton_grad *= self._initial_inv_hessian_scalar()
-        for param_diff, jac_diff, rho, alpha in reversed(
-                zip(self._prev_param_diffs, self._prev_jac_diffs, rhos,
-                    alphas)):
+        for param_diff, jac_diff, rho, alpha in zip(
+                self._prev_param_diffs, self._prev_jac_diffs, rhos, alphas):
             # beta <- rho_i y_i^T r, where r = newton_grad
             # r <- r + s_i (alpha_i - beta)
             newton_grad += param_diff * (
