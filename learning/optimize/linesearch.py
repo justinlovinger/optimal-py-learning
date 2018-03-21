@@ -146,7 +146,6 @@ class WolfeLineSearch(StepSizeGetter):
         self._c_2 = c_2
 
         if initial_step_getter is None:
-            # Slightly more than 1 step up
             initial_step_getter = QuadraticInitialStep()
         self._initial_step_getter = initial_step_getter
 
@@ -260,7 +259,6 @@ def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1,
     # We need the current and previous step size for some operations
     prev_step_size = 0.0
     prev_step_obj = step_zero_obj
-    prev_step_grad = step_zero_grad
 
     step_size = initial_step
     for i in itertools.count(start=1):
@@ -355,6 +353,7 @@ def _zoom_wolfe(step_size_low, step_size_low_obj, step_size_high, parameters,
                                                       step_dir, obj_jac_func)
 
         # If this step is worse, than the projection from initial parameters
+        # (a.k.a. Armijo condition if False)
         # or this step is worse than the current high (bad) step size
         if (step_obj > step_zero_obj + c_1 * step_size * step_zero_grad
                 or step_obj >= step_size_low_obj):
