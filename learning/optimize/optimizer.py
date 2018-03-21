@@ -344,7 +344,7 @@ def initial_hessian_one_scalar(param_diff, jac_diff):
 
 
 def initial_hessian_gamma_scalar(param_diff, jac_diff):
-    """Return identity matrix, scaled by parameter and jacobian differences.
+    """Return scalar analogue of identity matrix, scaled by parameter and jacobian differences.
 
     scalar gamma = (s_{k-1}^T y_{k_1}) / (y_{k-1}^T y_{k-1}),
     where
@@ -417,7 +417,7 @@ class LBFGS(Optimizer):
         self._update_diffs(self.jacobian)
 
         # Approximate step direction, and update parameters
-        step_dir = self._lbfgs_step_dir(problem, parameters, self.jacobian)
+        step_dir = self._lbfgs_step_dir(self.jacobian)
 
         step_size = self._step_size_getter(parameters, obj_value,
                                            self.jacobian, step_dir, problem)
@@ -430,6 +430,7 @@ class LBFGS(Optimizer):
 
     def _update_diffs(self, jacobian):
         """Update stored differences."""
+        # TODO: Reverse so 0 is oldest and -1 is newest
         if self._prev_step is not None:
             self._prev_param_diffs.insert(0, self._prev_step)
             self._prev_jac_diffs.insert(0, jacobian - self._prev_jacobian)
@@ -444,7 +445,7 @@ class LBFGS(Optimizer):
         # Store jacobian, for next _update_diffs
         self._prev_jacobian = jacobian
 
-    def _lbfgs_step_dir(self, problem, parameters, jacobian):
+    def _lbfgs_step_dir(self, jacobian):
         """Return step_dir, approximated from previous param and jac differences."""
         # First pass, backwards pass (from latest to oldest)
         newton_grad = numpy.copy(jacobian)
