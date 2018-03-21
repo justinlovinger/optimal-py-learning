@@ -177,8 +177,8 @@ class RegressionModel(Model):
                 'target_matrix.shape does not match output_matrix.shape')
 
         error, error_jac = self._error_func.derivative(output_matrix, target_matrix)
-        jacobian = self._equation_derivative(input_matrix, error_jac)
-        
+        jacobian = self._error_equation_derivative(input_matrix, error_jac)
+
         assert reduce(operator.mul, jacobian.shape) == reduce(
             operator.mul, self._weight_matrix.shape)
 
@@ -192,7 +192,7 @@ class RegressionModel(Model):
         """Return the output of this models equation."""
         raise NotImplementedError()
 
-    def _equation_derivative(self, input_matrix, error_jac):
+    def _error_equation_derivative(self, input_matrix, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
@@ -214,15 +214,17 @@ class LinearRegressionModel(RegressionModel):
         return self._weight_matrix[0] + numpy.dot(input_tensor,
                                                   self._weight_matrix[1:])
 
-    def _equation_derivative(self, input_matrix, error_jac):
+    def _error_equation_derivative(self, input_matrix, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
         """
-        # Add bias term to input_matrix
-        return numpy.hstack(([[1]]*input_matrix.shape[0], input_matrix)
-            # Multiply by error jacobian
-            ).T.dot(error_jac)
+        return numpy.vstack((
+            # Bias
+            numpy.sum(error_jac, axis=0),
+            # Weight matrix
+            input_matrix.T.dot(error_jac)
+        ))
 
 
 # TODO: Logistic regression is expected to be paried with a specific
@@ -251,18 +253,23 @@ class LogisticRegressionModel(RegressionModel):
         return calculate.logit(self._weight_matrix[0] + numpy.dot(
             input_tensor, self._weight_matrix[1:]))
 
-    def _equation_derivative(self, input_matrix, error_jac):
+    def _error_equation_derivative(self, input_matrix, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
         """
-        # Add bias term to input_matrix
-        biased_matrix = numpy.hstack(([[1]]*input_matrix.shape[0], input_matrix))
+        # f = _equation_output
+        # e = error_func
+        # b = bias_vector
+        # W = weight_matrix
+        # X = input_matrix
+        equation_derivative_times_error_jac = calculate.dlogit(
+            self._weight_matrix[0] + numpy.dot(
+                input_matrix, self._weight_matrix[1:])) * error_jac
 
-        # For a given output o
-        # Simply, w * dlogic_o * error_func_o
-        # Shaped to efficiently multiply all weights,
-        # with corresponding outputs
-        return biased_matrix.T.dot(
-            (calculate.dlogit(biased_matrix.dot(self._weight_matrix)) *
-             error_jac))
+        return numpy.vstack((
+            # Bias: de(f)/db = (d/db b)^T f'(X W + b) e'(f(X W + b)),
+            # where d/db b = vector of ones
+            numpy.sum(equation_derivative_times_error_jac, axis=0),
+            # Weight matrix: de(f)/dW = X^T f'(X W + b) e'(f(X W + b))
+            input_matrix.T.dot(equation_derivative_times_error_jac)))
