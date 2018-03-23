@@ -214,8 +214,13 @@ class QuadraticInitialStep(InitialStepGetter):
         self._prev_obj_value = obj_xk
 
         if numpy.isnan(initial_step):
-            logging.warning('nan in objective of jacobian, in QuadraticInitialStep call, '\
+            logging.warning('nan in jacobian of objective, in QuadraticInitialStep call, '\
                             'returning 1e-10')
             return 1e-10
+
+        if initial_step < 0:
+            logging.warning('Negative initial step in QuadraticInitialStep call, defaulting to 1. '
+                            'objective value may have increased or step direction is negative.')
+            return 1.0
 
         return initial_step

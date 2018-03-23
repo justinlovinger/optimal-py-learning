@@ -21,6 +21,12 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 ###############################################################################
+import random
+
+import numpy
+
+from learning.optimize import initialstep
+from learning.optimize import IncrPrevStep, FOChangeInitialStep, QuadraticInitialStep
 
 ######################
 # InitialStepGetter s
@@ -28,3 +34,39 @@
 # TODO: Test IncrPrevStep
 # TODO: Test FOChangeInitialStep
 # TODO: Test QuadraticInitialStep
+
+def test_QuadraticInitialStep_increasing_objective_value():
+    """QuadraticInitialStep should default to 1 if objective value increased between calls."""
+    vec_size = random.randint(1, 10)
+
+    initial_step_getter = QuadraticInitialStep()
+
+    x0 = numpy.random.random(vec_size)
+    obj_x0 = random.uniform(-1, 1)
+    jac_x0 = numpy.random.random(vec_size)
+    initial_step_getter(
+        numpy.random.random(vec_size), obj_x0, jac_x0, -jac_x0, None)
+
+    # Call again with greater obj
+    # Should default to 1
+    assert initial_step_getter(x0 - jac_x0, obj_x0 + random.uniform(1e-10, 1),
+                               jac_x0, -jac_x0, None) == 1
+
+
+def test_QuadraticInitialStep_ascent_direction():
+    """QuadraticInitialStep should default to 1 if step direction is an ascent direction."""
+    vec_size = random.randint(1, 10)
+
+    initial_step_getter = QuadraticInitialStep()
+
+    # First call is always a default value
+    x0 = numpy.random.random(vec_size)
+    obj_x0 = random.uniform(-1, 1)
+    jac_x0 = numpy.random.random(vec_size)
+    initial_step_getter(
+        numpy.random.random(vec_size), obj_x0, jac_x0, -jac_x0, None)
+
+    # Call again with ascent direction (jac_xk.dot(step_dir) > 0)
+    # Should default to 1
+    assert initial_step_getter(x0 - jac_x0, obj_x0 - random.uniform(1e-10, 1),
+                               jac_x0, jac_x0, None) == 1
