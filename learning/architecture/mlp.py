@@ -69,6 +69,8 @@ class MLP(Model):
 
         self._shape = shape
 
+        self._bias_vec = self._random_weight_matrix(
+            shape[1])  # Number of outputs of first layer
         self._weight_matrices = []
         self._setup_weight_matrices()
         self._transfers = transfers
@@ -88,14 +90,11 @@ class MLP(Model):
             error_func = MeanSquaredError()
         self._error_func = error_func
 
-        # Setup activation vectors
+        # Activation vectors
         # 1 for input, then 2 for each hidden and output (1 for transfer, 1 for perceptron))
-        # +1 for biases
-        self._weight_inputs = [numpy.ones(shape[0] + 1)]
-        self._transfer_inputs = []
-        for size in shape[1:]:
-            self._weight_inputs.append(numpy.ones(size + 1))
-            self._transfer_inputs.append(numpy.zeros(size))
+        # To help with jacobian calculation
+        self._weight_inputs = [None]*(len(self._shape))
+        self._transfer_inputs = [None]*(len(self._shape)-1)
 
         self.reset()
 
@@ -104,9 +103,8 @@ class MLP(Model):
         self._weight_matrices = []
         num_inputs = self._shape[0]
         for num_outputs in self._shape[1:]:
-            # +1 for bias
             self._weight_matrices.append(
-                self._random_weight_matrix((num_inputs + 1, num_outputs)))
+                self._random_weight_matrix((num_inputs, num_outputs)))
             num_inputs = num_outputs
 
     def _random_weight_matrix(self, shape):
@@ -125,21 +123,22 @@ class MLP(Model):
             raise ValueError('input_vec shape == %s, expected %s' %
                              (len(input_vec), self._shape[0]))
 
-        # [1:] because first component is bias
-        self._weight_inputs[0][1:] = input_vec
+        self._weight_inputs[0] = input_vec
+        # First part includes bias vector
+        self._transfer_inputs[0] = numpy.dot(
+            self._weight_inputs[0], self._weight_matrices[0]) + self._bias_vec
+        self._weight_inputs[1] = self._transfers[0](self._transfer_inputs[0])
 
-        for i, (weight_matrix, transfer_func
-                ) in enumerate(zip(self._weight_matrices, self._transfers)):
+        for i, (weight_matrix, transfer_func) in list(
+                enumerate(zip(self._weight_matrices, self._transfers)))[1:]:
             # Track all activations for learning, and layer inputs
             self._transfer_inputs[i] = numpy.dot(self._weight_inputs[i],
                                                  weight_matrix)
-            # [1:] because first component is bias
-            self._weight_inputs[i + 1][1:] = transfer_func(
+            self._weight_inputs[i + 1] = transfer_func(
                 self._transfer_inputs[i])
 
         # Return activation of the only layer that feeds into output
-        # [1:] because first component is bias
-        return numpy.copy(self._weight_inputs[-1][1:])
+        return numpy.copy(self._weight_inputs[-1])
 
     def train_step(self, input_matrix, target_matrix):
         """Adjust the model towards the targets for given inputs.
@@ -153,8 +152,9 @@ class MLP(Model):
                                            target_matrix))
 
         error, flat_weights = self._optimizer.next(
-            problem, _flatten(self._weight_matrices))
-        self._weight_matrices = _unflatten_weights(flat_weights, self._shape)
+            problem, _flatten(self._bias_vec, self._weight_matrices))
+        self._bias_vec, self._weight_matrices = _unflatten_weights(
+            flat_weights, self._shape)
 
         return error
 
@@ -172,18 +172,20 @@ class MLP(Model):
         Also return mean error.
         """
         # Calculate jacobian for each samples
-        sample_jacobians = []
+        sample_bias_jacobians = []
+        sample_weight_jacobians = []
         errors = []
         for input_vec, target_vec in zip(input_matrix, target_matrix):
-            error, jacobians = self._get_sample_jacobians(
+            error, bias_jacobian, weight_jacobians = self._get_sample_jacobians(
                 input_vec, target_vec)
-            sample_jacobians.append(jacobians)
+            sample_bias_jacobians.append(bias_jacobian)
+            sample_weight_jacobians.append(weight_jacobians)
             errors.append(error)
 
         # Average jacobians and error
         # NOTE: We don't use numpy.mean(sample_jacobians, axis=0) because it can raise errors
-        return numpy.mean(errors), _mean_list_of_list_of_matrices(
-            sample_jacobians)
+        return (numpy.mean(errors), numpy.mean(sample_bias_jacobians, axis=0),
+                _mean_list_of_list_of_matrices(sample_weight_jacobians))
 
     def _get_sample_jacobians(self, input_vec, target_vec):
         """Return jacobian matrix for each weight matrix
@@ -199,7 +201,7 @@ class MLP(Model):
         error_jac = _dot_diag_or_matrix(error_jac,
                                         self._transfers[-1].derivative(
                                             self._transfer_inputs[-1],
-                                            self._weight_inputs[-1][1:]))
+                                            self._weight_inputs[-1]))
 
         # Calculate error for each row
         error_matrix = [error_jac]
@@ -208,14 +210,12 @@ class MLP(Model):
                     enumerate(
                         zip(self._weight_matrices[1:], self._transfers[:
                                                                        -1])))):
-            # [1:] because first column corresponds to bias
             error_matrix.append(
                 _dot_diag_or_matrix(
-                    error_matrix[-1].dot(weight_matrix[1:].T),
-                    # [1:] because first component is bias
+                    error_matrix[-1].dot(weight_matrix.T),
                     transfer_func.derivative(self._transfer_inputs[i],
-                                             self._weight_inputs[i + 1][1:])))
-        error_matrix = reversed(error_matrix)
+                                             self._weight_inputs[i + 1])))
+        error_matrix = list(reversed(error_matrix))
 
         # Calculate jacobian for each weight matrix
         jacobians = []
@@ -223,7 +223,7 @@ class MLP(Model):
             jacobians.append(
                 self._weight_inputs[i][:, None].dot(error_vec[None, :]))
 
-        return error, jacobians
+        return error, error_matrix[0], jacobians
 
 
 def _dot_diag_or_matrix(vec, matrix):
@@ -257,7 +257,8 @@ def _mean_list_of_list_of_matrices(lol_matrices):
 
 
 def _mlp_obj(model, input_matrix, target_matrix, parameters):
-    model._weight_matrices = _unflatten_weights(parameters, model._shape)
+    model._bias_vec, model._weight_matrices = _unflatten_weights(
+        parameters, model._shape)
     return numpy.mean([
         model._error_func(model.activate(inp_vec), tar_vec)
         for inp_vec, tar_vec in zip(input_matrix, target_matrix)
@@ -266,25 +267,28 @@ def _mlp_obj(model, input_matrix, target_matrix, parameters):
 
 def _mlp_obj_jac(model, input_matrix, target_matrix, parameters):
     # TODO: Refactor so it doesn't need private attributes and methods
-    model._weight_matrices = _unflatten_weights(parameters, model._shape)
+    model._bias_vec, model._weight_matrices = _unflatten_weights(
+        parameters, model._shape)
     # Return error and flattened jacobians
-    return (lambda obj, jac: (obj, _flatten(jac)))(*model._get_jacobians(
-        input_matrix, target_matrix))
+    return (lambda obj, vec, jac: (obj, _flatten(vec, jac)))(
+        *model._get_jacobians(input_matrix, target_matrix))
 
 
-def _flatten(matrices):
-    return numpy.hstack([matrix.ravel() for matrix in matrices])
+def _flatten(bias_vec, weight_matrices):
+    """Flatten bias vector and weight matrices into flat vector."""
+    return numpy.hstack([bias_vec] + [matrix.ravel() for matrix in weight_matrices])
 
 
 def _unflatten_weights(vector, shape):
+    """Unravel flat vector into bias vector and weight matrices."""
+    bias_vec = vector[:shape[1]]
     matrices = []
-    index = 0
+    index = shape[1]
     for i, j in zip(shape[:-1], shape[1:]):
-        i += 1  # For bias
         matrices.append(vector[index:index + (i * j)].reshape((i, j)))
         index += (i * j)
 
-    return matrices
+    return bias_vec, matrices
 
 
 class DropoutMLP(MLP):

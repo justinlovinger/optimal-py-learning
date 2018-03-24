@@ -192,7 +192,7 @@ def test_Model_stochastic_train():
     dataset = datasets.get_iris()
 
     model = MLP(
-        (len(dataset[0][0]), 2, len(dataset[1][0])),
+        (len(dataset[0][0]), 3, len(dataset[1][0])),
         transfers=transfer.SoftmaxTransfer(),
         error_func=error.CrossEntropyError())
 
@@ -201,7 +201,7 @@ def test_Model_stochastic_train():
         *dataset,
         error_break=0.02,
         pattern_selection_func=lambda X, Y: base.select_sample(X, Y, size=30),
-        train_kwargs={'iterations': 100, 'error_break': 0.02})
+        train_kwargs={'iterations': 5, 'error_break': 0.1})
 
     assert validation.get_error(model, *dataset) <= 0.03
 

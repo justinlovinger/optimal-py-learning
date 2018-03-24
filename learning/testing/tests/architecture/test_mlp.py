@@ -85,31 +85,16 @@ def test_mlp_classifier_convergence():
     assert validation.get_error(model, *dataset) <= 0.02
 
 
-def test_mlp_bias():
-    # Should have bias for each layer
-    model = mlp.MLP((2, 4, 3))
-
-    # +1 input for bias
-    assert model._weight_matrices[0].shape == (3, 4)
-    assert model._weight_matrices[1].shape == (5, 3)
-
-    # First input should always be 1
-    model.activate([0, 0])
-    assert model._weight_inputs[0][0] == 1.0
-    assert model._weight_inputs[1][0] == 1.0
-    assert model._weight_inputs[2][0] == 1.0
-
-
 def test_mlp_perceptron():
     # Given known inputs and weights, test expected outputs
     model = mlp.MLP((2, 1), transfers=mlp.LinearTransfer())
-    model._weight_matrices[0][0][0] = 0.0
-    model._weight_matrices[0][1][0] = 0.5
-    model._weight_matrices[0][2][0] = -0.5
+    model._bias_vec[0] = 0.0
+    model._weight_matrices[0][0][0] = 0.5
+    model._weight_matrices[0][1][0] = -0.5
     assert (model.activate([1, 1]) == [0.0]).all()
 
-    model._weight_matrices[0][1][0] = 1.0
-    model._weight_matrices[0][2][0] = 2.0
+    model._weight_matrices[0][0][0] = 1.0
+    model._weight_matrices[0][1][0] = 2.0
     assert (model.activate([1, 1]) == [3.0]).all()
 
 
@@ -164,8 +149,8 @@ def _check_obj_and_obj_jac_match(make_model_func, classification=False):
 
     # Don't use exactly the same parameters, to ensure obj functions are actually
     # using the given parameters
-    parameters = random.uniform(-1.0,
-                                1.0) * mlp._flatten(model._weight_matrices)
+    parameters = random.uniform(-1.0, 1.0) * mlp._flatten(
+        model._bias_vec, model._weight_matrices)
     assert helpers.approx_equal(
         mlp._mlp_obj(model, dataset[0], dataset[1], parameters),
         mlp._mlp_obj_jac(model, dataset[0], dataset[1], parameters)[0])
@@ -203,7 +188,10 @@ def _check_jacobian(make_model_func):
     df = lambda xk: mlp._mlp_obj_jac(model, inp_matrix, tar_matrix, xk)[1]
 
     helpers.check_gradient(
-        f, df, f_arg_tensor=mlp._flatten(model._weight_matrices), f_shape='scalar')
+        f,
+        df,
+        f_arg_tensor=mlp._flatten(model._bias_vec, model._weight_matrices),
+        f_shape='scalar')
 
 
 ##############################
@@ -319,20 +307,17 @@ def _validate_post_training(model, pre_procedure_weights):
         assert not isinstance(transfer_func, mlp.DropoutTransfer)
 
     for weight_inputs in model._weight_inputs:
-        _validate_weight_inputs(weight_inputs,
-                                [1.0] * (len(weight_inputs) - 1))
+        _validate_weight_inputs(weight_inputs, [1.0] * len(weight_inputs))
 
 
 def _validate_weight_inputs(weight_inputs, active_neurons):
-    assert len(weight_inputs) - 1 == len(active_neurons)  # -1 for bias
+    assert len(weight_inputs) == len(active_neurons)
 
-    assert weight_inputs[0] == 1.0  # Bias
-    for i, active in enumerate(active_neurons):
-        # i+1 to offset from bias
+    for input_, active in zip(weight_inputs, active_neurons):
         if active == 0.0:
-            assert weight_inputs[i + 1] == 0.0
+            assert input_ == 0.0
         elif active == 1.0:
-            assert weight_inputs[i + 1] != 0.0
+            assert input_ != 0.0
         else:
             assert 0, 'Invalid active neuron value'
 
