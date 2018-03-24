@@ -146,11 +146,12 @@ class RegressionModel(Model):
     def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        error, jacobian = self._get_jacobian(input_matrix, target_matrix)
+        error, jacobian = self._get_error_jacobian_with_penalty(
+            input_matrix, target_matrix)
         return error, jacobian.ravel()
 
-    def _get_jacobian(self, input_matrix, target_matrix):
-        """Return jacobian and error for given dataset."""
+    def _get_error_jacobian_with_penalty(self, input_matrix, target_matrix):
+        """Return error and jacobian for given dataset with weight penalty."""
         # Calculate jacobian, given error function
         error, jacobian = self._get_error_jacobian(input_matrix, target_matrix)
 
@@ -170,7 +171,7 @@ class RegressionModel(Model):
         return error, jacobian
 
     def _get_error_jacobian(self, input_matrix, target_matrix):
-        """Return error and jacobian derived from model error."""
+        """Return error and jacobian for given dataset."""
         output_matrix = self.activate(input_matrix)
         if output_matrix.shape != target_matrix.shape:
             raise ValueError(
