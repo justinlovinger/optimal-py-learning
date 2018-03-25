@@ -28,7 +28,7 @@ import copy
 import pytest
 import numpy
 
-from learning import (datasets, validation, SoftmaxTransfer, MeanSquaredError,
+from learning import (datasets, validation, LinearTransfer, SoftmaxTransfer, MeanSquaredError,
                       CrossEntropyError)
 from learning.architecture import mlp
 
@@ -38,6 +38,34 @@ from learning.testing import helpers
 ############################
 # MLP
 ############################
+def test_MLP_activate_vector():
+    model = mlp.MLP((2, 2, 2), transfers=[LinearTransfer(), LinearTransfer()])
+    
+    # Set weights for deterministic results
+    model._bias_vec = numpy.ones(model._bias_vec.shape)
+    model._weight_matrices = [numpy.ones(weight_matrix.shape) for weight_matrix in model._weight_matrices]
+
+    # Activate
+    assert helpers.approx_equal(model.activate([0, 0]), [2, 2])
+    assert helpers.approx_equal(model.activate([0.5, 0.5]), [4, 4])
+    assert helpers.approx_equal(model.activate([1, 0]), [4, 4])
+    assert helpers.approx_equal(model.activate([0.5, 1]), [5, 5])
+    assert helpers.approx_equal(model.activate([1, 1]), [6, 6])
+
+
+def test_MLP_activate_matrix():
+    model = mlp.MLP((2, 2, 2), transfers=[LinearTransfer(), LinearTransfer()])
+    
+    # Set weights for deterministic results
+    model._bias_vec = numpy.ones(model._bias_vec.shape)
+    model._weight_matrices = [numpy.ones(weight_matrix.shape) for weight_matrix in model._weight_matrices]
+
+    # Activate
+    assert helpers.approx_equal(model.activate([[0, 0], [0.5, 0.5]]), [[2, 2], [4, 4]])
+    assert helpers.approx_equal(model.activate([[1, 0], [0.5, 1]]), [[4, 4], [5, 5]])
+    assert helpers.approx_equal(model.activate([[1, 1], [0, 0.5]]), [[6, 6], [3, 3]])
+
+
 # TODO: use validation methods to more robustly test
 def test_mlp():
     # Run for a couple of iterations
@@ -181,7 +209,7 @@ def _check_jacobian(make_model_func):
     outs = random.randint(1, 10)
 
     model = make_model_func(attrs, random.randint(1, 10), outs)
-    inp_matrix, tar_matrix = datasets.get_random_regression(10, attrs, outs)
+    inp_matrix, tar_matrix = datasets.get_random_regression(random.randint(1, 10), attrs, outs)
 
     # Test jacobian of error function
     f = lambda xk: mlp._mlp_obj(model, inp_matrix, tar_matrix, xk)
@@ -197,6 +225,7 @@ def _check_jacobian(make_model_func):
 ##############################
 # DropoutMLP
 ##############################
+# TODO: Test dropout MLP jacobians (with inactive neurons)
 def test_dropout_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
@@ -265,7 +294,7 @@ def test_dropout_mlp_dropout():
         (2, 4, 3), input_active_probability=0.5, hidden_active_probability=0.5)
 
     # Only bias and active neurons should not be 0
-    model.train_step([[1, 1]], [[1, 1, 1]])
+    model.train_step([[1, 1], [0.5, 0.5]], [[1, 1, 1], [0.5, 0.5, 0.5]])
 
     # Should still have DropoutTransfers (until activation outside of training)
 
@@ -283,7 +312,7 @@ def test_dropout_mlp_post_training():
         (2, 4, 3), input_active_probability=0.5, hidden_active_probability=0.5)
 
     # Train, modifying active neurons and weights
-    model.train_step([[1, 1]], [[1, 1, 1]])
+    model.train_step([[1, 1], [0.5, 0.5]], [[1, 1, 1], [0.5, 0.5, 0.5]])
     pre_procedure_weights = copy.deepcopy(model._weight_matrices)
 
     # Should call post_training procedure after activate
@@ -311,15 +340,19 @@ def _validate_post_training(model, pre_procedure_weights):
 
 
 def _validate_weight_inputs(weight_inputs, active_neurons):
-    assert len(weight_inputs) == len(active_neurons)
+    if len(weight_inputs.shape) == 1:
+        weight_inputs = numpy.array([weight_inputs])
 
-    for input_, active in zip(weight_inputs, active_neurons):
-        if active == 0.0:
-            assert input_ == 0.0
-        elif active == 1.0:
-            assert input_ != 0.0
-        else:
-            assert 0, 'Invalid active neuron value'
+    assert weight_inputs.shape[1] == len(active_neurons)
+
+    for input_row in weight_inputs:
+        for input_, active in zip(input_row, active_neurons):
+            if active == 0.0:
+                assert input_ == 0.0
+            elif active == 1.0:
+                assert input_ != 0.0
+            else:
+                assert 0, 'Invalid active neuron value'
 
 
 ####################

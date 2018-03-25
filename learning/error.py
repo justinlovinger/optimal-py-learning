@@ -95,6 +95,7 @@ class CrossEntropyError(ErrorFunc):
         # If matrix, sum elements corresponding to each pattern,
         # and mean sums corresponding to patterns.
         # If vector, just sum
+        # TODO: Fix inf when tensor_a has 0s where tensor_b has 1s
         return -numpy.mean(numpy.sum(log_a * tensor_b, axis=-1))
 
     def derivative(self, tensor_a, tensor_b):

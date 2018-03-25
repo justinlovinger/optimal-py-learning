@@ -117,13 +117,21 @@ class MLP(Model):
         self._setup_weight_matrices()
         self._optimizer.reset()
 
-    def activate(self, input_vec):
-        """Return the model outputs for given input_vec."""
-        if len(input_vec) != self._shape[0]:
-            raise ValueError('input_vec shape == %s, expected %s' %
-                             (len(input_vec), self._shape[0]))
+    def activate(self, input_tensor):
+        """Return the model outputs for given input_tensor."""
+        # Make sure input_tensor is a numpy array, for consistency
+        if not isinstance(input_tensor, numpy.ndarray):
+            input_tensor = numpy.array(input_tensor)
 
-        self._weight_inputs[0] = input_vec
+        try:
+            if input_tensor.shape[-1] != self._shape[0]:
+                raise ValueError('input_tensor attributes == %s, expected %s' %
+                                (input_tensor.shape[-1], self._shape[0]))
+        except AttributeError:  # Not numpy array
+            # Do not check shape
+            pass
+
+        self._weight_inputs[0] = input_tensor
         # First part includes bias vector
         self._transfer_inputs[0] = numpy.dot(
             self._weight_inputs[0], self._weight_matrices[0]) + self._bias_vec
@@ -167,77 +175,66 @@ class MLP(Model):
         self._optimizer.reset()
 
     def _get_jacobians(self, input_matrix, target_matrix):
-        """Return mean jacobian matrix for each weight matrix.
+        """Return overall error, bias jacobian, and jacobian matrix for each weight matrix."""
+        # Calculate derivative with regard to each weight matrix
+        # d/dw_n e(MLP(X), Y) = f_{n-1}(...(f_1(X W_1 + b)...)W_{n-1}) f_n'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
+        # d/dw_{n-1} e(MLP(X), Y) = W_n f_{n-2}(...(f_1(X W_1 + b)...)W_{n-2}) f_{n-1}'(...(f_1(X W_1 + b)...)W_{n-1}) f_n'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
+        # ...
+        # d/dw_1 e(MLP(X), Y) = X W_2 ... W_n f_1'(X W_1 + b) ... f_2'(f_1(X W_1 + b)W_2) ... f_n'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
+        # d/db e(MLP(X), Y) = \vec{1}^T W_2 ... W_n f_1'(X W_1 + b) ... f_2'(f_1(X W_1 + b)W_2) ... f_n'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
 
-        Also return mean error.
-        """
-        # Calculate jacobian for each samples
-        sample_bias_jacobians = []
-        sample_weight_jacobians = []
-        errors = []
-        for input_vec, target_vec in zip(input_matrix, target_matrix):
-            error, bias_jacobian, weight_jacobians = self._get_sample_jacobians(
-                input_vec, target_vec)
-            sample_bias_jacobians.append(bias_jacobian)
-            sample_weight_jacobians.append(weight_jacobians)
-            errors.append(error)
+        output_matrix = self.activate(input_matrix)
 
-        # Average jacobians and error
-        # NOTE: We don't use numpy.mean(sample_jacobians, axis=0) because it can raise errors
-        return (numpy.mean(errors), numpy.mean(sample_bias_jacobians, axis=0),
-                _mean_list_of_list_of_matrices(sample_weight_jacobians))
+        # Error and error derivative: e'(mlp(X), Y) = e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
+        error, error_jac = self._error_func.derivative(output_matrix,
+                                                       target_matrix)
 
-    def _get_sample_jacobians(self, input_vec, target_vec):
-        """Return jacobian matrix for each weight matrix
-
-        Also return error.
-        """
-        output_vec = self.activate(input_vec)
-
-        error, error_jac = self._error_func.derivative(output_vec, target_vec)
+        # Calculate a series of partial jacobians
+        # TODO: Fix, finish, and verify below comment
+        # First f_n'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
+        # Then f_{n-1}'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
 
         # TODO: Add optimization for cross entropy and softmax output (just o - t)
         # Derivative of error_vec w.r.t. output transfer
-        error_jac = _dot_diag_or_matrix(error_jac,
-                                        self._transfers[-1].derivative(
-                                            self._transfer_inputs[-1],
-                                            self._weight_inputs[-1]))
-
-        # Calculate error for each row
-        error_matrix = [error_jac]
-        for i, (weight_matrix, transfer_func) in reversed(
-                list(
-                    enumerate(
-                        zip(self._weight_matrices[1:], self._transfers[:
-                                                                       -1])))):
-            error_matrix.append(
-                _dot_diag_or_matrix(
-                    error_matrix[-1].dot(weight_matrix.T),
-                    transfer_func.derivative(self._transfer_inputs[i],
-                                             self._weight_inputs[i + 1])))
-        error_matrix = list(reversed(error_matrix))
+        error_matrices = [
+            _dot_diag_or_matrix(error_jac, self._transfers[-1].derivative(
+                self._transfer_inputs[-1], self._weight_inputs[-1]))
+        ]
+        for weight_matrix, transfer_func, transfer_inputs, weight_inputs in reversed(
+                zip(self._weight_matrices[1:], self._transfers[:-1],
+                    self._transfer_inputs[:-1], self._weight_inputs[1:])):
+            error_matrices.append(
+                _dot_diag_or_matrix(error_matrices[-1].dot(weight_matrix.T),
+                                    transfer_func.derivative(
+                                        transfer_inputs, weight_inputs)))
 
         # Calculate jacobian for each weight matrix
-        jacobians = []
-        for i, error_vec in enumerate(error_matrix):
-            jacobians.append(
-                self._weight_inputs[i][:, None].dot(error_vec[None, :]))
+        jacobians = [
+            weight_inputs.T.dot(error_matrix)
+            for weight_inputs, error_matrix in zip(self._weight_inputs,
+                                                   reversed(error_matrices))
+        ]
 
-        return error, error_matrix[0], jacobians
+        return error, numpy.sum(error_matrices[-1], axis=0), jacobians
 
 
-def _dot_diag_or_matrix(vec, matrix):
-    """Dot vector with either vector of diagonals or matrix.
+def _dot_diag_or_matrix(tensor_a, tensor_b):
+    """Dot tensor_a with either tensor_b of diagonals or full jacobian.
 
     For efficiency, transfer derivatives can return either a vector corresponding
     to the diagonals of a jacobian, or a full jacobian.
+    Or a matrix or 3 tensor of the above.
     The diagonal must be multiplied element-wise, which is equivalent to
     a dot product with a diagonal matrix.
     """
-    if len(matrix.shape) == 1:
-        return vec * matrix
+    if tensor_a.shape == tensor_b.shape:  # tensor_b is only diagonals of transfer jacobian
+        return tensor_a * tensor_b
     else:
-        return vec.dot(matrix)
+        # dot each row of tensor_a with each row of tensor_b (which is a matrix jacobian),
+        # using Einstein summation
+        # Because tensor_b is actually a list of jacobians of each row of its given matrix,
+        # instead of a full jacobian.
+        return numpy.einsum('ij,ijk->ik', tensor_a, tensor_b)
 
 
 def _mean_list_of_list_of_matrices(lol_matrices):
@@ -322,7 +319,7 @@ class DropoutMLP(MLP):
         self._during_training = False
         self._did_post_training = True
 
-    def activate(self, input_vec):
+    def activate(self, input_tensor):
         """Return the model outputs for given inputs."""
         # Perform post-training procedure on the first activate after training.
         # If done during train method, post-training will not occur when model is used
@@ -333,7 +330,7 @@ class DropoutMLP(MLP):
 
         # Use input transfer to disable inputs (during training)
         return super(DropoutMLP,
-                     self).activate(self._input_transfer(input_vec))
+                     self).activate(self._input_transfer(input_tensor))
 
     def _post_training(self):
         # Activate all inputs
@@ -343,6 +340,7 @@ class DropoutMLP(MLP):
         self._transfers = self._real_transfers
 
         # Adjust weight matrices, based on active probabilities
+        # TODO: Do we need to adjust any weights based on self._inp_act_prob?
         for i, _ in enumerate(self._weight_matrices):
             self._weight_matrices[i] *= self._hid_act_prob
 
@@ -395,17 +393,17 @@ class DropoutTransfer(Transfer):
         self._active_neurons = _get_active_neurons(active_probability,
                                                    num_neurons)
 
-    def __call__(self, input_vec):
-        return self._transfer(input_vec) * self._active_neurons
+    def __call__(self, input_tensor):
+        return self._transfer(input_tensor) * self._active_neurons
 
-    def derivative(self, input_vec, output_vec):
+    def derivative(self, input_tensor, output_vec):
         """Return the derivative of this function.
 
         We take both input and output vector because
         some derivatives can be more efficiently calculated from
         the output of this function.
         """
-        return self._transfer.derivative(input_vec, output_vec)
+        return self._transfer.derivative(input_tensor, output_vec)
 
 
 def _get_active_neurons(active_probability, num_neurons):

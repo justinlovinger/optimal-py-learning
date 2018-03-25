@@ -118,19 +118,19 @@ class Model(object):
             train_error, converged = self.train(*pattern_selection_func(
                 input_matrix, target_matrix), **train_kwargs)
 
-            if train_error is not None:
+            if converged:
                 # Break early to prevent overtraining
                 if (train_error <= error_break
                         # Perform a second test on whole dataset
                         # TODO: Use user provided error function
                         and validation.get_error(
                             self, input_matrix, target_matrix) <= error_break):
-                    return True
+                    return train_error, True
 
         # Override iteration from inner loop, with iteration number from outer loop
         self.iteration = iteration
 
-        return False
+        return train_error, False
 
     def train(self,
               input_matrix,

@@ -158,3 +158,19 @@ def test_check_gradient_jacobian_3tensor_arg():
                            f_arg_tensor=numpy.random.random(
                                (random.randint(1, 10), random.randint(1, 10), random.randint(1, 10))),
                            f_shape='jac')
+
+
+def test_check_gradient_jacobian_matrix_arg_matrix_out():
+    helpers.check_gradient(lambda x: numpy.array([[numpy.sum(x**2), numpy.sum(x**3)], [numpy.sum(x**4), numpy.sum(x**5)]]),
+                           lambda x: numpy.array([[2 * x, 3 * x**2], [4 * x**3, 5 * x**4]]),
+                           f_arg_tensor=numpy.random.random(
+                               (random.randint(1, 10), random.randint(1, 10))),
+                           f_shape='jac')
+
+
+def test_check_gradient_jac_stack():
+    helpers.check_gradient(lambda x: numpy.hstack([numpy.sum(x**2, axis=1, keepdims=True), numpy.sum(x**3, axis=1, keepdims=True)]),
+                           lambda x: numpy.array([[2 * x[i], 3 * x[i]**2] for i in range(x.shape[0])]),
+                           f_arg_tensor=numpy.random.random(
+                               (random.randint(1, 10), random.randint(1, 10))),
+                           f_shape='jac-stack')

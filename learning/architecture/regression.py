@@ -84,9 +84,9 @@ class RegressionModel(Model):
         # TODO: Random weight matrix should be a function user can pass in
         return (2 * numpy.random.random(shape) - 1) * INITIAL_WEIGHTS_RANGE
 
-    def activate(self, input_vec):
+    def activate(self, input_tensor):
         """Return the model outputs for given inputs."""
-        return self._equation_output(input_vec)
+        return self._equation_output(input_tensor)
 
     # TODO: Refactor, most of these functions are shared between
     # RBF, Regression, and MLP (models using Optimizers)
