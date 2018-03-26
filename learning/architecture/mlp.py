@@ -177,6 +177,7 @@ class MLP(Model):
     def _get_jacobians(self, input_matrix, target_matrix):
         """Return overall error, bias jacobian, and jacobian matrix for each weight matrix."""
         # Calculate derivative with regard to each weight matrix
+        # TODO: Order may not be right for non-commutative matrices
         # d/dw_n e(MLP(X), Y) = f_{n-1}(...(f_1(X W_1 + b)...)W_{n-1}) f_n'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
         # d/dw_{n-1} e(MLP(X), Y) = W_n f_{n-2}(...(f_1(X W_1 + b)...)W_{n-2}) f_{n-1}'(...(f_1(X W_1 + b)...)W_{n-1}) f_n'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
         # ...
@@ -190,32 +191,38 @@ class MLP(Model):
                                                        target_matrix)
 
         # Calculate a series of partial jacobians
-        # TODO: Fix, finish, and verify below comment
-        # First f_n'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
-        # Then f_{n-1}'(...(f_1(X W_1 + b)...)W_n) e'(f_n(...(f_1(X W_1 + b)...)W_n), Y)
+        # These jacobians include everything except the final f_i(...(f_1(X W_1 + b)...)W_i) (or X for d/W_1)
+        # First e'(f_n(...(f_1(X W_1 + b)...)W_n), Y) f_n'(...(f_1(X W_1 + b)...)W_n)
+        # Then ((e'(f_n(...(f_1(X W_1 + b)...)W_n), Y) f_n'(...(f_1(X W_1 + b)...)W_n)) W_n^T) f_{n-1}'(...(f_1(X W_1 + b)...)W_{n-1})
+        # Then (((e'(f_n(...(f_1(X W_1 + b)...)W_n), Y) f_n'(...(f_1(X W_1 + b)...)W_n)) W_n^T) f_{n-1}'(...(f_1(X W_1 + b)...)W_{n-1}) W_{n-1}^T) f_{n-2}(...(f_1(X W_1 + b)...)W_{n-2})
+        # ...
+        # Finally ((((e'(f_n(...(f_1(X W_1 + b)...)W_n), Y) f_n'(...(f_1(X W_1 + b)...)W_n)) W_n^T) f_{n-1}'(...(f_1(X W_1 + b)...)W_{n-1}) ... ) W_2^T) f_1'(X W_1 + b)
 
         # TODO: Add optimization for cross entropy and softmax output (just o - t)
         # Derivative of error_vec w.r.t. output transfer
-        error_matrices = [
+        partial_jacobians = [
             _dot_diag_or_matrix(error_jac, self._transfers[-1].derivative(
                 self._transfer_inputs[-1], self._weight_inputs[-1]))
         ]
         for weight_matrix, transfer_func, transfer_inputs, weight_inputs in reversed(
                 zip(self._weight_matrices[1:], self._transfers[:-1],
                     self._transfer_inputs[:-1], self._weight_inputs[1:])):
-            error_matrices.append(
-                _dot_diag_or_matrix(error_matrices[-1].dot(weight_matrix.T),
+            partial_jacobians.append(
+                _dot_diag_or_matrix(partial_jacobians[-1].dot(weight_matrix.T),
                                     transfer_func.derivative(
                                         transfer_inputs, weight_inputs)))
 
-        # Calculate jacobian for each weight matrix
+        # Finalize jacobian for each weight matrix
+        # by multiplying final f_i(...(f_1(X W_1 + b)...)W_i) (or X for d/W_1)
+        # with each partial jacobian
         jacobians = [
             weight_inputs.T.dot(error_matrix)
             for weight_inputs, error_matrix in zip(self._weight_inputs,
-                                                   reversed(error_matrices))
+                                                   reversed(partial_jacobians))
         ]
 
-        return error, numpy.sum(error_matrices[-1], axis=0), jacobians
+        # Bias is \vec{1}^T times partial jacobian (instead of inputs X)
+        return error, numpy.sum(partial_jacobians[-1], axis=0), jacobians
 
 
 def _dot_diag_or_matrix(tensor_a, tensor_b):
