@@ -79,9 +79,10 @@ class RBF(Model):
             variance = 4.0 / num_clusters
         self._variance = variance
 
-        # Weight matrix for output
-        self._weight_matrix = self._random_weight_matrix((num_clusters,
-                                                          num_outputs))
+        # Weight matrix and bias for output
+        self._shape = (num_clusters, num_outputs)
+        self._weight_matrix = self._random_weight_matrix(self._shape)
+        self._bias_vec = self._random_weight_matrix(self._shape[1])
 
         # Optimizer to optimize weight_matrix
         if optimizer is None:
@@ -100,7 +101,6 @@ class RBF(Model):
 
         # For training
         self._similarity_tensor = None
-        self._total_similarity = None
 
     def reset(self):
         """Reset this model."""
@@ -124,13 +124,13 @@ class RBF(Model):
         self._similarity_tensor = calculate.gaussian(
             self._som.activate(input_tensor), self._variance)
 
-        # Get output by weighted summation of similarities, weighted by weights
-        output = numpy.dot(self._similarity_tensor, self._weight_matrix)
-
         if self._scale_by_similarity:
-            self._total_similarity = numpy.sum(
+            self._similarity_tensor /= numpy.sum(
                 self._similarity_tensor, axis=-1, keepdims=True)
-            output /= self._total_similarity
+
+        # Get output by weighted summation of similarities, weighted by weights
+        output = numpy.dot(self._similarity_tensor,
+                           self._weight_matrix) + self._bias_vec
 
         return output
 
@@ -149,8 +149,8 @@ class RBF(Model):
                 lambda xk: self._get_obj(xk, input_matrix, target_matrix),
                 obj_jac_func=
                 lambda xk: self._get_obj_jac(xk, input_matrix, target_matrix)),
-            self._weight_matrix.ravel())
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
+            self._flatten_weights(self._weight_matrix, self._bias_vec))
+        self._unflatten_weights(flat_weights)
 
         # Train SOM clusters
         self._som.train_step(input_matrix, target_matrix)
@@ -177,14 +177,25 @@ class RBF(Model):
 
     def _get_obj(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
+        self._unflatten_weights(flat_weights)
         return self._error_func(self.activate(input_matrix), target_matrix)
 
     def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        error, jacobian = self._get_jacobian(input_matrix, target_matrix)
-        return error, jacobian.ravel()
+        self._unflatten_weights(flat_weights)
+        error, weight_jacobian, bias_jacobian = self._get_jacobian(
+            input_matrix, target_matrix)
+        return error, self._flatten_weights(weight_jacobian, bias_jacobian)
+
+    def _flatten_weights(self, weight_matrix, bias_vec):
+        """Return flat vector of model parameters."""
+        return numpy.hstack([bias_vec, weight_matrix.ravel()])
+
+    def _unflatten_weights(self, flat_weights):
+        """Set model parameters from flat vector."""
+        self._bias_vec = flat_weights[:self._shape[1]]
+        self._weight_matrix = flat_weights[self._shape[1]:].reshape(
+            self._shape)
 
     def _get_jacobian(self, input_matrix, target_matrix):
         """Return jacobian and error for given dataset."""
@@ -193,9 +204,7 @@ class RBF(Model):
         error, error_jac = self._error_func.derivative(output_matrix,
                                                        target_matrix)
 
-        if self._scale_by_similarity:
-            error_jac /= self._total_similarity
+        weight_jacobian = self._similarity_tensor.T.dot(error_jac)
+        bias_jacobian = numpy.sum(error_jac, axis=0)
 
-        jacobian = self._similarity_tensor.T.dot(error_jac)
-
-        return error, jacobian
+        return error, weight_jacobian, bias_jacobian

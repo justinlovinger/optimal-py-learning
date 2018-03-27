@@ -67,7 +67,8 @@ def test_rbf_obj_and_obj_jac_match():
 
     # Don't use exactly the same parameters, to ensure obj functions are actually
     # using the given parameters
-    parameters = random.uniform(-1.0, 1.0) * model._weight_matrix.ravel()
+    parameters = random.uniform(-1.0, 1.0) * model._flatten_weights(
+        model._weight_matrix, model._bias_vec)
     assert helpers.approx_equal(
         model._get_obj(parameters, dataset[0], dataset[1]),
         model._get_obj_jac(parameters, dataset[0], dataset[1])[0])
@@ -94,4 +95,8 @@ def _check_jacobian(make_model_func):
     df = lambda xk: model._get_obj_jac(xk, inp_matrix, tar_matrix)[1]
 
     helpers.check_gradient(
-        f, df, f_arg_tensor=model._weight_matrix.ravel(), f_shape='scalar')
+        f,
+        df,
+        f_arg_tensor=model._flatten_weights(model._weight_matrix,
+                                            model._bias_vec),
+        f_shape='scalar')
