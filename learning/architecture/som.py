@@ -64,18 +64,24 @@ class SOM(Model):
             input_tensor = numpy.array(input_tensor)
 
         if len(input_tensor.shape) == 1:
-            diffs =  input_tensor - self._weights
+            diff_matrix = input_tensor - self._weights
             # Dot each row of diffs with itself (a.k.a. numpy.sum(diffs**2, axis=-1))
             # Then sqrt result
-            self._distances = numpy.sqrt(numpy.einsum('ij,ij->i', diffs, diffs))
+            self._distances = numpy.sqrt(
+                numpy.einsum('ij,ij->i', diff_matrix, diff_matrix))
         elif len(input_tensor.shape) == 2:
-            diffs =  input_tensor.reshape(input_tensor.shape[0], 1, input_tensor.shape[1]) - self._weights
+            # Reshape input_tensor to obtain the difference between
+            # each row of input_tensor and self._weights
+            diff_tensor = input_tensor.reshape(input_tensor.shape[0], 1,
+                                         input_tensor.shape[1]) - self._weights
             # Dot each row of diffs with itself (a.k.a. numpy.sum(diffs**2, axis=-1))
             # Then sqrt result
-            self._distances = numpy.sqrt(numpy.einsum('ijk,ijk->ij', diffs, diffs))
+            # For each difference matrix in diff_tensor
+            self._distances = numpy.sqrt(
+                numpy.einsum('ijk,ijk->ij', diff_tensor, diff_tensor))
         else:
             raise ValueError('Invalid shape of input_tensor.')
-        
+
         return self._distances
 
     def _train_increment(self, input_vec, target_vec):
