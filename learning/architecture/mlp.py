@@ -278,10 +278,7 @@ def _mean_list_of_list_of_matrices(lol_matrices):
 def _mlp_obj(model, input_matrix, target_matrix, parameters):
     model._bias_vec, model._weight_matrices = _unflatten_weights(
         parameters, model._shape)
-    return numpy.mean([
-        model._error_func(model.activate(inp_vec), tar_vec)
-        for inp_vec, tar_vec in zip(input_matrix, target_matrix)
-    ])
+    return model._error_func(model.activate(input_matrix), target_matrix)
 
 
 def _mlp_obj_jac(model, input_matrix, target_matrix, parameters):

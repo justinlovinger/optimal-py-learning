@@ -235,6 +235,7 @@ def get_error(model,
               target_matrix,
               error_func=MeanSquaredError()):
     """Return mean error of model on given dataset."""
+    # TODO: Activate model on matrix (once all models support it)
     return numpy.mean([
         error_func(model.activate(input_vec), target_vec)
         for input_vec, target_vec in zip(input_matrix, target_matrix)
@@ -243,6 +244,7 @@ def get_error(model,
 
 def get_accuracy(model, input_matrix, target_matrix):
     """Return accuracy of model on given dataset."""
+    # TODO: Activate model on matrix (once all models support it)
     return _get_accuracy(
         _get_classes(
             numpy.array([model.activate(inp_vec)
