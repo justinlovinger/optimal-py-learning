@@ -60,10 +60,22 @@ class SOM(Model):
 
     def activate(self, input_tensor):
         """Return the model outputs for given input_tensor."""
-        diffs =  input_tensor - self._weights
-        # Dot each row of diffs with itself (a.k.a. numpy.sum(diffs**2, axis=-1))
-        # Then sqrt result
-        self._distances = numpy.sqrt(numpy.einsum('ij,ij->i', diffs, diffs))
+        if not isinstance(input_tensor, numpy.ndarray):
+            input_tensor = numpy.array(input_tensor)
+
+        if len(input_tensor.shape) == 1:
+            diffs =  input_tensor - self._weights
+            # Dot each row of diffs with itself (a.k.a. numpy.sum(diffs**2, axis=-1))
+            # Then sqrt result
+            self._distances = numpy.sqrt(numpy.einsum('ij,ij->i', diffs, diffs))
+        elif len(input_tensor.shape) == 2:
+            diffs =  input_tensor.reshape(input_tensor.shape[0], 1, input_tensor.shape[1]) - self._weights
+            # Dot each row of diffs with itself (a.k.a. numpy.sum(diffs**2, axis=-1))
+            # Then sqrt result
+            self._distances = numpy.sqrt(numpy.einsum('ijk,ijk->ij', diffs, diffs))
+        else:
+            raise ValueError('Invalid shape of input_tensor.')
+        
         return self._distances
 
     def _train_increment(self, input_vec, target_vec):
@@ -72,6 +84,9 @@ class SOM(Model):
         Optional.
         Model must either override train_step or implement _train_increment.
         """
+        # TODO (maybe): Train on bath of input_matrix target_matrix,
+        # instead of one vector at a time.
+        # This will change the behavior of training, but will be more efficient.
         self.activate(input_vec)
         self._move_neurons(input_vec)
 

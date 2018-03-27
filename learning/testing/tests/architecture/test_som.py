@@ -95,7 +95,7 @@ def test_som_reduces_distances_matrix():
     # Convenience function
     def min_distances():
         distance_matrix = som_.activate(input_matrix)
-        assert distance_matrix.shape == (len(input_matrix[0]), num_neurons)
+        assert distance_matrix.shape == (len(input_matrix), num_neurons)
         return numpy.min(distance_matrix, axis=-1)
 
     # Train SOM
