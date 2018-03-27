@@ -58,11 +58,13 @@ class SOM(Model):
                          ) * self.initial_weights_range
         self._distances = numpy.zeros(self._size)
 
-    def activate(self, inputs):
-        """Return the model outputs for given inputs."""
-        diffs = inputs - self._weights
-        self._distances = [numpy.sqrt(d.dot(d)) for d in diffs]
-        return numpy.array(self._distances)
+    def activate(self, input_tensor):
+        """Return the model outputs for given input_tensor."""
+        diffs =  input_tensor - self._weights
+        # Dot each row of diffs with itself (a.k.a. numpy.sum(diffs**2, axis=-1))
+        # Then sqrt result
+        self._distances = numpy.sqrt(numpy.einsum('ij,ij->i', diffs, diffs))
+        return self._distances
 
     def _train_increment(self, input_vec, target_vec):
         """Train on a single input, target pair.
@@ -75,7 +77,7 @@ class SOM(Model):
 
     def _move_neurons(self, input_vec):
         # Perform a competition, and move the winner closer to the input
-        closest = self._get_closest()
+        closest = numpy.argmin(self._distances)
 
         # Move the winner and neighbors closer
         # The further the neighbor, the less it should move
@@ -88,10 +90,3 @@ class SOM(Model):
                 final_rate = move_rate_modifier * self.move_rate
 
                 self._weights[i] += final_rate * (input_vec - self._weights[i])
-
-    def _get_closest(self):
-        return _min_index(self._distances)
-
-
-def _min_index(values):
-    return min(enumerate(values), key=operator.itemgetter(1))[0]
