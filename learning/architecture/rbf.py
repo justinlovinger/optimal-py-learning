@@ -44,6 +44,12 @@ class RBF(Model):
         optimizer: Instance of learning.optimize.optimizer.Optimizer.
         error_func: Instance of learning.error.ErrorFunc.
     """
+    # TODO: Support two new arguments:
+    # clustering_model: Model; Model used to cluster input space.
+    # cluster_incrementally: bool; If False, clustering_model will
+    #   apply clustering once before training main RBF model.
+    #   If True, clustering_model will train one step before
+    #   every main RBF step.
 
     def __init__(self,
                  attributes,
@@ -93,7 +99,7 @@ class RBF(Model):
         self._scale_by_similarity = scale_by_similarity
 
         # For training
-        self._similarities = None
+        self._similarity_tensor = None
         self._total_similarity = None
 
     def reset(self):
@@ -104,7 +110,7 @@ class RBF(Model):
         self._weight_matrix = self._random_weight_matrix(
             self._weight_matrix.shape)
 
-        self._similarities = None
+        self._similarity_tensor = None
         self._total_similarity = None
 
     def _random_weight_matrix(self, shape):
@@ -112,17 +118,18 @@ class RBF(Model):
         # TODO: Random weight matrix should be a function user can pass in
         return (2 * numpy.random.random(shape) - 1) * INITIAL_WEIGHTS_RANGE
 
-    def activate(self, inputs):
-        """Return the model outputs for given inputs."""
+    def activate(self, input_tensor):
+        """Return the model outputs for given input_tensor."""
         # Get distance to each cluster center, and apply gaussian for similarity
-        self._similarities = calculate.gaussian(
-            self._som.activate(inputs), self._variance)
+        self._similarity_tensor = calculate.gaussian(
+            self._som.activate(input_tensor), self._variance)
 
         # Get output by weighted summation of similarities, weighted by weights
-        output = numpy.dot(self._similarities, self._weight_matrix)
+        output = numpy.dot(self._similarity_tensor, self._weight_matrix)
 
         if self._scale_by_similarity:
-            self._total_similarity = numpy.sum(self._similarities)
+            self._total_similarity = numpy.sum(
+                self._similarity_tensor, axis=-1, keepdims=True)
             output /= self._total_similarity
 
         return output
@@ -171,10 +178,7 @@ class RBF(Model):
     def _get_obj(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        return numpy.mean([
-            self._error_func(self.activate(inp_vec), tar_vec)
-            for inp_vec, tar_vec in zip(input_matrix, target_matrix)
-        ])
+        return self._error_func(self.activate(input_matrix), target_matrix)
 
     def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
         """Helper function for Optimizer."""
@@ -184,21 +188,14 @@ class RBF(Model):
 
     def _get_jacobian(self, input_matrix, target_matrix):
         """Return jacobian and error for given dataset."""
-        errors, jacobians = zip(*[
-            self._get_sample_jacobian(input_vec, target_vec)
-            for input_vec, target_vec in zip(input_matrix, target_matrix)
-        ])
-        return numpy.mean(errors), numpy.mean(jacobians, axis=0)
+        output_matrix = self.activate(input_matrix)
 
-    def _get_sample_jacobian(self, input_vec, target_vec):
-        """Return jacobian and error for given sample."""
-        output_vec = self.activate(input_vec)
-
-        error, error_jac = self._error_func.derivative(output_vec, target_vec)
+        error, error_jac = self._error_func.derivative(output_matrix,
+                                                       target_matrix)
 
         if self._scale_by_similarity:
             error_jac /= self._total_similarity
 
-        jacobian = self._similarities[:, None].dot(error_jac[None, :])
+        jacobian = self._similarity_tensor.T.dot(error_jac)
 
         return error, jacobian
