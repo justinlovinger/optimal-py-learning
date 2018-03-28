@@ -46,6 +46,17 @@ def test_rbf():
     assert validation.get_error(model, *dataset) < error
 
 
+def test_rbf_pre_train_clusters():
+    # Run for a couple of iterations
+    # assert that new error is less than original
+    model = rbf.RBF(2, 4, 2, scale_by_similarity=True, pre_train_clusters=True)
+    dataset = datasets.get_xor()
+
+    error = validation.get_error(model, *dataset)
+    model.train(*dataset, iterations=10)
+    assert validation.get_error(model, *dataset) < error
+
+
 @pytest.mark.slowtest
 def test_rbf_convergence():
     # Run until convergence
