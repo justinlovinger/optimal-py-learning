@@ -24,6 +24,7 @@
 
 import numpy
 
+from learning import optimize
 from learning.optimize import (Problem, BacktrackingLineSearch,
                                WolfeLineSearch, BFGS, LBFGS, SteepestDescent,
                                SteepestDescentMomentum)
@@ -105,6 +106,25 @@ def test_LBFGS_approx_equal_BFGS_infinite_num_remembered_iterations():
         assert helpers.approx_equal(bfgs_vec, lbfgs_vec)
 
 
+def test_LBFGS_non_smooth_gradient():
+    """A non-smooth gradient can result in jac_diff == \vec{0} and 1 / 0."""
+    my_optimizer = LBFGS(step_size_getter=optimize.SetStepSize(0.5))
+    
+    # Attempt to optimize a non-smooth function
+    f = lambda vec: numpy.sum(numpy.abs(vec))
+    df = lambda vec: numpy.sign(vec, dtype='float64')
+
+    problem = Problem(obj_func=f, jac_func=df)
+
+    # Optimize
+    vec = numpy.array([10, 10])
+    iteration = 1
+    obj_value = 1
+    while obj_value > 1e-10 and iteration < 1000:
+        obj_value, vec = my_optimizer.next(problem, vec)
+        iteration += 1
+
+    assert obj_value <= 1e-10
 
 
 ############################
@@ -142,7 +162,8 @@ def check_optimize_sphere_function(my_optimizer):
     vec = numpy.array([10, 10])
     iteration = 1
     obj_value = 1
-    while obj_value > 1e-10 and iteration < 100:
+    while obj_value > 1e-10 and iteration < 1000:
         obj_value, vec = my_optimizer.next(problem, vec)
+        iteration += 1
 
     assert obj_value <= 1e-10

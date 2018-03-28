@@ -165,8 +165,7 @@ def initial_hessian_identity(param_diff, jacobian,
     return numpy.identity(jacobian.shape[0])
 
 
-def initial_hessian_scaled_identity(param_diff, jacobian,
-                                    previous_jacobian):
+def initial_hessian_scaled_identity(param_diff, jacobian, previous_jacobian):
     """Return identity matrix, scaled by parameter and jacobian differences.
 
     scalar gamma = (s_{k-1}^T y_{k_1}) / (y_{k-1}^T y_{k-1}),
@@ -178,9 +177,8 @@ def initial_hessian_scaled_identity(param_diff, jacobian,
     # instead of multiplying identity by scalar
     return numpy.diag(
         numpy.repeat(
-            initial_hessian_gamma_scalar(param_diff,
-                                         jacobian - self._prev_jacobian),
-            jacobian.shape[0]))
+            initial_hessian_gamma_scalar(
+                param_diff, jacobian - previous_jacobian), jacobian.shape[0]))
 
 
 class BFGS(Optimizer):
@@ -353,7 +351,13 @@ def initial_hessian_gamma_scalar(param_diff, jac_diff):
     """
     # Note that s_{k-1} = self._prev_param_diffs[0]
     # and y_{k-1} = self._prev_jac_diffs[0]
-    return (param_diff.dot(jac_diff)) / (jac_diff.dot(jac_diff))
+
+    jac_diff_dot_jac_diff = jac_diff.dot(jac_diff)
+    if jac_diff_dot_jac_diff == 0:
+        # Default to 1 on divide by 0
+        return 1.0
+    return numpy.nan_to_num(
+        (param_diff.dot(jac_diff)) / jac_diff_dot_jac_diff)
 
 
 class LBFGS(Optimizer):
@@ -450,7 +454,7 @@ class LBFGS(Optimizer):
     def _lbfgs_step_dir(self, jacobian):
         """Return step_dir, approximated from previous param and jac differences."""
         newton_grad = numpy.copy(jacobian)
-        
+
         # First pass, backwards pass (from newest to oldest)
         # rho = 1 / (y_k^T s_k), where y_k^T = jac_diff, and s_k = param_diff
         rhos = []
@@ -459,9 +463,13 @@ class LBFGS(Optimizer):
                 zip(self._prev_param_diffs, self._prev_jac_diffs)):
             # alpha_i <- rho_i s_i^T q, where q = newton_grad
             # q <- q - alpha_i y_i
-            rho = 1.0 / (jac_diff.dot(param_diff))
-            alpha = rho * param_diff.dot(newton_grad)
-            newton_grad -= alpha * jac_diff
+            rho = jac_diff.dot(param_diff)
+            if rho != 0:
+                alpha = numpy.nan_to_num(param_diff.dot(newton_grad) / rho)
+                newton_grad -= alpha * jac_diff
+            else:  # rho == 0
+                # Skip to avoid divide by 0
+                alpha = None
 
             # Save rho and alpha, for second pass
             # Lists will be revered later (more efficient than insert 0)
@@ -477,10 +485,13 @@ class LBFGS(Optimizer):
                 self._prev_param_diffs, self._prev_jac_diffs, rhos, alphas):
             # beta <- rho_i y_i^T r, where r = newton_grad
             # r <- r + s_i (alpha_i - beta)
-            newton_grad += param_diff * (
-                alpha - rho * jac_diff.dot(newton_grad))
+            if rho != 0:
+                newton_grad += param_diff * (
+                    alpha - numpy.nan_to_num(jac_diff.dot(newton_grad) / rho))
+            # else
+            #   Skip to avoid divide by 0
 
-        # Step direction is down the gradient
+            # Step direction is down the gradient
         return -newton_grad
 
     def _initial_inv_hessian_scalar(self):
