@@ -161,7 +161,7 @@ class Model(object):
                 or training ends.
         """
         # Pre training callback
-        self._pre_train()
+        self._pre_train(input_matrix, target_matrix)
 
         # Train, with given arguments
         train_error, converged = self._train(
@@ -170,7 +170,7 @@ class Model(object):
             error_improve_iters, post_pattern_callback)
 
         # Post training callback
-        self._post_train()
+        self._post_train(input_matrix, target_matrix)
 
         return train_error, converged
 
@@ -323,14 +323,14 @@ class Model(object):
         """
         raise NotImplementedError()
 
-    def _pre_train(self):
+    def _pre_train(self, input_matrix, target_matrix):
         """Call before Model.train.
 
         Optional.
         """
         pass
 
-    def _post_train(self):
+    def _post_train(self, input_matrix, target_matrix):
         """Call after Model.train.
         
         Optional.

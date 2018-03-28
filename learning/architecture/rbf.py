@@ -157,7 +157,7 @@ class RBF(Model):
 
         return error
 
-    def _pre_train(self):
+    def _pre_train(self, input_matrix, target_matrix):
         """Call before Model.train.
 
         Optional.
@@ -165,9 +165,9 @@ class RBF(Model):
         if self._pre_train_clusters:
             # Train SOM first
             # TODO: RBF init should include dict for som train arguments
-            self._som.train()
+            self._som.train(input_matrix, target_matrix)
 
-    def _post_train(self):
+    def _post_train(self, input_matrix, target_matrix):
         """Call after Model.train.
 
         Optional.

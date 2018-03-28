@@ -166,7 +166,7 @@ class MLP(Model):
 
         return error
 
-    def _post_train(self):
+    def _post_train(self, input_matrix, target_matrix):
         """Call after Model.train.
 
         Optional.
