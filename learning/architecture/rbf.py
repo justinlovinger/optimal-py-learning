@@ -43,9 +43,11 @@ class RBF(Model):
             If onehot vector, this should equal the number of classes.
         optimizer: Instance of learning.optimize.optimizer.Optimizer.
         error_func: Instance of learning.error.ErrorFunc.
+        variance: float; Variance of Gaussian similarity.
+        scale_by_similarity: bool; Whether or not to normalize similarity.
+        clustering_model: Model; Model used to cluster input space.
     """
-    # TODO: Support two new arguments:
-    # clustering_model: Model; Model used to cluster input space.
+    # TODO: Support new argument:
     # cluster_incrementally: bool; If False, clustering_model will
     #   apply clustering once before training main RBF model.
     #   If True, clustering_model will train one step before
@@ -59,20 +61,19 @@ class RBF(Model):
                  error_func=None,
                  variance=None,
                  scale_by_similarity=True,
-                 pre_train_clusters=False,
-                 move_rate=0.1,
-                 neighborhood=2,
-                 neighbor_move_rate=1.0):
+                 clustering_model=None,
+                 pre_train_clusters=False):
         super(RBF, self).__init__()
 
         # Clustering algorithm
         self._pre_train_clusters = pre_train_clusters
-        self._som = SOM(
-            attributes,
-            num_clusters,
-            move_rate=move_rate,
-            neighborhood=neighborhood,
-            neighbor_move_rate=neighbor_move_rate)
+        if clustering_model is None:
+            self._clustering_model = SOM(
+                attributes,
+                num_clusters,
+                move_rate=0.1,
+                neighborhood=2,
+                neighbor_move_rate=1.0)
 
         # Variance for gaussian
         if variance is None:
@@ -104,7 +105,7 @@ class RBF(Model):
 
     def reset(self):
         """Reset this model."""
-        self._som.reset()
+        self._clustering_model.reset()
         self._optimizer.reset()
 
         self._weight_matrix = self._random_weight_matrix(
@@ -122,7 +123,7 @@ class RBF(Model):
         """Return the model outputs for given input_tensor."""
         # Get distance to each cluster center, and apply gaussian for similarity
         self._similarity_tensor = calculate.gaussian(
-            self._som.activate(input_tensor), self._variance)
+            self._clustering_model.activate(input_tensor), self._variance)
 
         if self._scale_by_similarity:
             self._similarity_tensor /= numpy.sum(
@@ -153,7 +154,7 @@ class RBF(Model):
         self._unflatten_weights(flat_weights)
 
         # Train SOM clusters
-        self._som.train_step(input_matrix, target_matrix)
+        self._clustering_model.train_step(input_matrix, target_matrix)
 
         return error
 
@@ -165,7 +166,7 @@ class RBF(Model):
         if self._pre_train_clusters:
             # Train SOM first
             # TODO: RBF init should include dict for som train arguments
-            self._som.train(input_matrix, target_matrix)
+            self._clustering_model.train(input_matrix, target_matrix)
 
     def _post_train(self, input_matrix, target_matrix):
         """Call after Model.train.

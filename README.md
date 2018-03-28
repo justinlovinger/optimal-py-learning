@@ -84,6 +84,9 @@ For further usage details, see comprehensive doc strings for public functions an
 
 # Breaking Changes
 ## 03/28/2018
+RBF takes clustering\_model instead of SOM hyperparameters.
+
+## 03/28/2018
 Change \_pre\_train and \_post\_train callbacks to take training dataset.
 
 ## 10/27/2017
