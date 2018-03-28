@@ -94,7 +94,9 @@ class BacktrackingLineSearch(StepSizeGetter):
         if initial_step_getter is None:
             # Slightly more than 1 step up
             initial_step_getter = IncrPrevStep(
-                incr_rate=1.0 / self._decr_rate + 0.05, upper_bound=None)
+                incr_rate=1.0 / self._decr_rate + 0.05,
+                lower_bound=0.1,
+                upper_bound=None)
         self._initial_step_getter = initial_step_getter
 
     def reset(self):
