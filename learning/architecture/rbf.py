@@ -46,13 +46,13 @@ class RBF(Model):
         variance: float; Variance of Gaussian similarity.
         scale_by_similarity: bool; Whether or not to normalize similarity.
         clustering_model: Model; Model used to cluster input space.
+        cluster_incrementally: bool; If False, clustering_model will
+          apply clustering once before training main RBF model.
+          If True, clustering_model will train one step before
+          every main RBF step.
     """
-    # TODO: Support new argument:
-    # cluster_incrementally: bool; If False, clustering_model will
-    #   apply clustering once before training main RBF model.
-    #   If True, clustering_model will train one step before
-    #   every main RBF step.
-
+    # TODO: Remove attributes,
+    # clustering_model can take int as shorthand for attributes with default
     def __init__(self,
                  attributes,
                  num_clusters,
@@ -62,18 +62,20 @@ class RBF(Model):
                  variance=None,
                  scale_by_similarity=True,
                  clustering_model=None,
-                 pre_train_clusters=False):
+                 cluster_incrementally=False):
         super(RBF, self).__init__()
 
         # Clustering algorithm
-        self._pre_train_clusters = pre_train_clusters
+        self._cluster_incrementally = cluster_incrementally
         if clustering_model is None:
-            self._clustering_model = SOM(
+            # TODO: Replace with k-means
+            clustering_model = SOM(
                 attributes,
                 num_clusters,
                 move_rate=0.1,
                 neighborhood=2,
                 neighbor_move_rate=1.0)
+        self._clustering_model = clustering_model
 
         # Variance for gaussian
         if variance is None:
@@ -143,6 +145,10 @@ class RBF(Model):
         Optional.
         Model must either override train_step or implement _train_increment.
         """
+        if self._cluster_incrementally:
+            # Update clusters
+            self._clustering_model.train_step(input_matrix, target_matrix)
+
         # Train RBF
         error, flat_weights = self._optimizer.next(
             Problem(
@@ -153,9 +159,6 @@ class RBF(Model):
             self._flatten_weights(self._weight_matrix, self._bias_vec))
         self._unflatten_weights(flat_weights)
 
-        # Train SOM clusters
-        self._clustering_model.train_step(input_matrix, target_matrix)
-
         return error
 
     def _pre_train(self, input_matrix, target_matrix):
@@ -163,9 +166,8 @@ class RBF(Model):
 
         Optional.
         """
-        if self._pre_train_clusters:
-            # Train SOM first
-            # TODO: RBF init should include dict for som train arguments
+        if not self._cluster_incrementally:
+            # Cluster input space
             self._clustering_model.train(input_matrix, target_matrix)
 
     def _post_train(self, input_matrix, target_matrix):
