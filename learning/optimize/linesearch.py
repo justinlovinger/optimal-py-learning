@@ -94,7 +94,9 @@ class BacktrackingLineSearch(StepSizeGetter):
         if initial_step_getter is None:
             # Slightly more than 1 step up
             initial_step_getter = IncrPrevStep(
-                incr_rate=1.0 / self._decr_rate + 0.05, upper_bound=None)
+                incr_rate=1.0 / self._decr_rate + 0.05,
+                lower_bound=0.1,
+                upper_bound=None)
         self._initial_step_getter = initial_step_getter
 
     def reset(self):
@@ -197,18 +199,18 @@ def _backtracking_line_search(parameters,
     if numpy.isnan(obj_xk):
         # Failsafe because _armijo_rule will never return True
         logging.warning(
-            'nan objective value in _backtracking_line_search, defaulting to 1e-10 step size'
+            'nan objective value in _backtracking_line_search, defaulting to 1e-25 step size'
         )
-        return 1e-10
+        return 1e-25
 
     step_size = initial_step
     for i in itertools.count(start=1):
-        if step_size < 1e-10:
+        if step_size < 1e-25:
             # Failsafe for numerical precision errors preventing _armijo_rule returning True
             # This can happen if gradient provides very little improvement
             # (or is in the wrong direction)
             logging.warning(
-                '_backtracking_line_search failed Armijo with step_size ~= 1e-10, returning'
+                '_backtracking_line_search failed Armijo with step_size ~= 1e-25, returning'
             )
             return step_size
 

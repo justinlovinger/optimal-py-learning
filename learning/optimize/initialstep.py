@@ -75,7 +75,7 @@ class IncrPrevStep(InitialStepGetter):
     such as quasi-Newton methods.
     """
 
-    def __init__(self, incr_rate=1.05, upper_bound=1.0):
+    def __init__(self, incr_rate=1.05, lower_bound=0, upper_bound=1.0):
         if incr_rate < 1.0:
             raise ValueError('incr_rate > 1 to increment')
 
@@ -83,6 +83,9 @@ class IncrPrevStep(InitialStepGetter):
             raise ValueError('upper_bound must be positive')
 
         self._incr_rate = incr_rate
+        self._lower_bound = lower_bound
+        if upper_bound is None:
+            upper_bound = float('inf')
         self._upper_bound = upper_bound
 
         self._prev_step_size = 1.0
@@ -101,10 +104,7 @@ class IncrPrevStep(InitialStepGetter):
         problem: Problem; Problem instance passed to Optimizer
         """
         initial_step = self._incr_rate * self._prev_step_size
-        if self._upper_bound is not None:
-            return min(self._upper_bound, initial_step)
-        else:
-            return initial_step
+        return max(self._lower_bound, min(self._upper_bound, initial_step))
 
     def update(self, step_size):
         """Update parameters."""
