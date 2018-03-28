@@ -465,9 +465,9 @@ class LBFGS(Optimizer):
             # q <- q - alpha_i y_i
             rho = jac_diff.dot(param_diff)
             if rho != 0:
-                alpha = numpy.nan_to_num(param_diff.dot(newton_grad) / rho)
+                alpha = param_diff.dot(newton_grad) / rho
                 newton_grad -= alpha * jac_diff
-            else:  # rho == 0
+            else:  # rho == 0. Common for non-smooth gradients
                 # Skip to avoid divide by 0
                 alpha = None
 
@@ -487,7 +487,7 @@ class LBFGS(Optimizer):
             # r <- r + s_i (alpha_i - beta)
             if rho != 0:
                 newton_grad += param_diff * (
-                    alpha - numpy.nan_to_num(jac_diff.dot(newton_grad) / rho))
+                    alpha - jac_diff.dot(newton_grad) / rho)
             # else
             #   Skip to avoid divide by 0
 
