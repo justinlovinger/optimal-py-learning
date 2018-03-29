@@ -127,6 +127,8 @@ class MLP(Model):
         super(MLP, self).reset()
 
         self._setup_weight_matrices()
+        self._bias_vec = self._random_weight_matrix(self._shape[1])
+
         self._optimizer.reset()
 
     def activate(self, input_tensor):

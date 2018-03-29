@@ -222,6 +222,30 @@ def _check_jacobian(make_model_func):
         f_shape='scalar')
 
 
+def test_MLP_reset():
+    shape = (random.randint(1, 10), random.randint(1, 10), random.randint(1, 10))
+
+    model = mlp.MLP(shape)
+    model_2 = mlp.MLP(shape)
+
+    # Resetting different with the same seed should give the same model
+    prev_seed = random.randint(0, 2**32-1)
+
+    try:
+        random.seed(0)
+        numpy.random.seed(0)
+        model.reset()
+
+        random.seed(0)
+        numpy.random.seed(0)
+        model_2.reset()
+
+        assert model.serialize() == model_2.serialize()
+    finally:
+        random.seed(prev_seed)
+        numpy.random.seed(prev_seed)
+
+
 ##############################
 # DropoutMLP
 ##############################
