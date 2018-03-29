@@ -50,6 +50,8 @@ class PBNN(Model):
 
     def reset(self):
         """Reset this model."""
+        super(PBNN, self).reset()
+
         self._input_matrix = None
         self._target_matrix = None
         self._target_totals = None

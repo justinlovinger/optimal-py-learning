@@ -49,9 +49,16 @@ class MLP(Model):
             Defaults to ReLU hidden followed by linear output.
         optimizer: Optimizer; Optimizer used to optimize weight matrices.
         error_func: ErrorFunc; Error function for optimizing weight matrices.
+        jacobian_norm_break: Training will end if objective gradient norm
+            is less than this value.
     """
 
-    def __init__(self, shape, transfers=None, optimizer=None, error_func=None):
+    def __init__(self,
+                 shape,
+                 transfers=None,
+                 optimizer=None,
+                 error_func=None,
+                 jacobian_norm_break=1e-10):
         super(MLP, self).__init__()
 
         if transfers is None:
@@ -90,6 +97,9 @@ class MLP(Model):
             error_func = MeanSquaredError()
         self._error_func = error_func
 
+        # Convergence criteria
+        self._jacobian_norm_break = jacobian_norm_break
+
         # Activation vectors
         # 1 for input, then 2 for each hidden and output (1 for transfer, 1 for perceptron))
         # To help with jacobian calculation
@@ -114,6 +124,8 @@ class MLP(Model):
 
     def reset(self):
         """Reset this model."""
+        super(MLP, self).reset()
+
         self._setup_weight_matrices()
         self._optimizer.reset()
 
@@ -164,6 +176,8 @@ class MLP(Model):
         self._bias_vec, self._weight_matrices = _unflatten_weights(
             flat_weights, self._shape)
 
+        self.converged = numpy.linalg.norm(
+            self._optimizer.jacobian) < self._jacobian_norm_break
         return error
 
     def _post_train(self, input_matrix, target_matrix):
@@ -182,7 +196,7 @@ class MLP(Model):
         # ...
         # d/dW_1 e(MLP(X), Y) = X e'(f_n(...(f_1(X W_1 + b)...)W_n), Y) f_n'(...(f_1(X W_1 + b)...)W_n) W_n^T f_{n-1}'(...(f_1(X W_1 + b)...)W_{n-1}) ... W_2^T f_1(X W_1 + b)
         # d/db e(MLP(X), Y) = \vec{1}^T e'(f_n(...(f_1(X W_1 + b)...)W_n), Y) f_n'(...(f_1(X W_1 + b)...)W_n) W_n^T f_{n-1}'(...(f_1(X W_1 + b)...)W_{n-1}) ... W_2^T f_1(X W_1 + b)
-        
+
         # We can re-arrange above derivatives for clarity
         # HOWEVER, because matrix operations are non-commutative
         # the re-arranged derivatives are not correct for implementation

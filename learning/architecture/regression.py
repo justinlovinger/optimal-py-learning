@@ -41,6 +41,8 @@ class RegressionModel(Model):
             If onehot vector, this should equal the number of classes.
         optimizer: Instance of learning.optimize.optimizer.Optimizer.
         error_func: Instance of learning.error.ErrorFunc.
+        jacobian_norm_break: Training will end if objective gradient norm
+            is less than this value.
     """
 
     def __init__(self,
@@ -48,7 +50,8 @@ class RegressionModel(Model):
                  num_outputs,
                  optimizer=None,
                  error_func=None,
-                 penalty_func=None):
+                 penalty_func=None,
+                 jacobian_norm_break=1e-10):
         super(RegressionModel, self).__init__()
 
         # Weight matrix, optimized during training
@@ -70,8 +73,13 @@ class RegressionModel(Model):
         # Penalty function for training
         self._penalty_func = penalty_func
 
+        # Convergence criteria
+        self._jacobian_norm_break = jacobian_norm_break
+
     def reset(self):
         """Reset this model."""
+        super(RegressionModel, self).reset()
+
         # Reset the weight matrix
         self._weight_matrix = self._random_weight_matrix(
             self._weight_matrix.shape)
@@ -109,6 +117,10 @@ class RegressionModel(Model):
             self._weight_matrix.ravel())
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
 
+        # TODO: Numerical Optimization uses ||grad_f_k||_inf < 10^-5 (1 + |f_k|) as a stopping criteria
+        # Perhaps we should as well (also in MLP, RBF, etc.)
+        self.converged = numpy.linalg.norm(
+            self._optimizer.jacobian) < self._jacobian_norm_break
         return error
 
     def _post_train(self, input_matrix, target_matrix):

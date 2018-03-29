@@ -30,11 +30,6 @@ import numpy
 from learning.optimize import WolfeLineSearch
 from learning.optimize import IncrPrevStep, FOChangeInitialStep
 
-# TODO: Numerical Optimization uses ||grad_f_k||_inf < 10^-5 (1 + |f_k|) as a stopping criteria
-# Perhaps we should as well
-# It also declares failure after 10000 iterations
-JACOBIAN_NORM_BREAK = 1e-10
-
 
 def make_optimizer(num_parameters):
     """Return a new optimizer, using simple heuristics."""
@@ -96,10 +91,6 @@ class SteepestDescent(Optimizer):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
-        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
-            logging.info('Optimizer converged with small jacobian')
-            return obj_value, parameters
-
         step_size = self._step_size_getter(
             parameters, obj_value, self.jacobian, -self.jacobian, problem)
 
@@ -131,10 +122,6 @@ class SteepestDescentMomentum(Optimizer):
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
-
-        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
-            logging.info('Optimizer converged with small jacobian')
-            return obj_value, parameters
 
         # Setup step for this iteration (step_size*direction)
         # TODO (maybe): step_dir for this iteration should be
@@ -232,10 +219,6 @@ class BFGS(Optimizer):
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
-
-        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
-            logging.info('Optimizer converged with small jacobian')
-            return obj_value, parameters
 
         approx_inv_hessian = self._get_approx_inv_hessian(self.jacobian)
 
@@ -412,10 +395,6 @@ class LBFGS(Optimizer):
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
-
-        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
-            logging.info('Optimizer converged with small jacobian')
-            return obj_value, parameters
 
         # Add param and jac diffs for this iteration
         self._update_diffs(self.jacobian)

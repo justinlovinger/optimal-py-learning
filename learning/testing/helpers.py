@@ -37,9 +37,6 @@ class EmptyModel(Model):
     def activate(self, inputs):
         pass
 
-    def reset(self):
-        pass
-
     def _train_increment(self, input_vec, target_vec):
         """Train on a single input, target pair.
 
@@ -104,6 +101,8 @@ class WeightedSumModel(Model):
         self._stored_targets = None
 
     def reset(self):
+        super(WeightedSumModel, self).reset()
+
         self._stored_targets = None
 
     def activate(self, inputs):

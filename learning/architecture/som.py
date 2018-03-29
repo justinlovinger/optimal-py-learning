@@ -53,6 +53,8 @@ class SOM(Model):
 
     def reset(self):
         """Reset this model."""
+        super(SOM, self).reset()
+
         # Randomize weights, between -1 and 1
         self._weights = (2 * numpy.random.random(self._size) - 1
                          ) * self.initial_weights_range

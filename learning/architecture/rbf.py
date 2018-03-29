@@ -43,6 +43,8 @@ class RBF(Model):
             If onehot vector, this should equal the number of classes.
         optimizer: Instance of learning.optimize.optimizer.Optimizer.
         error_func: Instance of learning.error.ErrorFunc.
+        jacobian_norm_break: Training will end if objective gradient norm
+            is less than this value.
         variance: float; Variance of Gaussian similarity.
         scale_by_similarity: bool; Whether or not to normalize similarity.
         clustering_model: Model; Model used to cluster input space.
@@ -59,6 +61,7 @@ class RBF(Model):
                  num_outputs,
                  optimizer=None,
                  error_func=None,
+                 jacobian_norm_break=1e-10,
                  variance=None,
                  scale_by_similarity=True,
                  clustering_model=None,
@@ -99,6 +102,9 @@ class RBF(Model):
             error_func = MeanSquaredError()
         self._error_func = error_func
 
+        # Convergence criteria
+        self._jacobian_norm_break = jacobian_norm_break
+
         # Optional scaling output by total gaussian similarity
         self._scale_by_similarity = scale_by_similarity
 
@@ -107,6 +113,8 @@ class RBF(Model):
 
     def reset(self):
         """Reset this model."""
+        super(RBF, self).reset()
+
         self._clustering_model.reset()
         self._optimizer.reset()
 
@@ -159,6 +167,8 @@ class RBF(Model):
             self._flatten_weights(self._weight_matrix, self._bias_vec))
         self._unflatten_weights(flat_weights)
 
+        self.converged = numpy.linalg.norm(
+            self._optimizer.jacobian) < self._jacobian_norm_break
         return error
 
     def _pre_train(self, input_matrix, target_matrix):
