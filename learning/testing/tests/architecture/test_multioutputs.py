@@ -42,6 +42,8 @@ class LearnOutput(Model):
         self.reset()
 
     def reset(self):
+        super(LearnOutput, self).reset()
+
         self._output = 0
 
     def activate(self, inputs):

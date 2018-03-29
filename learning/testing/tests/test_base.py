@@ -271,6 +271,20 @@ def test_model_train_retry():
     assert 0
 
 
+def test_Model_custom_converged():
+    class ConvergeModel(helpers.SetOutputModel):
+        def train_step(self, *args, **kwargs):
+            self.converged = True
+
+    dataset = datasets.get_xor()
+    
+    model = ConvergeModel([1, 0])
+    model.train(*dataset)
+
+    assert model.converged
+    assert model.iteration == 1
+
+
 ######################
 # Serialization
 ######################

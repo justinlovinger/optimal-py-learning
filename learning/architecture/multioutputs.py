@@ -91,6 +91,8 @@ class MultiOutputs(Model):
 
     def reset(self):
         """Reset this model."""
+        super(MultiOutputs, self).reset()
+
         # Reset RL agent
         self._rl_agent = RLTable([None], range(self._num_outputs))
         self._errors = [None] * self._num_outputs
