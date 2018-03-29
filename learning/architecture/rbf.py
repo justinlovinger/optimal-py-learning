@@ -112,9 +112,9 @@ class RBF(Model):
 
         self._weight_matrix = self._random_weight_matrix(
             self._weight_matrix.shape)
+        self._bias_vec = self._random_weight_matrix(self._shape[1])
 
         self._similarity_tensor = None
-        self._total_similarity = None
 
     def _random_weight_matrix(self, shape):
         """Return a random weight matrix."""

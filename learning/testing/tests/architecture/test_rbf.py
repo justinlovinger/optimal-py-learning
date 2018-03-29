@@ -25,6 +25,7 @@
 import random
 
 import pytest
+import numpy
 
 from learning import datasets, validation
 from learning.architecture import rbf
@@ -111,3 +112,32 @@ def _check_jacobian(make_model_func):
         f_arg_tensor=model._flatten_weights(model._weight_matrix,
                                             model._bias_vec),
         f_shape='scalar')
+
+
+def test_RBF_reset():
+    attrs = random.randint(1, 10)
+    neurons = random.randint(1, 10)
+    outs = random.randint(1, 10)
+
+    model = rbf.RBF(attrs, neurons, outs)
+    model_2 = rbf.RBF(attrs, neurons, outs)
+
+    # Resetting different with the same seed should give the same model
+    prev_seed = random.randint(0, 2**32-1)
+
+    try:
+        random.seed(0)
+        numpy.random.seed(0)
+        model.reset()
+
+        random.seed(0)
+        numpy.random.seed(0)
+        model_2.reset()
+
+        assert model.serialize() == model_2.serialize()
+    finally:
+        random.seed(prev_seed)
+        numpy.random.seed(prev_seed)
+
+
+
