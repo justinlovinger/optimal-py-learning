@@ -178,11 +178,20 @@ class BFGS(Optimizer):
     to ensure curvature condition, y_k^T s_k > 0, is satisfied.
     Otherwise, the BFGS update rule is invalid, and could give
     poor performance.
+
+    Args:
+        # TODO
+        iterations_per_reset: Reset this optimizer every
+            iterations_per_reset iterations.
+            Hessian approximation can become inaccurate
+            after many iterations on non-convex problems.
+            Periodically resetting can fix this.
     """
 
     def __init__(self,
                  step_size_getter=None,
-                 initial_hessian_func=initial_hessian_identity):
+                 initial_hessian_func=initial_hessian_identity,
+                 iterations_per_reset=100):
         super(BFGS, self).__init__()
 
         if step_size_getter is None:
@@ -201,7 +210,13 @@ class BFGS(Optimizer):
         # TODO: More testing needed
         self._initial_hessian_func = initial_hessian_func
 
+        # Hessian approximation can become inaccurate
+        # after many iterations on non-convex problems.
+        # Periodically resetting can fix this.
+        self._iterations_per_reset = iterations_per_reset
+
         # BFGS Parameters
+        self._iteration = 0
         self._prev_step = None
         self._prev_jacobian = None
         self._prev_inv_hessian = None
@@ -212,12 +227,17 @@ class BFGS(Optimizer):
         self._step_size_getter.reset()
 
         # Reset BFGS Parameters
+        self._iteration = 0
         self._prev_step = None
         self._prev_jacobian = None
         self._prev_inv_hessian = None
 
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
+        self._iteration += 1
+        if self._iteration == self._iterations_per_reset:
+            self.reset()
+
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
         approx_inv_hessian = self._get_approx_inv_hessian(self.jacobian)
