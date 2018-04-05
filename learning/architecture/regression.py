@@ -134,11 +134,21 @@ class RegressionModel(Model):
     ######################################
     # Helper functions for optimizer
     ######################################
-    def _get_obj(self, flat_weights, input_matrix, target_matrix):
-        """Helper function for Optimizer."""
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
+    def _get_obj(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value."""
+        self._weight_matrix = parameter_vec.reshape(self._weight_matrix.shape)
         return self._get_objective_value(input_matrix, target_matrix)
 
+    def _get_obj_jac(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value and derivative."""
+        self._weight_matrix = parameter_vec.reshape(self._weight_matrix.shape)
+        error, jacobian = self._get_error_jacobian_with_penalty(
+            input_matrix, target_matrix)
+        return error, jacobian.ravel()
+
+    ######################################
+    # Objective Value
+    ######################################
     def _get_objective_value(self, input_matrix, target_matrix):
         """Return error on given dataset."""
         error = self._error_func(self.activate(input_matrix), target_matrix)
@@ -152,16 +162,8 @@ class RegressionModel(Model):
         return error
 
     ######################################
-    # Differentiation
+    # Objective Derivative
     ######################################
-    # for numerical optimization
-    def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
-        """Helper function for Optimizer."""
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        error, jacobian = self._get_error_jacobian_with_penalty(
-            input_matrix, target_matrix)
-        return error, jacobian.ravel()
-
     def _get_error_jacobian_with_penalty(self, input_matrix, target_matrix):
         """Return error and jacobian for given dataset with weight penalty."""
         # Calculate jacobian, given error function

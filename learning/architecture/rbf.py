@@ -164,8 +164,9 @@ class RBF(Model):
                 lambda xk: self._get_obj(xk, input_matrix, target_matrix),
                 obj_jac_func=
                 lambda xk: self._get_obj_jac(xk, input_matrix, target_matrix)),
-            self._flatten_weights(self._weight_matrix, self._bias_vec))
-        self._unflatten_weights(flat_weights)
+            _flatten_weights(self._weight_matrix, self._bias_vec))
+        self._bias_vec, self._weight_matrix = _unflatten_weights(
+            flat_weights, self._shape)
 
         self.converged = numpy.linalg.norm(
             self._optimizer.jacobian) < self._jacobian_norm_break
@@ -188,28 +189,24 @@ class RBF(Model):
         # Reset optimizer, because problem may change on next train call
         self._optimizer.reset()
 
-    def _get_obj(self, flat_weights, input_matrix, target_matrix):
-        """Helper function for Optimizer."""
-        self._unflatten_weights(flat_weights)
+    ######################################
+    # Helper functions for optimizer
+    ######################################
+    def _get_obj(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value."""
+        self._bias_vec, self._weight_matrix = _unflatten_weights(parameter_vec, self._shape)
         return self._error_func(self.activate(input_matrix), target_matrix)
 
-    def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
-        """Helper function for Optimizer."""
-        self._unflatten_weights(flat_weights)
+    def _get_obj_jac(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value and derivative."""
+        self._bias_vec, self._weight_matrix = _unflatten_weights(parameter_vec, self._shape)
         error, weight_jacobian, bias_jacobian = self._get_jacobian(
             input_matrix, target_matrix)
-        return error, self._flatten_weights(weight_jacobian, bias_jacobian)
+        return error, _flatten_weights(weight_jacobian, bias_jacobian)
 
-    def _flatten_weights(self, weight_matrix, bias_vec):
-        """Return flat vector of model parameters."""
-        return numpy.hstack([bias_vec, weight_matrix.ravel()])
-
-    def _unflatten_weights(self, flat_weights):
-        """Set model parameters from flat vector."""
-        self._bias_vec = flat_weights[:self._shape[1]]
-        self._weight_matrix = flat_weights[self._shape[1]:].reshape(
-            self._shape)
-
+    ######################################
+    # Objective Derivative
+    ######################################
     def _get_jacobian(self, input_matrix, target_matrix):
         """Return jacobian and error for given dataset."""
         output_matrix = self.activate(input_matrix)
@@ -221,3 +218,13 @@ class RBF(Model):
         bias_jacobian = numpy.sum(error_jac, axis=0)
 
         return error, weight_jacobian, bias_jacobian
+
+
+def _flatten_weights(weight_matrix, bias_vec):
+    """Return flat vector of model parameters."""
+    return numpy.hstack([bias_vec, weight_matrix.ravel()])
+
+
+def _unflatten_weights(flat_weights, shape):
+    """Set model parameters from flat vector."""
+    return flat_weights[:shape[1]], flat_weights[shape[1]:].reshape(shape)

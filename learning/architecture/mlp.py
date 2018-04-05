@@ -167,14 +167,13 @@ class MLP(Model):
 
         Train on a mini-batch.
         """
-        problem = Problem(
-            obj_func=functools.partial(_mlp_obj, self, input_matrix,
-                                       target_matrix),
-            obj_jac_func=functools.partial(_mlp_obj_jac, self, input_matrix,
-                                           target_matrix))
-
         error, flat_weights = self._optimizer.next(
-            problem, _flatten(self._bias_vec, self._weight_matrices))
+            Problem(
+                obj_func=
+                lambda xk: self._get_obj(xk, input_matrix, target_matrix),
+                obj_jac_func=
+                lambda xk: self._get_obj_jac(xk, input_matrix, target_matrix)),
+            _flatten(self._bias_vec, self._weight_matrices))
         self._bias_vec, self._weight_matrices = _unflatten_weights(
             flat_weights, self._shape)
 
@@ -190,6 +189,27 @@ class MLP(Model):
         # Reset optimizer, because problem may change on next train call
         self._optimizer.reset()
 
+    ######################################
+    # Helper functions for optimizer
+    ######################################
+    def _get_obj(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value."""
+        self._bias_vec, self._weight_matrices = _unflatten_weights(
+            parameter_vec, self._shape)
+        return self._error_func(self.activate(input_matrix), target_matrix)
+
+
+    def _get_obj_jac(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value and derivative."""
+        self._bias_vec, self._weight_matrices = _unflatten_weights(
+            parameter_vec, self._shape)
+        # Return error and flattened jacobians
+        return (lambda obj, vec, jac: (obj, _flatten(vec, jac)))(
+            *self._get_jacobians(input_matrix, target_matrix))
+
+    ######################################
+    # Objective Derivative
+    ######################################
     def _get_jacobians(self, input_matrix, target_matrix):
         """Return overall error, bias jacobian, and jacobian matrix for each weight matrix."""
         # Calculate derivative with regard to each weight matrix
@@ -290,34 +310,18 @@ def _mean_list_of_list_of_matrices(lol_matrices):
     # Return list of mean matrices
     return mean_matrices
 
-
-def _mlp_obj(model, input_matrix, target_matrix, parameters):
-    model._bias_vec, model._weight_matrices = _unflatten_weights(
-        parameters, model._shape)
-    return model._error_func(model.activate(input_matrix), target_matrix)
-
-
-def _mlp_obj_jac(model, input_matrix, target_matrix, parameters):
-    # TODO: Refactor so it doesn't need private attributes and methods
-    model._bias_vec, model._weight_matrices = _unflatten_weights(
-        parameters, model._shape)
-    # Return error and flattened jacobians
-    return (lambda obj, vec, jac: (obj, _flatten(vec, jac)))(
-        *model._get_jacobians(input_matrix, target_matrix))
-
-
 def _flatten(bias_vec, weight_matrices):
     """Flatten bias vector and weight matrices into flat vector."""
     return numpy.hstack([bias_vec] + [matrix.ravel() for matrix in weight_matrices])
 
 
-def _unflatten_weights(vector, shape):
-    """Unravel flat vector into bias vector and weight matrices."""
-    bias_vec = vector[:shape[1]]
+def _unflatten_weights(flat_weights, shape):
+    """Unravel flat_weights into bias vector and weight matrices."""
+    bias_vec = flat_weights[:shape[1]]
     matrices = []
     index = shape[1]
     for i, j in zip(shape[:-1], shape[1:]):
-        matrices.append(vector[index:index + (i * j)].reshape((i, j)))
+        matrices.append(flat_weights[index:index + (i * j)].reshape((i, j)))
         index += (i * j)
 
     return bias_vec, matrices

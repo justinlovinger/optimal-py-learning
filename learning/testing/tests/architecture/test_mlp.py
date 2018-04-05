@@ -180,8 +180,8 @@ def _check_obj_and_obj_jac_match(make_model_func, classification=False):
     parameters = random.uniform(-1.0, 1.0) * mlp._flatten(
         model._bias_vec, model._weight_matrices)
     assert helpers.approx_equal(
-        mlp._mlp_obj(model, dataset[0], dataset[1], parameters),
-        mlp._mlp_obj_jac(model, dataset[0], dataset[1], parameters)[0])
+        model._get_obj(parameters, dataset[0], dataset[1]),
+        model._get_obj_jac(parameters, dataset[0], dataset[1])[0])
 
 
 def test_mlp_jacobian_lin_out_mse():
@@ -212,8 +212,8 @@ def _check_jacobian(make_model_func):
     inp_matrix, tar_matrix = datasets.get_random_regression(random.randint(1, 10), attrs, outs)
 
     # Test jacobian of error function
-    f = lambda xk: mlp._mlp_obj(model, inp_matrix, tar_matrix, xk)
-    df = lambda xk: mlp._mlp_obj_jac(model, inp_matrix, tar_matrix, xk)[1]
+    f = lambda xk: model._get_obj(xk, inp_matrix, tar_matrix)
+    df = lambda xk: model._get_obj_jac(xk, inp_matrix, tar_matrix)[1]
 
     helpers.check_gradient(
         f,

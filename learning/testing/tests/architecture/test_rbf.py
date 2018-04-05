@@ -79,7 +79,7 @@ def test_rbf_obj_and_obj_jac_match():
 
     # Don't use exactly the same parameters, to ensure obj functions are actually
     # using the given parameters
-    parameters = random.uniform(-1.0, 1.0) * model._flatten_weights(
+    parameters = random.uniform(-1.0, 1.0) * rbf._flatten_weights(
         model._weight_matrix, model._bias_vec)
     assert helpers.approx_equal(
         model._get_obj(parameters, dataset[0], dataset[1]),
@@ -93,7 +93,6 @@ def test_rbf_jacobian_scale_by_similarity():
 def test_rbf_jacobian():
     _check_jacobian(
         lambda a, n, o: rbf.RBF(a, n, o, scale_by_similarity=False))
-
 
 def _check_jacobian(make_model_func):
     attrs = random.randint(1, 10)
@@ -109,8 +108,8 @@ def _check_jacobian(make_model_func):
     helpers.check_gradient(
         f,
         df,
-        f_arg_tensor=model._flatten_weights(model._weight_matrix,
-                                            model._bias_vec),
+        f_arg_tensor=rbf._flatten_weights(model._weight_matrix,
+                                          model._bias_vec),
         f_shape='scalar')
 
 
@@ -138,6 +137,3 @@ def test_RBF_reset():
     finally:
         random.seed(prev_seed)
         numpy.random.seed(prev_seed)
-
-
-
