@@ -67,13 +67,14 @@ class IncrPrevStep(InitialStepGetter):
     """Return initial step size by incrementing previous best.
 
     Effective for optimizers that converge superlinearly
-    (such as Newton and quasi-newton (TODO: Confirm)),
+    (such as Newton and quasi-newton),
     where 1 will eventually always be accepted.
 
     NOTE: Set upper_bound to None if using BacktrackingLineSearch
     with an optimizer that may requires step_size > 1,
     such as quasi-Newton methods.
     """
+    # TODO: Confirm: "(such as Newton and quasi-newton)"
 
     def __init__(self, incr_rate=1.05, lower_bound=0, upper_bound=1.0):
         if incr_rate < 1.0:

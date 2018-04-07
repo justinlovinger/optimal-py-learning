@@ -85,7 +85,7 @@ class SetStepSize(StepSizeGetter):
 class BacktrackingLineSearch(StepSizeGetter):
     """Return step size found with backtracking line search."""
 
-    def __init__(self, c_1=1e-4, decr_rate=0.9, initial_step_getter=None):
+    def __init__(self, c_1=0.5, decr_rate=0.5, initial_step_getter=None):
         super(BacktrackingLineSearch, self).__init__()
 
         self._c_1 = c_1
@@ -94,8 +94,8 @@ class BacktrackingLineSearch(StepSizeGetter):
         if initial_step_getter is None:
             # Slightly more than 1 step up
             initial_step_getter = IncrPrevStep(
-                incr_rate=1.0 / self._decr_rate + 0.05,
-                lower_bound=0.1,
+                incr_rate=2.0 / self._decr_rate - 1.0,
+                lower_bound=0.0,
                 upper_bound=None)
         self._initial_step_getter = initial_step_getter
 
