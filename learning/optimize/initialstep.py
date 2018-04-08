@@ -105,6 +105,7 @@ class IncrPrevStep(InitialStepGetter):
         problem: Problem; Problem instance passed to Optimizer
         """
         initial_step = self._incr_rate * self._prev_step_size
+        assert initial_step > 0
         return max(self._lower_bound, min(self._upper_bound, initial_step))
 
     def update(self, step_size):
@@ -152,10 +153,29 @@ class FOChangeInitialStep(InitialStepGetter):
             if jac_dot_dir == 0.0:
                 logging.warning(
                     'jac_dot_dir == 0 in FOChangeInitialStep, defaulting to 1')
-                return 1.0
+                initial_step = 1.0
+            else:
+                initial_step = self._prev_step_size * (
+                    self._prev_jac_dot_dir / jac_dot_dir)
 
-            initial_step = self._prev_step_size * (
-                self._prev_jac_dot_dir / jac_dot_dir)
+
+        if numpy.isnan(initial_step):
+            logging.warning('nan in jacobian of objective, in FOChangeInitialStep call, '\
+                            'returning 1e-10')
+            initial_step = 1e-10
+
+        if initial_step < 0:
+            logging.warning('Negative initial step in FOChangeInitialStep call, defaulting to 1. '
+                            'objective value may have increased or step direction is negative.')
+            initial_step = 1.0
+
+        if numpy.isinf(initial_step):
+            logging.warning('inf step size, in FOChangeInitialStep call, '\
+                            'returning 1.79769313e+308')
+            initial_step = 1.79769313e+308
+
+
+        assert initial_step > 0
 
         # For next iteration
         self._prev_jac_dot_dir = jac_dot_dir
@@ -206,27 +226,31 @@ class QuadraticInitialStep(InitialStepGetter):
                 logging.warning(
                     'jac_dot_dir == 0 in QuadraticInitialStep, defaulting to 1'
                 )
-                return 1.0
+                initial_step = 1.0
+            else:
+                initial_step = ((2.0 *
+                                (obj_xk - self._prev_obj_value)) / jac_dot_dir)
 
-            initial_step = ((2.0 *
-                             (obj_xk - self._prev_obj_value)) / jac_dot_dir)
-
-        # For next iteration
-        self._prev_obj_value = obj_xk
 
         if numpy.isnan(initial_step):
             logging.warning('nan in jacobian of objective, in QuadraticInitialStep call, '\
                             'returning 1e-10')
-            return 1e-10
+            initial_step = 1e-10
 
         if initial_step < 0:
             logging.warning('Negative initial step in QuadraticInitialStep call, defaulting to 1. '
                             'objective value may have increased or step direction is negative.')
-            return 1.0
+            initial_step = 1.0
 
         if numpy.isinf(initial_step):
             logging.warning('inf step size, in QuadraticInitialStep call, '\
                             'returning 1.79769313e+308')
-            return 1.79769313e+308
+            initial_step = 1.79769313e+308
+
+
+        assert initial_step > 0
+
+        # For next iteration
+        self._prev_obj_value = obj_xk
 
         return initial_step
