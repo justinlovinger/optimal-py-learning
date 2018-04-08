@@ -30,11 +30,6 @@ import numpy
 from learning.optimize import WolfeLineSearch
 from learning.optimize import IncrPrevStep, FOChangeInitialStep
 
-# TODO: Numerical Optimization uses ||grad_f_k||_inf < 10^-5 (1 + |f_k|) as a stopping criteria
-# Perhaps we should as well
-# It also declares failure after 10000 iterations
-JACOBIAN_NORM_BREAK = 1e-10
-
 
 def make_optimizer(num_parameters):
     """Return a new optimizer, using simple heuristics."""
@@ -96,10 +91,6 @@ class SteepestDescent(Optimizer):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
-        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
-            logging.info('Optimizer converged with small jacobian')
-            return obj_value, parameters
-
         step_size = self._step_size_getter(
             parameters, obj_value, self.jacobian, -self.jacobian, problem)
 
@@ -131,10 +122,6 @@ class SteepestDescentMomentum(Optimizer):
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
-
-        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
-            logging.info('Optimizer converged with small jacobian')
-            return obj_value, parameters
 
         # Setup step for this iteration (step_size*direction)
         # TODO (maybe): step_dir for this iteration should be
@@ -191,11 +178,20 @@ class BFGS(Optimizer):
     to ensure curvature condition, y_k^T s_k > 0, is satisfied.
     Otherwise, the BFGS update rule is invalid, and could give
     poor performance.
+
+    Args:
+        # TODO
+        iterations_per_reset: Reset this optimizer every
+            iterations_per_reset iterations.
+            Hessian approximation can become inaccurate
+            after many iterations on non-convex problems.
+            Periodically resetting can fix this.
     """
 
     def __init__(self,
                  step_size_getter=None,
-                 initial_hessian_func=initial_hessian_identity):
+                 initial_hessian_func=initial_hessian_identity,
+                 iterations_per_reset=100):
         super(BFGS, self).__init__()
 
         if step_size_getter is None:
@@ -214,7 +210,13 @@ class BFGS(Optimizer):
         # TODO: More testing needed
         self._initial_hessian_func = initial_hessian_func
 
+        # Hessian approximation can become inaccurate
+        # after many iterations on non-convex problems.
+        # Periodically resetting can fix this.
+        self._iterations_per_reset = iterations_per_reset
+
         # BFGS Parameters
+        self._iteration = 0
         self._prev_step = None
         self._prev_jacobian = None
         self._prev_inv_hessian = None
@@ -225,17 +227,18 @@ class BFGS(Optimizer):
         self._step_size_getter.reset()
 
         # Reset BFGS Parameters
+        self._iteration = 0
         self._prev_step = None
         self._prev_jacobian = None
         self._prev_inv_hessian = None
 
     def next(self, problem, parameters):
         """Return next iteration of this optimizer."""
-        obj_value, self.jacobian = problem.get_obj_jac(parameters)
+        self._iteration += 1
+        if self._iteration == self._iterations_per_reset:
+            self.reset()
 
-        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
-            logging.info('Optimizer converged with small jacobian')
-            return obj_value, parameters
+        obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
         approx_inv_hessian = self._get_approx_inv_hessian(self.jacobian)
 
@@ -413,10 +416,6 @@ class LBFGS(Optimizer):
         """Return next iteration of this optimizer."""
         obj_value, self.jacobian = problem.get_obj_jac(parameters)
 
-        if numpy.linalg.norm(self.jacobian) < JACOBIAN_NORM_BREAK:
-            logging.info('Optimizer converged with small jacobian')
-            return obj_value, parameters
-
         # Add param and jac diffs for this iteration
         self._update_diffs(self.jacobian)
 
@@ -465,9 +464,9 @@ class LBFGS(Optimizer):
             # q <- q - alpha_i y_i
             rho = jac_diff.dot(param_diff)
             if rho != 0:
-                alpha = numpy.nan_to_num(param_diff.dot(newton_grad) / rho)
+                alpha = param_diff.dot(newton_grad) / rho
                 newton_grad -= alpha * jac_diff
-            else:  # rho == 0
+            else:  # rho == 0. Common for non-smooth gradients
                 # Skip to avoid divide by 0
                 alpha = None
 
@@ -487,7 +486,7 @@ class LBFGS(Optimizer):
             # r <- r + s_i (alpha_i - beta)
             if rho != 0:
                 newton_grad += param_diff * (
-                    alpha - numpy.nan_to_num(jac_diff.dot(newton_grad) / rho))
+                    alpha - jac_diff.dot(newton_grad) / rho)
             # else
             #   Skip to avoid divide by 0
 

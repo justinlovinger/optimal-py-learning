@@ -70,3 +70,22 @@ def test_QuadraticInitialStep_ascent_direction():
     # Should default to 1
     assert initial_step_getter(x0 - jac_x0, obj_x0 - random.uniform(1e-10, 1),
                                jac_x0, jac_x0, None) == 1
+
+
+def test_QuadraticInitialStep_very_small_step_dir():
+    """QuadraticInitialStep should not return inf if step direction is very small."""
+    vec_size = random.randint(1, 10)
+
+    initial_step_getter = QuadraticInitialStep()
+
+    # First call is always a default value
+    x0 = numpy.random.random(vec_size)
+    obj_x0 = random.uniform(-1, 1)
+    jac_x0 = numpy.random.random(vec_size)
+    initial_step_getter(
+        numpy.random.random(vec_size), obj_x0, jac_x0, -jac_x0, None)
+
+    # Call again with very small step_dir
+    assert not numpy.isinf(
+        initial_step_getter(x0 - jac_x0, obj_x0 - random.uniform(1e-10, 1),
+                            jac_x0, 1e-320 * -jac_x0, None))

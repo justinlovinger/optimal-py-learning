@@ -43,39 +43,52 @@ class RBF(Model):
             If onehot vector, this should equal the number of classes.
         optimizer: Instance of learning.optimize.optimizer.Optimizer.
         error_func: Instance of learning.error.ErrorFunc.
+        jacobian_norm_break: Training will end if objective gradient norm
+            is less than this value.
+        variance: float; Variance of Gaussian similarity.
+        scale_by_similarity: bool; Whether or not to normalize similarity.
+        clustering_model: Model; Model used to cluster input space.
+        cluster_incrementally: bool; If False, clustering_model will
+          apply clustering once before training main RBF model.
+          If True, clustering_model will train one step before
+          every main RBF step.
     """
-
+    # TODO: Remove attributes,
+    # clustering_model can take int as shorthand for attributes with default
     def __init__(self,
                  attributes,
                  num_clusters,
                  num_outputs,
                  optimizer=None,
                  error_func=None,
+                 jacobian_norm_break=1e-10,
                  variance=None,
                  scale_by_similarity=True,
-                 pre_train_clusters=False,
-                 move_rate=0.1,
-                 neighborhood=2,
-                 neighbor_move_rate=1.0):
+                 clustering_model=None,
+                 cluster_incrementally=False):
         super(RBF, self).__init__()
 
         # Clustering algorithm
-        self._pre_train_clusters = pre_train_clusters
-        self._som = SOM(
-            attributes,
-            num_clusters,
-            move_rate=move_rate,
-            neighborhood=neighborhood,
-            neighbor_move_rate=neighbor_move_rate)
+        self._cluster_incrementally = cluster_incrementally
+        if clustering_model is None:
+            # TODO: Replace with k-means
+            clustering_model = SOM(
+                attributes,
+                num_clusters,
+                move_rate=0.1,
+                neighborhood=2,
+                neighbor_move_rate=1.0)
+        self._clustering_model = clustering_model
 
         # Variance for gaussian
         if variance is None:
             variance = 4.0 / num_clusters
         self._variance = variance
 
-        # Weight matrix for output
-        self._weight_matrix = self._random_weight_matrix((num_clusters,
-                                                          num_outputs))
+        # Weight matrix and bias for output
+        self._shape = (num_clusters, num_outputs)
+        self._weight_matrix = self._random_weight_matrix(self._shape)
+        self._bias_vec = self._random_weight_matrix(self._shape[1])
 
         # Optimizer to optimize weight_matrix
         if optimizer is None:
@@ -89,41 +102,46 @@ class RBF(Model):
             error_func = MeanSquaredError()
         self._error_func = error_func
 
+        # Convergence criteria
+        self._jacobian_norm_break = jacobian_norm_break
+
         # Optional scaling output by total gaussian similarity
         self._scale_by_similarity = scale_by_similarity
 
         # For training
-        self._similarities = None
-        self._total_similarity = None
+        self._similarity_tensor = None
 
     def reset(self):
         """Reset this model."""
-        self._som.reset()
+        super(RBF, self).reset()
+
+        self._clustering_model.reset()
         self._optimizer.reset()
 
         self._weight_matrix = self._random_weight_matrix(
             self._weight_matrix.shape)
+        self._bias_vec = self._random_weight_matrix(self._shape[1])
 
-        self._similarities = None
-        self._total_similarity = None
+        self._similarity_tensor = None
 
     def _random_weight_matrix(self, shape):
         """Return a random weight matrix."""
         # TODO: Random weight matrix should be a function user can pass in
         return (2 * numpy.random.random(shape) - 1) * INITIAL_WEIGHTS_RANGE
 
-    def activate(self, inputs):
-        """Return the model outputs for given inputs."""
+    def activate(self, input_tensor):
+        """Return the model outputs for given input_tensor."""
         # Get distance to each cluster center, and apply gaussian for similarity
-        self._similarities = calculate.gaussian(
-            self._som.activate(inputs), self._variance)
-
-        # Get output by weighted summation of similarities, weighted by weights
-        output = numpy.dot(self._similarities, self._weight_matrix)
+        self._similarity_tensor = calculate.gaussian(
+            self._clustering_model.activate(input_tensor), self._variance)
 
         if self._scale_by_similarity:
-            self._total_similarity = numpy.sum(self._similarities)
-            output /= self._total_similarity
+            self._similarity_tensor /= numpy.sum(
+                self._similarity_tensor, axis=-1, keepdims=True)
+
+        # Get output by weighted summation of similarities, weighted by weights
+        output = numpy.dot(self._similarity_tensor,
+                           self._weight_matrix) + self._bias_vec
 
         return output
 
@@ -135,6 +153,10 @@ class RBF(Model):
         Optional.
         Model must either override train_step or implement _train_increment.
         """
+        if self._cluster_incrementally:
+            # Update clusters
+            self._clustering_model.train_step(input_matrix, target_matrix)
+
         # Train RBF
         error, flat_weights = self._optimizer.next(
             Problem(
@@ -142,12 +164,12 @@ class RBF(Model):
                 lambda xk: self._get_obj(xk, input_matrix, target_matrix),
                 obj_jac_func=
                 lambda xk: self._get_obj_jac(xk, input_matrix, target_matrix)),
-            self._weight_matrix.ravel())
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
+            _flatten_weights(self._weight_matrix, self._bias_vec))
+        self._bias_vec, self._weight_matrix = _unflatten_weights(
+            flat_weights, self._shape)
 
-        # Train SOM clusters
-        self._som.train_step(input_matrix, target_matrix)
-
+        self.converged = numpy.linalg.norm(
+            self._optimizer.jacobian) < self._jacobian_norm_break
         return error
 
     def _pre_train(self, input_matrix, target_matrix):
@@ -155,10 +177,9 @@ class RBF(Model):
 
         Optional.
         """
-        if self._pre_train_clusters:
-            # Train SOM first
-            # TODO: RBF init should include dict for som train arguments
-            self._som.train(input_matrix, target_matrix)
+        if not self._cluster_incrementally:
+            # Cluster input space
+            self._clustering_model.train(input_matrix, target_matrix)
 
     def _post_train(self, input_matrix, target_matrix):
         """Call after Model.train.
@@ -168,37 +189,42 @@ class RBF(Model):
         # Reset optimizer, because problem may change on next train call
         self._optimizer.reset()
 
-    def _get_obj(self, flat_weights, input_matrix, target_matrix):
-        """Helper function for Optimizer."""
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        return numpy.mean([
-            self._error_func(self.activate(inp_vec), tar_vec)
-            for inp_vec, tar_vec in zip(input_matrix, target_matrix)
-        ])
+    ######################################
+    # Helper functions for optimizer
+    ######################################
+    def _get_obj(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value."""
+        self._bias_vec, self._weight_matrix = _unflatten_weights(parameter_vec, self._shape)
+        return self._error_func(self.activate(input_matrix), target_matrix)
 
-    def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
-        """Helper function for Optimizer."""
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        error, jacobian = self._get_jacobian(input_matrix, target_matrix)
-        return error, jacobian.ravel()
+    def _get_obj_jac(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value and derivative."""
+        self._bias_vec, self._weight_matrix = _unflatten_weights(parameter_vec, self._shape)
+        error, weight_jacobian, bias_jacobian = self._get_jacobian(
+            input_matrix, target_matrix)
+        return error, _flatten_weights(weight_jacobian, bias_jacobian)
 
+    ######################################
+    # Objective Derivative
+    ######################################
     def _get_jacobian(self, input_matrix, target_matrix):
         """Return jacobian and error for given dataset."""
-        errors, jacobians = zip(*[
-            self._get_sample_jacobian(input_vec, target_vec)
-            for input_vec, target_vec in zip(input_matrix, target_matrix)
-        ])
-        return numpy.mean(errors), numpy.mean(jacobians, axis=0)
+        output_matrix = self.activate(input_matrix)
 
-    def _get_sample_jacobian(self, input_vec, target_vec):
-        """Return jacobian and error for given sample."""
-        output_vec = self.activate(input_vec)
+        error, error_jac = self._error_func.derivative(output_matrix,
+                                                       target_matrix)
 
-        error, error_jac = self._error_func.derivative(output_vec, target_vec)
+        weight_jacobian = self._similarity_tensor.T.dot(error_jac)
+        bias_jacobian = numpy.sum(error_jac, axis=0)
 
-        if self._scale_by_similarity:
-            error_jac /= self._total_similarity
+        return error, weight_jacobian, bias_jacobian
 
-        jacobian = self._similarities[:, None].dot(error_jac[None, :])
 
-        return error, jacobian
+def _flatten_weights(weight_matrix, bias_vec):
+    """Return flat vector of model parameters."""
+    return numpy.hstack([bias_vec, weight_matrix.ravel()])
+
+
+def _unflatten_weights(flat_weights, shape):
+    """Set model parameters from flat vector."""
+    return flat_weights[:shape[1]], flat_weights[shape[1]:].reshape(shape)

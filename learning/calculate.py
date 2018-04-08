@@ -149,8 +149,8 @@ def softmax(x):
     # NOTE: Attempting to subtract max only when overflow would occur
     # (ex. try / except block for overflow with numpy.errstate('over': 'raise'))
     # results in worse performance for both the overflow and no overflow cases
-    exp_ = numpy.exp(x - numpy.max(x))
-    return exp_ / numpy.sum(exp_)
+    exp_ = numpy.exp(x - numpy.max(x, axis=-1, keepdims=True))
+    return exp_ / numpy.sum(exp_, axis=-1, keepdims=True)
 
 
 def dsoftmax(y):
@@ -161,6 +161,16 @@ def dsoftmax(y):
     # When getting errors multiply by error vector (J \vec{e})
 
     # Start with - y_i y_j matrix, then replace diagonal with y_i(1 - y_j)
-    jacobian = -y[:, None] * y
-    jacobian[numpy.diag_indices(y.shape[0])] = y * (1 - y)
+    if len(y.shape) == 1:
+        jacobian = numpy.outer(-y, y)
+        jacobian[numpy.diag_indices(y.shape[0])] = y * (1 - y)
+    elif len(y.shape) == 2:
+        # Outer product each row of -y with each row of y.
+        # using Einstein summation
+        jacobian = numpy.einsum('ij...,i...->ij...', -y, y)
+        iy, ix = numpy.diag_indices(y.shape[-1])
+        jacobian[:, iy, ix] = y * (1. - y)
+    else:
+        raise ValueError('Unsupported tensor y in dsoftmax.')
+
     return jacobian

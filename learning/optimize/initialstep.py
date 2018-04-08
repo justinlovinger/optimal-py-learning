@@ -224,4 +224,9 @@ class QuadraticInitialStep(InitialStepGetter):
                             'objective value may have increased or step direction is negative.')
             return 1.0
 
+        if numpy.isinf(initial_step):
+            logging.warning('inf step size, in QuadraticInitialStep call, '\
+                            'returning 1.79769313e+308')
+            return 1.79769313e+308
+
         return initial_step

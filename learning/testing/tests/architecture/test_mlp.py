@@ -28,7 +28,7 @@ import copy
 import pytest
 import numpy
 
-from learning import (datasets, validation, SoftmaxTransfer, MeanSquaredError,
+from learning import (datasets, validation, LinearTransfer, SoftmaxTransfer, MeanSquaredError,
                       CrossEntropyError)
 from learning.architecture import mlp
 
@@ -38,6 +38,34 @@ from learning.testing import helpers
 ############################
 # MLP
 ############################
+def test_MLP_activate_vector():
+    model = mlp.MLP((2, 2, 2), transfers=[LinearTransfer(), LinearTransfer()])
+    
+    # Set weights for deterministic results
+    model._bias_vec = numpy.ones(model._bias_vec.shape)
+    model._weight_matrices = [numpy.ones(weight_matrix.shape) for weight_matrix in model._weight_matrices]
+
+    # Activate
+    assert helpers.approx_equal(model.activate([0, 0]), [2, 2])
+    assert helpers.approx_equal(model.activate([0.5, 0.5]), [4, 4])
+    assert helpers.approx_equal(model.activate([1, 0]), [4, 4])
+    assert helpers.approx_equal(model.activate([0.5, 1]), [5, 5])
+    assert helpers.approx_equal(model.activate([1, 1]), [6, 6])
+
+
+def test_MLP_activate_matrix():
+    model = mlp.MLP((2, 2, 2), transfers=[LinearTransfer(), LinearTransfer()])
+    
+    # Set weights for deterministic results
+    model._bias_vec = numpy.ones(model._bias_vec.shape)
+    model._weight_matrices = [numpy.ones(weight_matrix.shape) for weight_matrix in model._weight_matrices]
+
+    # Activate
+    assert helpers.approx_equal(model.activate([[0, 0], [0.5, 0.5]]), [[2, 2], [4, 4]])
+    assert helpers.approx_equal(model.activate([[1, 0], [0.5, 1]]), [[4, 4], [5, 5]])
+    assert helpers.approx_equal(model.activate([[1, 1], [0, 0.5]]), [[6, 6], [3, 3]])
+
+
 # TODO: use validation methods to more robustly test
 def test_mlp():
     # Run for a couple of iterations
@@ -85,31 +113,16 @@ def test_mlp_classifier_convergence():
     assert validation.get_error(model, *dataset) <= 0.02
 
 
-def test_mlp_bias():
-    # Should have bias for each layer
-    model = mlp.MLP((2, 4, 3))
-
-    # +1 input for bias
-    assert model._weight_matrices[0].shape == (3, 4)
-    assert model._weight_matrices[1].shape == (5, 3)
-
-    # First input should always be 1
-    model.activate([0, 0])
-    assert model._weight_inputs[0][0] == 1.0
-    assert model._weight_inputs[1][0] == 1.0
-    assert model._weight_inputs[2][0] == 1.0
-
-
 def test_mlp_perceptron():
     # Given known inputs and weights, test expected outputs
     model = mlp.MLP((2, 1), transfers=mlp.LinearTransfer())
-    model._weight_matrices[0][0][0] = 0.0
-    model._weight_matrices[0][1][0] = 0.5
-    model._weight_matrices[0][2][0] = -0.5
+    model._bias_vec[0] = 0.0
+    model._weight_matrices[0][0][0] = 0.5
+    model._weight_matrices[0][1][0] = -0.5
     assert (model.activate([1, 1]) == [0.0]).all()
 
-    model._weight_matrices[0][1][0] = 1.0
-    model._weight_matrices[0][2][0] = 2.0
+    model._weight_matrices[0][0][0] = 1.0
+    model._weight_matrices[0][1][0] = 2.0
     assert (model.activate([1, 1]) == [3.0]).all()
 
 
@@ -164,11 +177,11 @@ def _check_obj_and_obj_jac_match(make_model_func, classification=False):
 
     # Don't use exactly the same parameters, to ensure obj functions are actually
     # using the given parameters
-    parameters = random.uniform(-1.0,
-                                1.0) * mlp._flatten(model._weight_matrices)
+    parameters = random.uniform(-1.0, 1.0) * mlp._flatten(
+        model._bias_vec, model._weight_matrices)
     assert helpers.approx_equal(
-        mlp._mlp_obj(model, dataset[0], dataset[1], parameters),
-        mlp._mlp_obj_jac(model, dataset[0], dataset[1], parameters)[0])
+        model._get_obj(parameters, dataset[0], dataset[1]),
+        model._get_obj_jac(parameters, dataset[0], dataset[1])[0])
 
 
 def test_mlp_jacobian_lin_out_mse():
@@ -196,19 +209,47 @@ def _check_jacobian(make_model_func):
     outs = random.randint(1, 10)
 
     model = make_model_func(attrs, random.randint(1, 10), outs)
-    inp_matrix, tar_matrix = datasets.get_random_regression(10, attrs, outs)
+    inp_matrix, tar_matrix = datasets.get_random_regression(random.randint(1, 10), attrs, outs)
 
     # Test jacobian of error function
-    f = lambda xk: mlp._mlp_obj(model, inp_matrix, tar_matrix, xk)
-    df = lambda xk: mlp._mlp_obj_jac(model, inp_matrix, tar_matrix, xk)[1]
+    f = lambda xk: model._get_obj(xk, inp_matrix, tar_matrix)
+    df = lambda xk: model._get_obj_jac(xk, inp_matrix, tar_matrix)[1]
 
     helpers.check_gradient(
-        f, df, inputs=mlp._flatten(model._weight_matrices), f_shape='scalar')
+        f,
+        df,
+        f_arg_tensor=mlp._flatten(model._bias_vec, model._weight_matrices),
+        f_shape='scalar')
+
+
+def test_MLP_reset():
+    shape = (random.randint(1, 10), random.randint(1, 10), random.randint(1, 10))
+
+    model = mlp.MLP(shape)
+    model_2 = mlp.MLP(shape)
+
+    # Resetting different with the same seed should give the same model
+    prev_seed = random.randint(0, 2**32-1)
+
+    try:
+        random.seed(0)
+        numpy.random.seed(0)
+        model.reset()
+
+        random.seed(0)
+        numpy.random.seed(0)
+        model_2.reset()
+
+        assert model.serialize() == model_2.serialize()
+    finally:
+        random.seed(prev_seed)
+        numpy.random.seed(prev_seed)
 
 
 ##############################
 # DropoutMLP
 ##############################
+# TODO: Test dropout MLP jacobians (with inactive neurons)
 def test_dropout_mlp():
     # Run for a couple of iterations
     # assert that new error is less than original
@@ -277,7 +318,7 @@ def test_dropout_mlp_dropout():
         (2, 4, 3), input_active_probability=0.5, hidden_active_probability=0.5)
 
     # Only bias and active neurons should not be 0
-    model.train_step([[1, 1]], [[1, 1, 1]])
+    model.train_step([[1, 1], [0.5, 0.5]], [[1, 1, 1], [0.5, 0.5, 0.5]])
 
     # Should still have DropoutTransfers (until activation outside of training)
 
@@ -295,7 +336,7 @@ def test_dropout_mlp_post_training():
         (2, 4, 3), input_active_probability=0.5, hidden_active_probability=0.5)
 
     # Train, modifying active neurons and weights
-    model.train_step([[1, 1]], [[1, 1, 1]])
+    model.train_step([[1, 1], [0.5, 0.5]], [[1, 1, 1], [0.5, 0.5, 0.5]])
     pre_procedure_weights = copy.deepcopy(model._weight_matrices)
 
     # Should call post_training procedure after activate
@@ -319,22 +360,23 @@ def _validate_post_training(model, pre_procedure_weights):
         assert not isinstance(transfer_func, mlp.DropoutTransfer)
 
     for weight_inputs in model._weight_inputs:
-        _validate_weight_inputs(weight_inputs,
-                                [1.0] * (len(weight_inputs) - 1))
+        _validate_weight_inputs(weight_inputs, [1.0] * len(weight_inputs))
 
 
 def _validate_weight_inputs(weight_inputs, active_neurons):
-    assert len(weight_inputs) - 1 == len(active_neurons)  # -1 for bias
+    if len(weight_inputs.shape) == 1:
+        weight_inputs = numpy.array([weight_inputs])
 
-    assert weight_inputs[0] == 1.0  # Bias
-    for i, active in enumerate(active_neurons):
-        # i+1 to offset from bias
-        if active == 0.0:
-            assert weight_inputs[i + 1] == 0.0
-        elif active == 1.0:
-            assert weight_inputs[i + 1] != 0.0
-        else:
-            assert 0, 'Invalid active neuron value'
+    assert weight_inputs.shape[1] == len(active_neurons)
+
+    for input_row in weight_inputs:
+        for input_, active in zip(input_row, active_neurons):
+            if active == 0.0:
+                assert input_ == 0.0
+            elif active == 1.0:
+                assert input_ != 0.0
+            else:
+                assert 0, 'Invalid active neuron value'
 
 
 ####################
