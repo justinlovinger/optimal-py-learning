@@ -177,7 +177,7 @@ class MLP(Model):
         self._bias_vec, self._weight_matrices = _unflatten_weights(
             flat_weights, self._shape)
 
-        self.converged = numpy.linalg.norm(
+        self.converged = self._optimizer.jacobian is not None and numpy.linalg.norm(
             self._optimizer.jacobian) < self._jacobian_norm_break
         return error
 

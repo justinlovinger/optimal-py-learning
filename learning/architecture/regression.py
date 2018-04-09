@@ -119,7 +119,7 @@ class RegressionModel(Model):
 
         # TODO: Numerical Optimization uses ||grad_f_k||_inf < 10^-5 (1 + |f_k|) as a stopping criteria
         # Perhaps we should as well (also in MLP, RBF, etc.)
-        self.converged = numpy.linalg.norm(
+        self.converged = self._optimizer.jacobian is not None and numpy.linalg.norm(
             self._optimizer.jacobian) < self._jacobian_norm_break
         return error
 
