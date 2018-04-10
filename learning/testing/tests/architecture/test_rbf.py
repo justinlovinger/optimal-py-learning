@@ -33,6 +33,59 @@ from learning.architecture import rbf
 from learning.testing import helpers
 
 
+def test_RBF_activate_high_distance_scale_by_similarity():
+    """RBF may return nan if sum of similarities == 0 and it scales by similarity."""
+    from learning import SOM
+
+    random.seed(0)
+    numpy.random.seed(0)
+
+    clustering_model = SOM(1, 2, neighborhood=0)
+    clustering_model.logging = False
+    model = model = rbf.RBF(
+        1,
+        2,
+        1,
+        variance=1.0,
+        scale_by_similarity=True,
+        clustering_model=clustering_model)
+    model._pre_train(numpy.array([[0], [1]]), numpy.array([[0], [1]]))
+    assert helpers.approx_equal(model._clustering_model.activate([0]), [0, 1])
+
+    assert not numpy.isnan(model.activate(numpy.array([1000.]))).any()
+    assert helpers.approx_equal(model._similarity_tensor, [0.5, 0.5])
+
+    assert not numpy.isnan(model.activate(numpy.array([[0.], [1000.]]))).any()
+    assert helpers.approx_equal(model._similarity_tensor,
+                                [[0.73105858, 0.26894142], [0.5, 0.5]])
+
+
+def test_RBF_reset():
+    attrs = random.randint(1, 10)
+    neurons = random.randint(1, 10)
+    outs = random.randint(1, 10)
+
+    model = rbf.RBF(attrs, neurons, outs)
+    model_2 = rbf.RBF(attrs, neurons, outs)
+
+    # Resetting different with the same seed should give the same model
+    prev_seed = random.randint(0, 2**32-1)
+
+    try:
+        random.seed(0)
+        numpy.random.seed(0)
+        model.reset()
+
+        random.seed(0)
+        numpy.random.seed(0)
+        model_2.reset()
+
+        assert model.serialize() == model_2.serialize()
+    finally:
+        random.seed(prev_seed)
+        numpy.random.seed(prev_seed)
+
+
 ########################
 # Integration tests
 ########################
@@ -69,6 +122,9 @@ def test_rbf_convergence():
     assert validation.get_error(model, *dataset) <= 0.02
 
 
+########################
+# Derivative
+########################
 def test_rbf_obj_and_obj_jac_match():
     """obj and obj_jac functions should return the same obj value."""
     attrs = random.randint(1, 10)
@@ -111,29 +167,3 @@ def _check_jacobian(make_model_func):
         f_arg_tensor=rbf._flatten_weights(model._weight_matrix,
                                           model._bias_vec),
         f_shape='scalar')
-
-
-def test_RBF_reset():
-    attrs = random.randint(1, 10)
-    neurons = random.randint(1, 10)
-    outs = random.randint(1, 10)
-
-    model = rbf.RBF(attrs, neurons, outs)
-    model_2 = rbf.RBF(attrs, neurons, outs)
-
-    # Resetting different with the same seed should give the same model
-    prev_seed = random.randint(0, 2**32-1)
-
-    try:
-        random.seed(0)
-        numpy.random.seed(0)
-        model.reset()
-
-        random.seed(0)
-        numpy.random.seed(0)
-        model_2.reset()
-
-        assert model.serialize() == model_2.serialize()
-    finally:
-        random.seed(prev_seed)
-        numpy.random.seed(prev_seed)

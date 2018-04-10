@@ -78,6 +78,7 @@ class RBF(Model):
                 move_rate=0.1,
                 neighborhood=2,
                 neighbor_move_rate=1.0)
+            clustering_model.logging = False
         self._clustering_model = clustering_model
 
         # Variance for gaussian
@@ -138,6 +139,10 @@ class RBF(Model):
         if self._scale_by_similarity:
             self._similarity_tensor /= numpy.sum(
                 self._similarity_tensor, axis=-1, keepdims=True)
+
+            # Replace 0. / 0. (nan) with uniform vector
+            self._similarity_tensor[numpy.isnan(self._similarity_tensor)] = (
+                1.0 / self._similarity_tensor.shape[-1])
 
         # Get output by weighted summation of similarities, weighted by weights
         output = numpy.dot(self._similarity_tensor,
