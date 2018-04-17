@@ -27,8 +27,7 @@ import logging
 
 import numpy
 
-from learning.optimize import WolfeLineSearch
-from learning.optimize import IncrPrevStep, FOChangeInitialStep
+from learning.optimize import WolfeLineSearch, FOChangeInitialStep
 
 
 def make_optimizer(num_parameters):
@@ -199,7 +198,7 @@ class BFGS(Optimizer):
                 # Values recommended by Numerical Optimization 2nd, pp. 161
                 c_1=1e-4,
                 c_2=0.9,
-                initial_step_getter=IncrPrevStep())
+                initial_step_getter=FOChangeInitialStep())
         self._step_size_getter = step_size_getter
 
         # NOTE: It is recommended to scale the identiy matrix
@@ -386,7 +385,7 @@ class LBFGS(Optimizer):
                 # Values recommended by Numerical Optimization 2nd, pp. 161
                 c_1=1e-4,
                 c_2=0.9,
-                initial_step_getter=IncrPrevStep())
+                initial_step_getter=FOChangeInitialStep())
         self._step_size_getter = step_size_getter
 
         self._initial_hessian_scalar_func = initial_hessian_scalar_func
