@@ -55,13 +55,13 @@ class MeanSquaredError(ErrorFunc):
 
     def derivative(self, tensor_a, tensor_b):
         """Return (error, derivative tensor)."""
-        error_vec = numpy.subtract(tensor_a, tensor_b)
-        mse = numpy.mean(error_vec**2)  # For returning error
+        error_tensor = numpy.subtract(tensor_a, tensor_b)
+        mse = numpy.mean(error_tensor**2)  # For returning error
 
         # Note that error function is not 0.5*mse, so we multiply by 2
-        error_vec *= (2.0 / reduce(operator.mul, tensor_a.shape))
+        error_tensor *= (2.0 / reduce(operator.mul, tensor_a.shape))
 
-        return mse, error_vec
+        return mse, error_tensor
 
 
 class CrossEntropyError(ErrorFunc):
