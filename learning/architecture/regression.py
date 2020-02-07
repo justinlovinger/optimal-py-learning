@@ -41,6 +41,8 @@ class RegressionModel(Model):
             If onehot vector, this should equal the number of classes.
         optimizer: Instance of learning.optimize.optimizer.Optimizer.
         error_func: Instance of learning.error.ErrorFunc.
+        jacobian_norm_break: Training will end if objective gradient norm
+            is less than this value.
     """
 
     def __init__(self,
@@ -48,7 +50,8 @@ class RegressionModel(Model):
                  num_outputs,
                  optimizer=None,
                  error_func=None,
-                 penalty_func=None):
+                 penalty_func=None,
+                 jacobian_norm_break=1e-10):
         super(RegressionModel, self).__init__()
 
         # Weight matrix, optimized during training
@@ -70,8 +73,13 @@ class RegressionModel(Model):
         # Penalty function for training
         self._penalty_func = penalty_func
 
+        # Convergence criteria
+        self._jacobian_norm_break = jacobian_norm_break
+
     def reset(self):
         """Reset this model."""
+        super(RegressionModel, self).reset()
+
         # Reset the weight matrix
         self._weight_matrix = self._random_weight_matrix(
             self._weight_matrix.shape)
@@ -84,9 +92,9 @@ class RegressionModel(Model):
         # TODO: Random weight matrix should be a function user can pass in
         return (2 * numpy.random.random(shape) - 1) * INITIAL_WEIGHTS_RANGE
 
-    def activate(self, input_vec):
+    def activate(self, input_tensor):
         """Return the model outputs for given inputs."""
-        return self._equation_output(input_vec)
+        return self._equation_output(input_tensor)
 
     # TODO: Refactor, most of these functions are shared between
     # RBF, Regression, and MLP (models using Optimizers)
@@ -109,6 +117,10 @@ class RegressionModel(Model):
             self._weight_matrix.ravel())
         self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
 
+        # TODO: Numerical Optimization uses ||grad_f_k||_inf < 10^-5 (1 + |f_k|) as a stopping criteria
+        # Perhaps we should as well (also in MLP, RBF, etc.)
+        self.converged = self._optimizer.jacobian is not None and numpy.linalg.norm(
+            self._optimizer.jacobian) < self._jacobian_norm_break
         return error
 
     def _post_train(self, input_matrix, target_matrix):
@@ -122,18 +134,26 @@ class RegressionModel(Model):
     ######################################
     # Helper functions for optimizer
     ######################################
-    def _get_obj(self, flat_weights, input_matrix, target_matrix):
-        """Helper function for Optimizer."""
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
+    def _get_obj(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value."""
+        self._weight_matrix = parameter_vec.reshape(self._weight_matrix.shape)
         return self._get_objective_value(input_matrix, target_matrix)
 
+    def _get_obj_jac(self, parameter_vec, input_matrix, target_matrix):
+        """Helper function for Optimizer to get objective value and derivative."""
+        self._weight_matrix = parameter_vec.reshape(self._weight_matrix.shape)
+        error, jacobian = self._get_error_jacobian_with_penalty(
+            input_matrix, target_matrix)
+        return error, jacobian.ravel()
+
+    ######################################
+    # Objective Value
+    ######################################
     def _get_objective_value(self, input_matrix, target_matrix):
         """Return error on given dataset."""
-        error = numpy.mean([
-            self._error_func(self.activate(inp_vec), tar_vec)
-            for inp_vec, tar_vec in zip(input_matrix, target_matrix)
-        ])
+        error = self._error_func(self.activate(input_matrix), target_matrix)
 
+        # Calculate and add weight penalty
         if self._penalty_func is not None:
             # Error is mean of sample errors + weight penalty
             # NOTE: We ravel the weight matrix, to take vector norm
@@ -142,26 +162,14 @@ class RegressionModel(Model):
         return error
 
     ######################################
-    # Differentiation
+    # Objective Derivative
     ######################################
-    # for numerical optimization
-    def _get_obj_jac(self, flat_weights, input_matrix, target_matrix):
-        """Helper function for Optimizer."""
-        self._weight_matrix = flat_weights.reshape(self._weight_matrix.shape)
-        error, jacobian = self._get_jacobian(input_matrix, target_matrix)
-        return error, jacobian.ravel()
-
-    def _get_jacobian(self, input_matrix, target_matrix):
-        """Return jacobian and error for given dataset."""
+    def _get_error_jacobian_with_penalty(self, input_matrix, target_matrix):
+        """Return error and jacobian for given dataset with weight penalty."""
         # Calculate jacobian, given error function
-        errors, jacobians = zip(*[
-            self._get_sample_jacobian(input_vec, target_vec)
-            for input_vec, target_vec in zip(input_matrix, target_matrix)
-        ])
-        error = numpy.mean(errors)
-        jacobian = numpy.mean(jacobians, axis=0)
+        error, jacobian = self._get_error_jacobian(input_matrix, target_matrix)
 
-        # Calculate weight penalty
+        # Calculate weight penalty, and add it to error and jacobian
         if self._penalty_func is not None:
             # NOTE: We ravel the weight matrix, to take vector norm
             flat_weights = self._weight_matrix.ravel()
@@ -176,15 +184,16 @@ class RegressionModel(Model):
 
         return error, jacobian
 
-    def _get_sample_jacobian(self, input_vec, target_vec):
-        """Return jacobian and error for given sample."""
-        output_vec = self.activate(input_vec)
-        if output_vec.shape != target_vec.shape:
+    def _get_error_jacobian(self, input_matrix, target_matrix):
+        """Return error and jacobian for given dataset."""
+        output_matrix = self.activate(input_matrix)
+        if output_matrix.shape != target_matrix.shape:
             raise ValueError(
-                'target_vec.shape does not match output_vec.shape')
+                'target_matrix.shape does not match output_matrix.shape')
 
-        error, error_jac = self._error_func.derivative(output_vec, target_vec)
-        jacobian = self._equation_derivative(input_vec, error_jac)
+        error, error_jac = self._error_func.derivative(output_matrix, target_matrix)
+        jacobian = self._error_equation_derivative(input_matrix, error_jac)
+
         assert reduce(operator.mul, jacobian.shape) == reduce(
             operator.mul, self._weight_matrix.shape)
 
@@ -194,11 +203,11 @@ class RegressionModel(Model):
         """Return shape of this models weight matrix."""
         raise NotImplementedError()
 
-    def _equation_output(self, input_vec):
+    def _equation_output(self, input_tensor):
         """Return the output of this models equation."""
         raise NotImplementedError()
 
-    def _equation_derivative(self, input_vec, error_jac):
+    def _error_equation_derivative(self, input_matrix, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
@@ -214,19 +223,23 @@ class LinearRegressionModel(RegressionModel):
         # +1 for bias term
         return (attributes + 1, num_outputs)
 
-    def _equation_output(self, input_vec):
+    def _equation_output(self, input_tensor):
         """Return the output of this models equation."""
-        # First weight (for each output) is independent of input_vec
-        return self._weight_matrix[0] + numpy.dot(input_vec,
+        # First weight (for each output) is independent of input_tensor
+        return self._weight_matrix[0] + numpy.dot(input_tensor,
                                                   self._weight_matrix[1:])
 
-    def _equation_derivative(self, input_vec, error_jac):
+    def _error_equation_derivative(self, input_matrix, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
         """
-        # Add bias term to input_vec
-        return numpy.hstack(([1], input_vec))[:, None].dot(error_jac[None, :])
+        return numpy.vstack((
+            # Bias
+            numpy.sum(error_jac, axis=0),
+            # Weight matrix
+            input_matrix.T.dot(error_jac)
+        ))
 
 
 # TODO: Logistic regression is expected to be paried with a specific
@@ -247,26 +260,31 @@ class LogisticRegressionModel(RegressionModel):
         # +1 for bias term
         return (attributes + 1, num_outputs)
 
-    def _equation_output(self, input_vec):
+    def _equation_output(self, input_tensor):
         """Return the output of this models equation."""
         # Logistic regression is simply lienar regression passed through
         # a logit function
-        # First weight (for each output) is independent of input_vec
+        # First weight (for each output) is independent of input_tensor
         return calculate.logit(self._weight_matrix[0] + numpy.dot(
-            input_vec, self._weight_matrix[1:]))
+            input_tensor, self._weight_matrix[1:]))
 
-    def _equation_derivative(self, input_vec, error_jac):
+    def _error_equation_derivative(self, input_matrix, error_jac):
         """Return the jacobian of this models equation corresponding to the given error.
 
         Derivative with regard to weights.
         """
-        # Add bias term to input_vec
-        bias_vec = numpy.hstack(([1], input_vec))
+        # f = _equation_output
+        # e = error_func
+        # b = bias_vector
+        # W = weight_matrix
+        # X = input_matrix
+        equation_derivative_times_error_jac = calculate.dlogit(
+            self._weight_matrix[0] + numpy.dot(
+                input_matrix, self._weight_matrix[1:])) * error_jac
 
-        # For a given output o
-        # Simply, w * dlogic_o * error_func_o
-        # Shaped to efficiently multiply all weights,
-        # with corresponding outputs
-        return bias_vec[:, None].dot(
-            (calculate.dlogit(bias_vec.dot(self._weight_matrix)) *
-             error_jac)[None, :])
+        return numpy.vstack((
+            # Bias: de(f)/db = (d/db b)^T f'(X W + b) e'(f(X W + b)),
+            # where d/db b = vector of ones
+            numpy.sum(equation_derivative_times_error_jac, axis=0),
+            # Weight matrix: de(f)/dW = X^T f'(X W + b) e'(f(X W + b))
+            input_matrix.T.dot(equation_derivative_times_error_jac)))

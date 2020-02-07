@@ -39,6 +39,8 @@ class Bagger(Ensemble):
     requires_prev = (None, )
 
     def reset(self):
+        super(Bagger, self).reset()
+
         for network in self._networks:
             network.reset()
 

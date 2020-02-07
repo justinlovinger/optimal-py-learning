@@ -25,6 +25,7 @@
 import copy
 import collections
 import random
+import operator
 
 import numpy
 
@@ -34,9 +35,6 @@ from learning.architecture import pbnn
 
 class EmptyModel(Model):
     def activate(self, inputs):
-        pass
-
-    def reset(self):
         pass
 
     def _train_increment(self, input_vec, target_vec):
@@ -103,6 +101,8 @@ class WeightedSumModel(Model):
         self._stored_targets = None
 
     def reset(self):
+        super(WeightedSumModel, self).reset()
+
         self._stored_targets = None
 
     def activate(self, inputs):
@@ -123,7 +123,13 @@ def approx_equal(a, b, tol=0.001):
     if isinstance(b, numpy.ndarray):
         b = list(b)
 
+    if isinstance(b, (list, tuple)) and not isinstance(a, (list, tuple)):
+        return False
+
     if isinstance(a, (list, tuple)):
+        if not isinstance(b, (list, tuple)):
+            return False
+
         # Check that each element is approx equal
         if len(a) != len(b):
             return False
@@ -224,58 +230,100 @@ FORWARD_DIFF_EPSILON = IEEE_DOUBLE_ERROR**0.5  # sqrt(u)
 CENTRAL_DIFF_EPSILON = IEEE_DOUBLE_ERROR**(1. / 3) # cube_root(u)
 
 
-def check_gradient(f, df, inputs=None, epsilon=CENTRAL_DIFF_EPSILON, f_shape='scalar'):
-    if inputs is None:
-        inputs = numpy.random.rand(random.randint(2, 10))
+def check_gradient(f, df, f_arg_tensor=None, epsilon=CENTRAL_DIFF_EPSILON, f_shape='scalar'):
+    if f_arg_tensor is None:
+        f_arg_tensor = numpy.random.rand(random.randint(2, 10))
 
     if f_shape == 'scalar':
         approx_func = _approximate_gradient_scalar
-    elif f_shape == 'lin':
+    elif f_shape == 'lin':  # TODO: Change to diag
         approx_func = _approximate_gradient_lin
     elif f_shape == 'jac':
         approx_func = _approximate_gradient_jac
+    elif f_shape == 'jac-stack':
+        approx_func = _approximate_gradient_jac_stack
     else:
         raise ValueError(
             "Invalid f_shape. Must be one of ('scalar', 'lin', 'jac').")
 
     try:
         assert approx_equal(
-            df(inputs), approx_func(f, inputs, epsilon), tol=epsilon)
+            df(f_arg_tensor),
+            approx_func(f, f_arg_tensor, epsilon),
+            tol=10 * epsilon)
     except AssertionError:
+        actual = df(f_arg_tensor)
+        expected = approx_func(f, f_arg_tensor, epsilon)
         print 'Actual Gradient:'
-        print df(inputs)
+        print actual
         print 'Expected Gradient:'
-        print approx_func(f, inputs, epsilon)
+        print expected
+        if actual.shape != expected.shape:
+            print 'Actual shape %s != expected shape %s' % (
+                actual.shape, expected.shape)
         raise
 
 
 def _approximate_gradient_scalar(f, x, epsilon):
-    return numpy.array(
-        [_approximate_ith(i, f, x, epsilon) for i in range(x.shape[0])])
+    return numpy.array([
+        _approximate_ith(i, f, x, epsilon)
+        for i in range(reduce(operator.mul, x.shape))
+    ]).reshape(x.shape)
 
 
 def _approximate_gradient_lin(f, x, epsilon):
-    return numpy.array(
-        [_approximate_ith(i, f, x, epsilon)[i] for i in range(x.shape[0])])
+    return numpy.array([
+        _approximate_ith(i, f, x, epsilon).ravel()[i]
+        for i in range(reduce(operator.mul, x.shape))
+    ]).reshape(x.shape)
 
 
 def _approximate_ith(i, f, x, epsilon):
-    x_plus_i = x.copy()
+    # Ravel in case x is not a vector
+    x_plus_i = x.copy().ravel()
     x_plus_i[i] += epsilon
-    x_minus_i = x.copy()
+    x_plus_i = x_plus_i.reshape(x.shape)
+
+    x_minus_i = x.copy().ravel()
     x_minus_i[i] -= epsilon
+    x_minus_i = x_minus_i.reshape(x.shape)
+
     return (f(x_plus_i) - f(x_minus_i)) / (2 * epsilon)
 
 
+def _approximate_gradient_jac_stack(f, x, epsilon):
+    """Return stack of Jacobians between each row of x and f(x)."""
+    if len(x.shape) != 2 or len(f(x).shape) != 2:
+        raise ValueError('Approximate Jacobian stack only defined for matrix input and output.')
+
+    jacobian = _approximate_gradient_jac(f, x, epsilon)
+    # Grab only the i^th second row of each row
+    # When each row of x is independent, the off second rows will be 0s
+    return numpy.array([jacobian[i, :, i, :] for i in range(x.shape[0])])
+
+
 def _approximate_gradient_jac(f, x, epsilon):
-    # Jocobian has inputs on cols and outputs on rows
-    jacobian = numpy.zeros((f(x).shape[0], x.shape[0]))
-    for j in range(f(x).shape[0]):
-        for i in range(x.shape[0]):
-            x_plus_i = x.copy()
+    fx_shape = f(x).shape
+    outs = reduce(operator.mul, fx_shape)
+
+    # Jacobian has inputs on cols and outputs on rows
+    jacobian = numpy.zeros((outs, reduce(operator.mul, x.shape)))
+    for j in range(outs):
+        for i in range(reduce(operator.mul, x.shape)):
+            # Ravel in case x is not a vector
+            x_plus_i = x.copy().ravel()
             x_plus_i[i] += epsilon
-            x_minus_i = x.copy()
+            x_plus_i = x_plus_i.reshape(x.shape)
+
+            x_minus_i = x.copy().ravel()
             x_minus_i[i] -= epsilon
-            jacobian[j, i] = (f(x_plus_i)[j] - f(x_minus_i)[j]) / (
+            x_minus_i = x_minus_i.reshape(x.shape)
+
+            jacobian[j, i] = (f(x_plus_i).ravel()[j] - f(x_minus_i).ravel()[j]) / (
                 2.0 * epsilon)
-    return jacobian
+    return jacobian.reshape(fx_shape + x.shape)
+
+
+# TODO: Add random tensor function that makes a random tensor of given shape (with negative and posative values),
+# and use that instead of numpy.random.random.
+# Because numpy.random.random only gives values in the range [0, 1]

@@ -23,82 +23,97 @@
 ###############################################################################
 """Error functions for use with some models."""
 
+import operator
+
 import numpy
 
 
 class ErrorFunc(object):
     """An error function."""
 
-    def __call__(self, vec_a, vec_b):
-        """Return the error between two vectors.
+    def __call__(self, tensor_a, tensor_b):
+        """Return the error between two tensors.
 
-        Typically, vec_a with be a model output, and vec_b a target vector.
+        Typically, tensor_a is a model output, and tensor_b is a target tensor.
         """
         raise NotImplementedError()
 
-    def derivative(self, vec_a, vec_b):
-        """Return (error, derivative matrix or vector)."""
+    def derivative(self, tensor_a, tensor_b):
+        """Return (error, derivative tensor)."""
         raise NotImplementedError()
 
 
 class MeanSquaredError(ErrorFunc):
-    """Mean squared error (MSE), defined by mean((vec_a - vec_b)^2)."""
+    """Mean squared error (MSE), defined by mean((tensor_a - tensor_b)^2)."""
 
-    def __call__(self, vec_a, vec_b):
-        """Return the error between two vectors.
+    def __call__(self, tensor_a, tensor_b):
+        """Return the error between two tensors.
 
-        Typically, vec_a with be a model output, and vec_b a target vector.
+        Typically, tensor_a is a model output, and tensor_b is a target tensor.
         """
-        return numpy.mean((numpy.subtract(vec_a, vec_b))**2)
+        return numpy.mean((numpy.subtract(tensor_a, tensor_b))**2)
 
-    def derivative(self, vec_a, vec_b):
-        """Return error, derivative_matrix."""
-        error_vec = numpy.subtract(vec_a, vec_b)
-        mse = numpy.mean(error_vec**2)  # For returning error
+    def derivative(self, tensor_a, tensor_b):
+        """Return (error, derivative tensor)."""
+        error_tensor = numpy.subtract(tensor_a, tensor_b)
+        mse = numpy.mean(error_tensor**2)  # For returning error
 
         # Note that error function is not 0.5*mse, so we multiply by 2
-        error_vec *= (2.0 / len(vec_b))
+        error_tensor *= (2.0 / reduce(operator.mul, tensor_a.shape))
 
-        return mse, error_vec
+        return mse, error_tensor
 
 
 class CrossEntropyError(ErrorFunc):
-    """Cross entropy error, defined by -mean(log(vec_a) * vec_b).
+    """Cross entropy error, defined by -mean(log(tensor_a) * tensor_b).
 
     Note that this error function is not symmetric.
-    vec_a is expected to be the predicted vector,
-    while vec_b is the reference vector.
+    tensor_a is expected to be the predicted tensor,
+    while tensor_b is the reference tensor.
+
+    Cross entropy error is typically used for classification problems,
+    where tensor_b is a one-hot vector, or matrix of one-hot vectors.
+    Likewise, tensor_a should be constrained to [0, 1], otherwise
+    an error may be thrown (negative element) or error may be < 0 (> 1 element).
     """
 
-    def __call__(self, vec_a, vec_b):
-        """Return the error between two vectors.
+    def __call__(self, tensor_a, tensor_b):
+        """Return the error between two tensors.
 
-        Typically, vec_a with be a model output, and vec_b a target vector.
+        Typically, tensor_a is a model output, and tensor_b is a target tensor.
 
-        log(0) in vec_a is changed to very negative value, to keep the spirit
+        log(0) in tensor_a is changed to very negative value, to keep the spirit
         of cross entropy, while avoiding numerical errors.
         """
-        # Use mean instead of sum, so magnitude is independent of length of vectors
+        # Log tensor_a, allowing for log(0)
         with numpy.errstate(
                 invalid='raise', divide='ignore'):  # Do not allow log(-)
-            log_a = numpy.log(vec_a)
+            log_a = numpy.log(tensor_a)
         # Change -inf (from log(0)) to -1.79769313e+308
         log_a = numpy.nan_to_num(log_a)
-        return -numpy.mean(log_a * vec_b)
 
-    def derivative(self, vec_a, vec_b):
-        """Return error, derivative_matrix."""
-        # NOTE: If CE uses sum instead of mean, this would be -(vec_b / vec_a)
+        # If matrix, sum elements corresponding to each pattern,
+        # and mean sums corresponding to patterns.
+        # If vector, just sum
+        # TODO: Fix inf when tensor_a has 0s where tensor_b has 1s
+        return -numpy.mean(numpy.sum(log_a * tensor_b, axis=-1))
 
+    def derivative(self, tensor_a, tensor_b):
+        """Return (error, derivative tensor)."""
         # Ignore 0/0 (handled in next line), warn for (x/0),
         # because this is less likely in practice, and may indicate a problem
         with numpy.errstate(invalid='ignore', divide='warn'):
-            vec_b_div_vec_a = vec_b / vec_a
+            tensor_b_div_tensor_a = tensor_b / tensor_a
 
         # Change nan (0/0) to 0, and inf (x/0) to 1.79769313e+308
-        vec_b_div_vec_a = numpy.nan_to_num(vec_b_div_vec_a)
+        tensor_b_div_tensor_a = numpy.nan_to_num(tensor_b_div_tensor_a)
 
-        return self(vec_a, vec_b), vec_b_div_vec_a / (-len(vec_b))
+        error = self(tensor_a, tensor_b)
+        if len(tensor_a.shape) == 1:  # Vector
+            return error, -tensor_b_div_tensor_a
+        else:  # Matrix or tensor
+            return error, tensor_b_div_tensor_a / (
+                -reduce(operator.mul, tensor_a.shape[:-1]))
 
 
 #############################
@@ -145,12 +160,14 @@ class PenaltyFunc(object):
         raise NotImplementedError
 
 
+# TODO: Test and document if these norms function the same for
+# vectors and other tensors (because norms are defined differently for
+# tensors, but we want vector norms)
 class L1Penalty(PenaltyFunc):
     """Penalize weights by ||W||_1.
 
     Also known as Lasso.
     """
-
     def _penalty(self, weight_tensor):
         """Return penalty of given weight tensor."""
         return numpy.linalg.norm(weight_tensor, ord=1)

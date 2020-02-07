@@ -53,16 +53,38 @@ class SOM(Model):
 
     def reset(self):
         """Reset this model."""
+        super(SOM, self).reset()
+
         # Randomize weights, between -1 and 1
         self._weights = (2 * numpy.random.random(self._size) - 1
                          ) * self.initial_weights_range
         self._distances = numpy.zeros(self._size)
 
-    def activate(self, inputs):
-        """Return the model outputs for given inputs."""
-        diffs = inputs - self._weights
-        self._distances = [numpy.sqrt(d.dot(d)) for d in diffs]
-        return numpy.array(self._distances)
+    def activate(self, input_tensor):
+        """Return the model outputs for given input_tensor."""
+        if not isinstance(input_tensor, numpy.ndarray):
+            input_tensor = numpy.array(input_tensor)
+
+        if len(input_tensor.shape) == 1:
+            diff_matrix = input_tensor - self._weights
+            # Dot each row of diffs with itself (a.k.a. numpy.sum(diffs**2, axis=-1))
+            # Then sqrt result
+            self._distances = numpy.sqrt(
+                numpy.einsum('ij,ij->i', diff_matrix, diff_matrix))
+        elif len(input_tensor.shape) == 2:
+            # Reshape input_tensor to obtain the difference between
+            # each row of input_tensor and self._weights
+            diff_tensor = input_tensor.reshape(input_tensor.shape[0], 1,
+                                         input_tensor.shape[1]) - self._weights
+            # Dot each row of diffs with itself (a.k.a. numpy.sum(diffs**2, axis=-1))
+            # Then sqrt result
+            # For each difference matrix in diff_tensor
+            self._distances = numpy.sqrt(
+                numpy.einsum('ijk,ijk->ij', diff_tensor, diff_tensor))
+        else:
+            raise ValueError('Invalid shape of input_tensor.')
+
+        return self._distances
 
     def _train_increment(self, input_vec, target_vec):
         """Train on a single input, target pair.
@@ -70,12 +92,15 @@ class SOM(Model):
         Optional.
         Model must either override train_step or implement _train_increment.
         """
+        # TODO (maybe): Train on bath of input_matrix target_matrix,
+        # instead of one vector at a time.
+        # This will change the behavior of training, but will be more efficient.
         self.activate(input_vec)
         self._move_neurons(input_vec)
 
     def _move_neurons(self, input_vec):
         # Perform a competition, and move the winner closer to the input
-        closest = self._get_closest()
+        closest = numpy.argmin(self._distances)
 
         # Move the winner and neighbors closer
         # The further the neighbor, the less it should move
@@ -88,10 +113,3 @@ class SOM(Model):
                 final_rate = move_rate_modifier * self.move_rate
 
                 self._weights[i] += final_rate * (input_vec - self._weights[i])
-
-    def _get_closest(self):
-        return _min_index(self._distances)
-
-
-def _min_index(values):
-    return min(enumerate(values), key=operator.itemgetter(1))[0]
