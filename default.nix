@@ -18,7 +18,7 @@ pkgs.python2Packages.buildPythonPackage {
   meta = with pkgs.stdenv.lib; {
     description = "A python machine learning library, with powerful customization for advanced users, and robust default options for quick implementation.";
     homepage = https://github.com/justinlovinger/learning;
-    license = licences.mit;
+    license = licenses.mit;
     maintainers = [ ];
   };
 }
