@@ -1,4 +1,3 @@
-/result
-
-# Python compiled files
 *.pyc
+/*.egg-info
+/result
