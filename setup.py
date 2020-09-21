@@ -15,7 +15,7 @@ except (ImportError, OSError, IOError):
 setup(
     name='learning',
     version='0.1.0',
-    packages=['learning', 'learning.architecture', 'learning.data', 'learning.optimize'],
+    packages=['learning', 'learning.architecture', 'learning.data', 'learning.optimize', 'learning.testing'],
     # Include examples and datasets
     package_data={'learning': ['examples/*.py', 'data/datasets/*.data']},
     # Dependencies
