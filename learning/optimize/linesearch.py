@@ -209,7 +209,7 @@ def _backtracking_line_search(parameters,
             # Failsafe for numerical precision errors preventing _armijo_rule returning True
             # This can happen if gradient provides very little improvement
             # (or is in the wrong direction)
-            logging.warning(
+            logging.info(
                 '_backtracking_line_search failed Armijo with step_size ~= 1e-25, returning'
             )
             return step_size
@@ -268,7 +268,7 @@ def _line_search_wolfe(parameters, obj_xk, jac_xk, step_dir, obj_jac_func, c_1,
             # Failsafe for numerical precision errors preventing convergence
             # This can happen if gradient provides very little improvement
             # (or is in the wrong direction)
-            logging.warning('Wolfe line search aborting after 100 iterations')
+            logging.info('Wolfe line search aborting after 100 iterations')
             return step_size
 
         # Evaluate objective and jacobian for most recent step size
@@ -347,7 +347,7 @@ def _zoom_wolfe(step_size_low, step_size_low_obj, step_size_high, parameters,
             # Failsafe for numerical precision errors preventing convergence
             # This can happen if gradient provides very little improvement
             # (or is in the wrong direction)
-            logging.warning(
+            logging.info(
                 'Wolfe line search (zoom) aborting after 100 iterations')
             return step_size
 
