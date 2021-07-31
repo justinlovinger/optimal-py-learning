@@ -44,11 +44,11 @@ def test_validate_network(monkeypatch):
     model = helpers.WeightedSumModel()
 
     assert (helpers.fix_numpy_array_equality(
-        validation._validate_model(
+        _drop_model_stat(validation._validate_model(
             model, (numpy.array([[1], [1]]), numpy.array([[0], [1]])), (
                 numpy.array([[1]]), numpy.array([[2]])),
             iterations=0,
-            _classification=True)) == helpers.fix_numpy_array_equality({
+            _classification=True))) == helpers.fix_numpy_array_equality({
                 'time':
                 0.0,
                 'epochs':
@@ -70,21 +70,21 @@ def test_validate_network(monkeypatch):
     # Make network that returns set output for a given input
     # Simpler, always 0 training error
     model = helpers.RememberPatternsModel()
-    assert (validation._validate_model(
+    assert (_drop_model_stat(validation._validate_model(
         model, (numpy.array([[1]]), numpy.array([[1]])),
         (numpy.array([[1]]), numpy.array([[1.5]])),
         iterations=0,
-        _classification=False) == {
+        _classification=False)) == {
             'time': 0.0,
             'epochs': 0,
             'training_error': 0.0,
             'testing_error': 0.25
         })
-    assert (validation._validate_model(
+    assert (_drop_model_stat(validation._validate_model(
         model, (numpy.array([[0]]), numpy.array([[0]])),
         (numpy.array([[0]]), numpy.array([[2.0]])),
         iterations=0,
-        _classification=False) == {
+        _classification=False)) == {
             'time': 0.0,
             'epochs': 0,
             'training_error': 0.0,
@@ -115,7 +115,7 @@ def test_cross_validate(monkeypatch):
         post_pattern_callback=post_pattern_callback)
 
     # Check
-    assert (helpers.fix_numpy_array_equality(stats) ==
+    assert (helpers.fix_numpy_array_equality(_drop_folds_model_stat(stats)) ==
             helpers.fix_numpy_array_equality(_CROSS_VALIDATION_STATS))
     assert training_patterns == [
         # First fold
@@ -157,7 +157,7 @@ def test_benchmark(monkeypatch):
         post_pattern_callback=post_pattern_callback)
 
     # Check
-    assert (helpers.fix_numpy_array_equality(stats) ==
+    assert (helpers.fix_numpy_array_equality(_drop_runs_model_stat(stats)) ==
             helpers.fix_numpy_array_equality(_BENCHMARK_STATS))
     assert training_patterns == [
         # First fold
@@ -202,9 +202,27 @@ def test_compare(monkeypatch):
         all_kwargs={'iterations': 1})
 
     # Check
-    assert (helpers.fix_numpy_array_equality(stats) ==
+    assert (helpers.fix_numpy_array_equality(_drop_models_model_stat(stats)) ==
             helpers.fix_numpy_array_equality(_COMPARE_STATS))
 
+def _drop_models_model_stat(stats):
+    for model in stats['models'].itervalues():
+        _drop_runs_model_stat(model)
+    return stats
+
+def _drop_runs_model_stat(stats):
+    for run in stats['runs']:
+        _drop_folds_model_stat(run)
+    return stats
+
+def _drop_folds_model_stat(stats):
+    for fold in stats['folds']:
+        _drop_model_stat(fold)
+    return stats
+
+def _drop_model_stat(stats):
+    del stats['model']
+    return stats
 
 _VALIDATION_STATS = {
     'time': 0.0,
@@ -266,8 +284,10 @@ _BENCHMARK_STATS = {
 }
 
 _COMPARE_STATS = {
-    'model': _BENCHMARK_STATS,
-    'model2': _BENCHMARK_STATS,
+    'models': {
+        'model': _BENCHMARK_STATS,
+        'model2': _BENCHMARK_STATS,
+    },
     'mean_of_means': {
         'time': 0.0,
         'epochs': 1,

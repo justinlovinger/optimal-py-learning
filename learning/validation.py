@@ -62,14 +62,14 @@ def compare(names, models, datasets, num_folds=3, num_runs=30, all_kwargs={}):
     elif not isinstance(all_kwargs, collections.Iterable):
         raise TypeError('all_kwargs must be dict or list of dict')
 
-    stats = {}
+    stats = { 'models': {} }
     for (name, model, dataset, kwargs) in zip(names, models, datasets,
                                               all_kwargs):
-        stats[name] = benchmark(
+        stats['models'][name] = benchmark(
             model, dataset, num_folds=num_folds, num_runs=num_runs, **kwargs)
 
     # Calculate meta stats
-    means = [results['mean_of_means'] for results in stats.itervalues()]
+    means = [results['mean_of_means'] for results in stats['models'].itervalues()]
 
     # TODO: calculate means and sds from all folds, instead of means of folds
     mean_of_means = _mean_of_dicts(means)
@@ -223,6 +223,8 @@ def _validate_model(model,
                                                   all_expected_testing)
         stats['testing_confusion_matrix'] = _get_confusion_matrix(
             all_actual_testing, all_expected_testing, num_classes)
+
+    stats['model'] = model
 
     return stats
 
